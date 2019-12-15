@@ -1,4 +1,6 @@
-#include <mhc.hpp>
+#include "mhc.hpp"
+
+using namespace clustering;
 
 void data_t::add(const float* point)
 {
@@ -20,11 +22,11 @@ float data_t::distance(const float* point) const
     return res;
 }
 
-mhc_serial::assgn_t mhc_serial::nearest_cluster(const float* point, const std::vector<data_t>& centroids)
+asgn_t mhc_serial::nearest_cluster(const float* point, const std::vector<data_t>& centroids)
 {
     auto minDist = centroids[0].distance(point);
-    assgn_t nearest = 0;
-    for (assgn_t i = 1; i < centroids.size(); ++i) {
+    asgn_t nearest = 0;
+    for (asgn_t i = 1; i < centroids.size(); ++i) {
         auto dist = centroids[i].distance(point);
         if (dist < minDist) {
             minDist = dist;
@@ -35,26 +37,26 @@ mhc_serial::assgn_t mhc_serial::nearest_cluster(const float* point, const std::v
     return nearest;
 }
 
-std::vector<mhc_serial::assgn_t> mhc_serial::kmeans()
+std::vector<asgn_t> mhc_serial::kmeans()
 {
     // Prepare for the first iteration
     std::vector<data_t> centroids;
-    std::vector<assgn_t> assignments;
+    std::vector<asgn_t> assignments;
 
     std::vector<data_t> sums;
     std::vector<size_t> counts;
 
     centroids.resize(clusters_);
-    assignments.resize(data_size_);
+    assignments.resize(points_size);
     
     sums.resize(clusters_);
     counts.resize(clusters_);
 
     for (size_t i = 0; i < clusters_; ++i)
-        centroids[i].data.assign(data_ + i * data_dim_, data_ + (i + 1) * data_dim_);
+        centroids[i].data.assign(points + i * point_dim, points + (i + 1) * point_dim);
 
     for (size_t i = 0; i < clusters_; ++i)
-        sums[i].data.reserve(data_dim_);
+        sums[i].data.reserve(point_dim);
 
     // Run the k-means refinements
     for (size_t k = 0; k < iters_; ++k)
@@ -66,15 +68,15 @@ std::vector<mhc_serial::assgn_t> mhc_serial::kmeans()
             counts[i] = 0;
         }
         
-        for (std::size_t i = 0; i < data_size_ * data_dim_; i += data_dim_) 
+        for (std::size_t i = 0; i < points_size * point_dim; i += point_dim) 
         {
-            auto nearest = nearest_cluster(data_ + i, centroids);
+            auto nearest = nearest_cluster(points + i, centroids);
             assignments[i] = nearest;
-            sums[nearest].add(data_ + i);
+            sums[nearest].add(points + i);
             ++counts[nearest];
         }
 
-        for (std::size_t i = 0; i < data_size_; ++i) 
+        for (std::size_t i = 0; i < points_size; ++i) 
         {
             if (counts[i] == 0) continue;	// If the cluster is empty, keep its previous centroid.
             sums[i].divide(counts[i]);

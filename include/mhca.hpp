@@ -16,11 +16,11 @@ protected:
     size_t point_dim;
 
 public:
-    virtual void initialize(const T* points, size_t points_size, size_t point_dim)
+    virtual void initialize(const T* data_points, size_t data_points_size, size_t data_point_dim)
     {
-        this->points = points;
-        this->points_size = points_size;
-        this->point_dim = dim;
+        this->points = data_points;
+        this->points_size = data_points_size;
+        this->point_dim = data_point_dim;
     }
 
     virtual const asgn_t* iterate() = 0;
