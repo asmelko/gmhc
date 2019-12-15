@@ -1,6 +1,13 @@
+#generated files
 *.i
 *.ii
 *.gpu
 *.ptx
 *.cubin
 *.fatbin
+
+#vscode folder
+.vscode/
+
+#build folder
+build/
