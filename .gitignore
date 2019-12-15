@@ -1,3 +1,4 @@
+#generated files
 *.i
 *.ii
 *.gpu
@@ -5,5 +6,8 @@
 *.cubin
 *.fatbin
 
-#vscode files
+#vscode folder
 .vscode/
+
+#build folder
+build/
