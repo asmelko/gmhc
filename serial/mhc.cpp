@@ -1,5 +1,8 @@
 #include "mhc.hpp"
 
+#include <cblas.h>
+#include <lapacke.h>
+
 using namespace clustering;
 
 void data_t::add(const float* point)
@@ -37,7 +40,7 @@ asgn_t mhc_serial::nearest_cluster(const float* point, const std::vector<data_t>
     return nearest;
 }
 
-std::vector<asgn_t> mhc_serial::kmeans()
+std::pair<std::vector<asgn_t>,std::vector<data_t>> mhc_serial::kmeans()
 {
     // Prepare for the first iteration
     std::vector<data_t> centroids;
@@ -84,5 +87,14 @@ std::vector<asgn_t> mhc_serial::kmeans()
         }
     }
 
-    return assignments;
+    return std::make_pair(std::move(assignments), std::move(centroids));
+}
+
+const asgn_t* mhc_serial::iterate()
+{
+    auto [assignments, cetroids] = kmeans();
+
+    
+
+    return nullptr;
 }

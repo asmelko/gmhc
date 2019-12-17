@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <vector>
+#include <utility>
 
 #include <mhca.hpp>
 
@@ -22,13 +23,15 @@ struct data_t
 
 class mhc_serial : public hierarchical_clustering<float>
 {
+public:
+    virtual const asgn_t* iterate() override;
 private:
     static constexpr size_t clusters_ = 1024;
     static constexpr size_t iters_ = 1000;
 
     static asgn_t nearest_cluster(const float* point, const std::vector<data_t>& centroids);
 
-    std::vector<asgn_t> kmeans();
+    std::pair<std::vector<asgn_t>,std::vector<data_t>> kmeans();
 };
 
 }

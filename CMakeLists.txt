@@ -1,12 +1,16 @@
-cmake_minimum_required(VERSION 3.0.0)
-project(gmhc CXX)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.0.0)
+PROJECT(gmhc CXX)
 
-SET (CMAKE_CXX_STANDARD 17)
+SET(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -wd4514 -wd5045")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
-include_directories(include)
+IF(MSVC)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -wd4514 -wd5045")
+ENDIF()
 
-add_executable(gmhc main.cpp)
+INCLUDE_DIRECTORIES(include)
 
-add_subdirectory(serial)
+ADD_EXECUTABLE(gmhc main.cpp)
+
+ADD_SUBDIRECTORY(serial)
