@@ -1,11 +1,11 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
 
-ADD_LIBRARY(serial mhc.cpp)
+ADD_LIBRARY(serial smhc.cpp kmeans.cpp)
 
 IF(MSVC)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -wd4710")
     SET(CMAKE_LIBRARY_PATH "${CMAKE_LIBRARY_PATH};C:\\Libraries\\bin")
-    INCLUDE_DIRECTORIES("C:\\Libraries\\include")
+    TARGET_INCLUDE_DIRECTORIES(serial PUBLIC "C:\\Libraries\\include")
     FIND_LIBRARY(BLAS libopenblas.lib)
     FIND_LIBRARY(LAPACK LAPACK.lib)
     SET(BLAS_LAPACK_LIBS "${BLAS} ${LAPACK}")

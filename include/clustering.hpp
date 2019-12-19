@@ -5,10 +5,8 @@
 
 namespace clustering {
 
-using asgn_t = uint32_t;
-
 template <typename T>
-class hierarchical_clustering
+class clustering_base
 {
 protected:
     const T* points;
@@ -22,7 +20,14 @@ public:
         this->points_size = data_points_size;
         this->point_dim = data_point_dim;
     }
+};
 
+using asgn_t = uint32_t;
+
+template <typename T>
+class hierarchical_clustering : public clustering_base<T>
+{
+public:
     virtual const asgn_t* iterate() = 0;
 
     virtual void free() = 0;
