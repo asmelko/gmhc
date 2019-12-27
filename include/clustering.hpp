@@ -2,6 +2,7 @@
 #define MHCA_H
 
 #include <cstdint>
+#include <cstddef>
 
 namespace clustering {
 
