@@ -9,5 +9,8 @@
 #vscode folder
 .vscode/
 
+#vs folder
+.vs/
+
 #build folder
 build/
