@@ -14,12 +14,22 @@ void smhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	kmeans_.initialize(points, points_size, point_dim);
 }
 
-const asgn_t* smhc::iterate()
+std::vector<pasgn_t> smhc::run()
 {
 	auto [assignments, cetroids] = kmeans_.run();
 
 	
 
 
-	return nullptr;
+	return {};
+}
+
+void smhc::free()
+{
+
+}
+
+smhc::matrix_t smhc::create_covariance_matrix(const asgn_t* assignments, const asgn_t cluster)
+{
+	return matrix_t();
 }
