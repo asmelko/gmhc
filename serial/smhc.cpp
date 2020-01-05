@@ -2,6 +2,9 @@
 
 #include <cblas.h>
 #include <lapacke.h>
+#include <stdexcept>
+
+#define LACH(x) if(x) throw std::runtime_error("LAPACK error")
 
 using namespace clustering;
 
@@ -44,9 +47,11 @@ void smhc::point_subtract(const float* point, float scalar, float* dest)
 
 smhc::matrix_t smhc::create_inverse_covariance_matrix(const asgn_t* assignments, const asgn_t cluster)
 {
+	int dim = (int)point_dim; //to get rid of warnings
+
 	matrix_t icov;
 	icov.resize(point_dim * point_dim);
-	cblas_sscal(point_dim * point_dim, 0, icov.data(), 1); //zero out
+	cblas_sscal(dim * dim, 0, icov.data(), 1); //zero out
 
 	for (size_t i = 0; i < points_size; ++i)
 	{
@@ -58,16 +63,16 @@ smhc::matrix_t smhc::create_inverse_covariance_matrix(const asgn_t* assignments,
 
 		point_subtract(points + i, point_mean(points + i), tmp.data());
 
-		cblas_ssyr(CblasRowMajor, CblasUpper, point_dim, 1, tmp.data(), 1, icov.data(), point_dim);
+		cblas_ssyr(CblasRowMajor, CblasUpper, dim, 1, tmp.data(), 1, icov.data(), dim);
 	}
 
-	cblas_sscal(point_dim* point_dim, 1 / (float)point_dim, icov.data(), 1); //scale
+	cblas_sscal(dim * dim, 1 / (float)dim, icov.data(), 1); //scale
 
 	std::vector<int> piv;
 	piv.resize(point_dim);
 
-	LAPACKE_ssytrf(LAPACK_ROW_MAJOR, 'U', point_dim, icov.data(), point_dim, piv.data()); //factorization
-	LAPACKE_ssytri(LAPACK_ROW_MAJOR, 'U', point_dim, icov.data(), point_dim, piv.data()); //inversion
+	LACH(LAPACKE_ssytrf(LAPACK_ROW_MAJOR, 'U', dim, icov.data(), dim, piv.data())); //factorization
+	LACH(LAPACKE_ssytri(LAPACK_ROW_MAJOR, 'U', dim, icov.data(), dim, piv.data())); //inversion
 
 	return icov;
 }
