@@ -23,6 +23,8 @@ public:
 		this->points_size = data_points_size;
 		this->point_dim = data_point_dim;
 	}
+
+	virtual ~clustering_base() = default;
 };
 
 using asgn_t = uint32_t;

@@ -21,7 +21,29 @@ std::vector<pasgn_t> smhc::run()
 {
 	auto [assignments, cetroids] = kmeans_.run();
 
-	
+	std::vector<matrix_t> inverses;
+
+	for (asgn_t i = 0; i < 1024; ++i)
+		inverses.emplace_back(
+			create_inverse_covariance_matrix(assignments.data(), i)
+		);
+
+	float min_dist = -1.0f;
+	pasgn_t min_pair;
+
+	for (asgn_t i = 0; i < 1024; ++i)
+	{
+		for (asgn_t j = 0; j < 1024; ++j)
+		{
+			float tmp = mahalanobis_distance(i, j);
+
+			if (min_dist == -1 || tmp < min_dist)
+			{
+				min_dist = tmp;
+				min_pair = std::make_pair(i, j);
+			};
+		}
+	}
 
 
 	return {};
@@ -75,4 +97,27 @@ smhc::matrix_t smhc::create_inverse_covariance_matrix(const asgn_t* assignments,
 	LACH(LAPACKE_ssytri(LAPACK_ROW_MAJOR, 'U', dim, icov.data(), dim, piv.data())); //inversion
 
 	return icov;
+}
+
+float clustering::smhc::mahalanobis_distance(const asgn_t l_cluster, const asgn_t r_cluster)
+{
+	int dim = (int)point_dim;
+	std::vector<float> diff;
+	diff.resize(point_dim);
+	float* l_data = centroids_.data() + l_cluster * point_dim;
+	float* r_data = centroids_.data() + r_cluster * point_dim;
+
+	cblas_scopy(dim, r_data, 1, diff.data(), 1);
+	cblas_saxpy(dim, -1, l_data, 1, diff.data(), 1);
+
+	std::vector<float> tmp_res;
+	tmp_res.resize(point_dim);
+
+	cblas_ssymv(CblasRowMajor, CblasUpper, dim, 1, inverses_[l_cluster].data(), dim, diff.data(), 1, 0, tmp_res.data(), 1);
+	float distance = cblas_sdot(dim, diff.data(), 1, tmp_res.data(), 1);
+
+	cblas_ssymv(CblasRowMajor, CblasUpper, dim, 1, inverses_[r_cluster].data(), dim, diff.data(), 1, 0, tmp_res.data(), 1);
+	distance += cblas_sdot(dim, diff.data(), 1, tmp_res.data(), 1);
+
+	return distance / 2;
 }
