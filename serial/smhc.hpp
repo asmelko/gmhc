@@ -19,7 +19,9 @@ public:
 	virtual void free() override;
 
 private:
-	matrix_t create_covariance_matrix(const asgn_t* assignments, const asgn_t cluster);
+	float point_mean(const float* point);
+	void point_subtract(const float* point, float scalar, float* dest);
+	matrix_t create_inverse_covariance_matrix(const asgn_t* assignments, const asgn_t cluster);
 };
 
 }
