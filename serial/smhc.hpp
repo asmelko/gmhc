@@ -7,10 +7,12 @@ namespace clustering {
 
 class smhc : public hierarchical_clustering<float>
 {
-	using matrix_t = std::vector<float>;
+	static constexpr size_t initial_cluster_count_ = 1024;
 	kmeans kmeans_;
-	std::vector<matrix_t> inverses_;
+	std::vector<float> inverses_;
 	std::vector<float> centroids_;
+	std::vector<asgn_t> assignments_;
+	size_t cluster_count_;
 public:
 	smhc();
 
@@ -19,12 +21,15 @@ public:
 	virtual std::vector<pasgn_t> run() override;
 
 	virtual void free() override;
-
 private:
-	float point_mean(const float* point);
-	void point_subtract(const float* point, float scalar, float* dest);
-	matrix_t create_inverse_covariance_matrix(const asgn_t* assignments, const asgn_t cluster);
-	float mahalanobis_distance(const asgn_t l_cluster, const asgn_t r_cluster);
+	float point_mean(const float* point) const;
+	void point_subtract(const float* point, float scalar, float* dest) const;
+
+	void create_inverse_covariance_matrix(const asgn_t cluster, float* dest) const;
+	void create_cluster_cetroid(const asgn_t cluster, float* dest) const;
+
+	float mahalanobis_distance(const pasgn_t cluster_pair) const;
+	void merge_clusters(const pasgn_t cluster_pair);
 };
 
 }
