@@ -1,7 +1,7 @@
 #include "smhc.hpp"
 
-#include <cblas.h>
-#include <lapacke.h>
+#include <blas.hh>
+#include <lapack.hh>
 #include <stdexcept>
 
 #define LACH(x) if (x) throw std::runtime_error("LAPACK error")
@@ -65,7 +65,7 @@ float smhc::point_mean(const float* point) const
 
 void smhc::point_subtract(const float* point, float scalar, float* dest) const
 {
-	cblas_scopy(1, point, 1, dest, 1);
+	blas::copy(1, point, 1, dest, 1);
 	for (size_t i = 0; i < point_dim; dest[i++] -= scalar);
 }
 
@@ -74,7 +74,7 @@ void smhc::create_inverse_covariance_matrix(const asgn_t cluster, float* dest) c
 	int dim = (int)point_dim; //to get rid of warnings
 
 	float* icov = dest;
-	cblas_sscal(dim * dim, 0, icov, 1); //zero out
+	blas::scal(dim * dim, 0, icov, 1); //zero out
 
 	for (size_t i = 0; i < points_size; ++i)
 	{
@@ -86,16 +86,16 @@ void smhc::create_inverse_covariance_matrix(const asgn_t cluster, float* dest) c
 
 		point_subtract(points + i, point_mean(points + i), tmp.data());
 
-		cblas_ssyr(CblasRowMajor, CblasUpper, dim, 1, tmp.data(), 1, icov, dim);
+		blas::syr(blas::Layout::RowMajor, blas::Uplo::Upper, dim, 1, tmp.data(), 1, icov, dim);
 	}
 
-	cblas_sscal(dim * dim, 1 / (float)dim, icov, 1); //scale
+	blas::scal(dim * dim, 1 / (float)dim, icov, 1); //scale
 
-	std::vector<int> piv;
+	std::vector<int64_t> piv;
 	piv.resize(point_dim);
 
-	LACH(LAPACKE_ssytrf(LAPACK_ROW_MAJOR, 'U', dim, icov, dim, piv.data())); //factorization
-	LACH(LAPACKE_ssytri(LAPACK_ROW_MAJOR, 'U', dim, icov, dim, piv.data())); //inversion
+	LACH(lapack::sytrf(lapack::Uplo::Upper, dim, icov, dim, piv.data())); //factorization
+	LACH(lapack::sytri(lapack::Uplo::Upper, dim, icov, dim, piv.data())); //inversion
 }
 
 void smhc::create_cluster_cetroid(const asgn_t cluster, float* dest) const
@@ -103,18 +103,18 @@ void smhc::create_cluster_cetroid(const asgn_t cluster, float* dest) const
 	int dim = (int)point_dim;
 
 	float* cetroid = dest;
-	cblas_sscal(dim, 0, cetroid, 1); //zero out
+	blas::scal(dim, 0, cetroid, 1); //zero out
 	size_t count = 0;
 
 	for (size_t i = 0; i < points_size; ++i)
 	{
 		if (assignments_[i] == cluster)
 		{
-			cblas_saxpy(dim, 1, points + point_dim * i, 1, cetroid, 1);
+			blas::axpy(dim, 1, points + point_dim * i, 1, cetroid, 1);
 			count++;
 		}
 	}
-	cblas_sscal(dim, 1 / (float)count, cetroid, 1);
+	blas::scal(dim, 1 / (float)count, cetroid, 1);
 }
 
 float smhc::mahalanobis_distance(const pasgn_t cluster_pair) const
@@ -125,17 +125,17 @@ float smhc::mahalanobis_distance(const pasgn_t cluster_pair) const
 	const float* l_data = centroids_.data() + cluster_pair.first * point_dim;
 	const float* r_data = centroids_.data() + cluster_pair.second * point_dim;
 
-	cblas_scopy(dim, r_data, 1, diff.data(), 1);
-	cblas_saxpy(dim, -1, l_data, 1, diff.data(), 1);
+	blas::copy(dim, r_data, 1, diff.data(), 1);
+	blas::axpy(dim, -1, l_data, 1, diff.data(), 1);
 
 	std::vector<float> tmp_res;
 	tmp_res.resize(point_dim);
 
-	cblas_ssymv(CblasRowMajor, CblasUpper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.first, dim, diff.data(), 1, 0, tmp_res.data(), 1);
-	float distance = cblas_sdot(dim, diff.data(), 1, tmp_res.data(), 1);
+	blas::symv(blas::Layout::RowMajor, blas::Uplo::Upper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.first, dim, diff.data(), 1, 0, tmp_res.data(), 1);
+	float distance = blas::dot(dim, diff.data(), 1, tmp_res.data(), 1);
 
-	cblas_ssymv(CblasRowMajor, CblasUpper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.second, dim, diff.data(), 1, 0, tmp_res.data(), 1);
-	distance += cblas_sdot(dim, diff.data(), 1, tmp_res.data(), 1);
+	blas::symv(blas::Layout::RowMajor, blas::Uplo::Upper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.second, dim, diff.data(), 1, 0, tmp_res.data(), 1);
+	distance += blas::dot(dim, diff.data(), 1, tmp_res.data(), 1);
 
 	return distance / 2;
 }
