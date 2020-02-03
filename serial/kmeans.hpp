@@ -10,8 +10,8 @@ namespace clustering {
 
 class kmeans : public clustering_base<float>
 {
-	size_t clusters_ = 1024;
-	size_t iters_ = 1000;
+	size_t clusters_;
+	size_t iters_;
 public:
 	kmeans(size_t clusters, size_t iterations = 1000);
 

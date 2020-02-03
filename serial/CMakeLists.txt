@@ -1,8 +1,11 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
+project(serial CXX)
+
+SET(CMAKE_CXX_STANDARD 17)
 
 ADD_LIBRARY(serial smhc.cpp kmeans.cpp)
 
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/serial/cmake)
+LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 INCLUDE(external_blaspp)
 TARGET_INCLUDE_DIRECTORIES(serial PUBLIC ${BLASPP_INCLUDE_DIR})
@@ -16,3 +19,7 @@ ADD_DEPENDENCIES(lapackpp blaspp)
 ADD_DEPENDENCIES(serial lapackpp)
 
 TARGET_LINK_LIBRARIES(serial libblaspp.so lapack liblapackpp.a)
+
+
+ADD_EXECUTABLE(serial_test tests/test.cpp ../reader.cpp)
+TARGET_LINK_LIBRARIES(serial_test serial)
