@@ -4,7 +4,11 @@ project(serial CXX)
 
 SET(CMAKE_CXX_STANDARD 17)
 
-ADD_LIBRARY(serial smhc.cpp kmeans.cpp)
+file(GLOB SERIAL_SRC "${PROJECT_SOURCE_DIR}/src/*.cpp")
+
+ADD_LIBRARY(serial ${SERIAL_SRC})
+
+target_include_directories(serial PUBLIC include)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
