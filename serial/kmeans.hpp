@@ -13,7 +13,7 @@ class kmeans : public clustering_base<float>
 	size_t clusters_;
 	size_t iters_;
 public:
-	kmeans(size_t clusters, size_t iterations = 1000);
+	kmeans(size_t clusters, size_t iterations);
 
 	std::pair<std::vector<asgn_t>,std::vector<float>> run();
 

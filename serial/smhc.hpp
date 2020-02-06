@@ -9,15 +9,17 @@ namespace clustering {
 
 class smhc : public hierarchical_clustering<float>
 {
-	static constexpr size_t initial_cluster_count_ = 100;
+	static constexpr size_t initial_cluster_count_ = 4;
+	static constexpr size_t initial_cluster_iteration_ = 100;
 	kmeans kmeans_;
+
 	std::vector<float> inverses_;
 	std::vector<float> centroids_;
 	std::vector<asgn_t> assignments_;
 	std::array<bool, initial_cluster_count_> merged_;
 	size_t cluster_count_;
 public:
-	smhc();
+	smhc(size_t apriori_cluster_count = initial_cluster_count_);
 
 	virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
 

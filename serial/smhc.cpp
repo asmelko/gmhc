@@ -8,8 +8,8 @@
 
 using namespace clustering;
 
-smhc::smhc()
-	: kmeans_(initial_cluster_count_, 100), cluster_count_(initial_cluster_count_) {}
+smhc::smhc(size_t apriori_cluster_count)
+	: kmeans_(apriori_cluster_count, initial_cluster_iteration_), cluster_count_(apriori_cluster_count) {}
 
 void smhc::initialize(const float* data_points, size_t data_points_size, size_t data_point_dim)
 {
@@ -29,12 +29,13 @@ std::vector<pasgn_t> smhc::run()
 	for (asgn_t i = 0; i < cluster_count_; ++i)
 		create_inverse_covariance_matrix(i, inverses_.data() + point_dim * point_dim * i);
 
-	float min_dist = -1.0f;
+	float min_dist;
 	pasgn_t min_pair;
 	size_t remaining = cluster_count_;
 
 	while (remaining > 1)
 	{
+		min_dist = -1.0f;
 		for (asgn_t i = 0; i < cluster_count_; ++i)
 		{
 			if (merged_[i]) continue;
@@ -96,7 +97,6 @@ void smhc::create_inverse_covariance_matrix(const asgn_t cluster, float* dest) c
 {
 	float* cov = dest;
 	blas::scal(point_dim * point_dim, 0, cov, 1); //zero out
-	size_t count = 0;
 
 	for (size_t i = 0; i < point_dim; ++i)
 		for (size_t j = i; j < point_dim; ++j)
@@ -146,9 +146,11 @@ float smhc::mahalanobis_distance(const pasgn_t cluster_pair) const
 
 	blas::symv(blas::Layout::ColMajor, blas::Uplo::Upper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.first, dim, diff.data(), 1, 0, tmp_res.data(), 1);
 	float distance = blas::dot(dim, diff.data(), 1, tmp_res.data(), 1);
+	distance = std::sqrt(distance);
 
 	blas::symv(blas::Layout::ColMajor, blas::Uplo::Upper, dim, 1, inverses_.data() + point_dim * point_dim * cluster_pair.second, dim, diff.data(), 1, 0, tmp_res.data(), 1);
-	distance += blas::dot(dim, diff.data(), 1, tmp_res.data(), 1);
+	float tmp = blas::dot(dim, diff.data(), 1, tmp_res.data(), 1);
+	distance += std::sqrt(tmp);
 
 	return distance / 2;
 }
