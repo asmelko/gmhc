@@ -1,14 +1,13 @@
 CMAKE_MINIMUM_REQUIRED (VERSION 3.0.0)
-include(GoogleTest)
-project(serial CXX)
+PROJECT(serial CXX)
 
 SET(CMAKE_CXX_STANDARD 17)
 
-file(GLOB SERIAL_SRC "${PROJECT_SOURCE_DIR}/src/*.cpp")
+FILE(GLOB SERIAL_SRC "${PROJECT_SOURCE_DIR}/src/*.cpp")
 
 ADD_LIBRARY(serial ${SERIAL_SRC})
 
-target_include_directories(serial PUBLIC include)
+TARGET_INCLUDE_DIRECTORIES(serial PUBLIC include)
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
@@ -25,10 +24,12 @@ ADD_DEPENDENCIES(serial lapackpp)
 
 TARGET_LINK_LIBRARIES(serial libblaspp.so lapack liblapackpp.a)
 
-enable_testing()
+IF (BUILD_GMHC_TESTS)
+	INCLUDE(GoogleTest)
 
-ADD_EXECUTABLE(serial_test tests/test.cpp)
+	ADD_EXECUTABLE(serial_test tests/test.cpp)
 
-TARGET_LINK_LIBRARIES(serial_test serial gmock_main pthread)
+	TARGET_LINK_LIBRARIES(serial_test serial gmock_main pthread)
 
-gtest_discover_tests(serial_test)	
+	GTEST_DISCOVER_TESTS(serial_test)
+ENDIF ()
