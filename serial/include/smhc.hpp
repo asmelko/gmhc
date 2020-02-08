@@ -9,10 +9,10 @@ namespace clustering {
 class smhc : public hierarchical_clustering<float>
 {
 	size_t id_;
-	static constexpr size_t maha_threshold_ = 5;
+	size_t maha_threshold_;
 	std::vector<cluster_t> clusters_;
 public:
-	smhc();
+	smhc(size_t maha_threshold = 16);
 	
 	virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
 

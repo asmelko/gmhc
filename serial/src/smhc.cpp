@@ -2,8 +2,8 @@
 
 using namespace clustering;
 
-smhc::smhc()
-	: id_(0) {}
+smhc::smhc(size_t maha_threshold)
+	: id_(0), maha_threshold_(maha_threshold) {}
 
 void smhc::initialize(const float* data_points, size_t data_points_size, size_t data_point_dim)
 {
