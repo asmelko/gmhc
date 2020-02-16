@@ -1,7 +1,36 @@
 #include <gmock/gmock.h>
 #include <reader.hpp>
 
+#include <cmath>
+
 #include "../include/kernels.cuh"
+
+output_t serial_(const clustering::reader::data_t<float>& data)
+{
+	output_t res;
+	res.distance = FLT_MAX;
+	for (size_t i = 0; i < data.points; i++)
+	{
+		for (size_t j = i + 1; j < data.points; j++)
+		{
+			float tmp_dist = 0;
+			for (size_t k = 0; k < data.dim; k++)
+			{
+				auto tmp = (data.data[i * data.dim + k] - data.data[j * data.dim + k]);
+				tmp_dist += tmp * tmp;
+			}
+			tmp_dist = std::sqrt(tmp_dist);
+
+			if (tmp_dist < res.distance)
+			{
+				res.distance = tmp_dist;
+				res.pair[0] = j;
+				res.pair[1] = i;
+			}
+		}
+	}
+	return res;
+}
 
 TEST(kernel, euclid_min)
 {
@@ -11,23 +40,76 @@ TEST(kernel, euclid_min)
 
 	float* cu_data;
 	output_t* cu_res;
-	output_t host_res[2];
+	constexpr size_t output_size = 10;
+	constexpr size_t shared_size = 20;
+	output_t host_res[output_size];
 
 	CUCH(cudaSetDevice(0));
 
 	CUCH(cudaMalloc(&cu_data, sizeof(float) * data.points * data.dim));
-	CUCH(cudaMalloc(&cu_res, sizeof(output_t) * 2));
+	CUCH(cudaMalloc(&cu_res, sizeof(output_t) * output_size));
 
 	CUCH(cudaMemcpy(cu_data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	euclidean_min << <2, 32, 32 * sizeof(float) * data.points * data.dim >> > (cu_data, data.dim, data.points, 16, cu_res);
+	euclidean_min << <3, 64, shared_size * sizeof(float) * data.dim >> > (cu_data, data.points, data.dim, shared_size, cu_res);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	CUCH(cudaMemcpy(&host_res, cu_res, sizeof(output_t) * 2, cudaMemcpyKind::cudaMemcpyDeviceToHost));
-	
-	int i = 0;
+	reduce_min << <1, 1024 >> > (cu_res, output_size);
+
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
+
+	CUCH(cudaMemcpy(&host_res, cu_res, sizeof(output_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+	ASSERT_THAT(host_res[0].pair, testing::ElementsAre(29,6));
+}
+
+constexpr size_t sum(size_t init)
+{
+	return ((init + 1) * init) / 2;
+}
+
+TEST(kernel, big)
+{
+	auto data = clustering::reader::read_data_from_file<float>("small");
+
+	float* cu_data;
+	output_t* cu_res;
+	constexpr size_t shared_size = 200;
+	constexpr size_t output_size = sum(10000 / (shared_size / 2)) ;
+	output_t host_res;
+
+	CUCH(cudaSetDevice(0));
+
+	CUCH(cudaMalloc(&cu_data, sizeof(float) * data.points * data.dim));
+	CUCH(cudaMalloc(&cu_res, sizeof(output_t) * output_size));
+
+	CUCH(cudaMemcpy(cu_data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
+
+	euclidean_min<<<1, 32, shared_size * sizeof(float)* data.dim>>>(cu_data, data.points, data.dim, shared_size, cu_res);
+
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
+
+	reduce_min<<<1, 1024>>>(cu_res, output_size);
+
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
+
+	CUCH(cudaMemcpy(&host_res, cu_res, sizeof(output_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+	auto ser = serial_(data);
+
+	EXPECT_EQ(host_res.pair[0], ser.pair[0]);
+	EXPECT_EQ(host_res.pair[1], ser.pair[1]);
+
+	//ASSERT_THAT(host_res[0].pair, testing::ElementsAre(29, 6));
 }
 
 int main(int argc, char** argv)

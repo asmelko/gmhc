@@ -22,6 +22,8 @@ struct input_t
 	size_t count;
 };
 
-__global__ void euclidean_min(const float* points, size_t dim, size_t count, size_t hshsize, output_t* res);
+__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t shared_size, output_t* res);
+
+__global__ void reduce_min(output_t* res, size_t output_size);
 
 #endif

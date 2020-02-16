@@ -13,13 +13,13 @@ IF (BUILD_GMHC_TESTS)
 	INCLUDE(GoogleTest)
 
 	ADD_EXECUTABLE(para_test tests/test.cpp)
-	ADD_EXECUTABLE(kernel_test tests/test.cu)
+	ADD_EXECUTABLE(kernel_test tests/test.cu src/kernels.cu)
 
 	TARGET_LINK_LIBRARIES(para_test para gmock_main)
-	TARGET_LINK_LIBRARIES(kernel_test para gmock_main)
+	TARGET_LINK_LIBRARIES(kernel_test gmock_main)
 
-	#set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -lineinfo")
-	TARGET_INCLUDE_DIRECTORIES(kernel_test PUBLIC ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+	set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -g -gencode=arch=compute_50,code=sm_50")
+	TARGET_INCLUDE_DIRECTORIES(kernel_test PUBLIC include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
 	GTEST_DISCOVER_TESTS(para_test)
 	GTEST_DISCOVER_TESTS(kernel_test)
