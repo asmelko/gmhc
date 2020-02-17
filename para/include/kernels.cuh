@@ -12,18 +12,24 @@ void cuda_check(cudaError_t code, const char* file, int line);
 struct output_t
 {
 	float distance;
-	clustering::asgn_t pair[2];
+	clustering::asgn_t i;
+	clustering::asgn_t j;
 };
 
 struct input_t
 {
 	float* data;
-	size_t dim;
 	size_t count;
+	size_t dim;
 };
 
-__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t shared_size, output_t* res);
+struct kernel_info
+{
+	unsigned int grid_dim;
+	unsigned int block_dim;
+	size_t shared_size;
+};
 
-__global__ void reduce_min(output_t* res, size_t output_size);
+void run_euclidean_min(const input_t in, output_t* out, kernel_info info);
 
 #endif
