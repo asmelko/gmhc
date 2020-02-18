@@ -5,12 +5,6 @@
 
 #include <device_launch_parameters.h>
 
-#ifdef __INTELLISENSE__
-void __syncthreads() {}
-template <typename T>
-T __shfl_down_sync(unsigned mask, T var, unsigned int delta, int width = warpSize) {}
-#endif
-
 struct size2
 {
     size_t x, y;

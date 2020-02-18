@@ -3,11 +3,18 @@
 
 #include <clustering.hpp>
 
-#include <cstdint>
 #include <cuda_runtime.h>
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
 void cuda_check(cudaError_t code, const char* file, int line);
+
+#ifdef __INTELLISENSE__
+void __syncthreads() {}
+template <typename T>
+T __shfl_down_sync(unsigned mask, T var, unsigned int delta, int width = warpSize) {}
+template <typename T>
+T atomicAdd(T* address, T val) {}
+#endif
 
 struct output_t
 {
@@ -31,5 +38,7 @@ struct kernel_info
 };
 
 void run_euclidean_min(const input_t in, output_t* out, kernel_info info);
+
+void run_compute_centroid(const input_t in, float* out, clustering::asgn_t cetroid_id, kernel_info info);
 
 #endif
