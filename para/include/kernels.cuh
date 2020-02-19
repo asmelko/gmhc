@@ -39,6 +39,6 @@ struct kernel_info
 
 void run_euclidean_min(const input_t in, output_t* out, kernel_info info);
 
-void run_compute_centroid(const input_t in, float* out, clustering::asgn_t cetroid_id, kernel_info info);
+void run_compute_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, kernel_info info);
 
 #endif

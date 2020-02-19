@@ -5,7 +5,7 @@
 
 #include "../include/kernels.cuh"
 
-float* serial_compute_centroid(const clustering::reader::data_t<float>& data, clustering::asgn_t cid)
+float* serial_compute_centroid(const clustering::reader::data_t<float>& data, const clustering::asgn_t* assignments, clustering::asgn_t cid)
 {
 	size_t count = 0;
 	float* tmp_sum = new float[data.dim];
@@ -14,10 +14,10 @@ float* serial_compute_centroid(const clustering::reader::data_t<float>& data, cl
 
 	for (size_t i = 0; i < data.points; i++)
 	{
-		if (*reinterpret_cast<const uint32_t*>(data.data.data() + i * (data.dim + 1) + data.dim) == cid)
+		if (assignments[i] == cid)
 		{
 			for (size_t j = 0; j < data.dim; j++)
-				tmp_sum[j] += data.data[i * (data.dim + 1) + j];
+				tmp_sum[j] += data.data[i * data.dim + j];
 			count++;
 		}
 	}
@@ -28,22 +28,18 @@ float* serial_compute_centroid(const clustering::reader::data_t<float>& data, cl
 	return tmp_sum;
 }
 
-void assign_ids(clustering::reader::data_t<float>& data, bool unique)
+std::vector<clustering::asgn_t> assign_ids(size_t count, bool unique)
 {
 	clustering::asgn_t id = 0;
-	std::vector<float> tmp;
-	tmp.reserve(data.points * data.dim + data.points);
+	std::vector<clustering::asgn_t> tmp;
+	tmp.reserve(count);
 
-	for (size_t i = 0; i < data.points; ++i)
+	for (size_t i = 0; i < count; ++i)
 	{
-		for (size_t j = 0; j < data.dim; ++j)
-			tmp.push_back(data.data[i * data.dim + j]);
-
-		tmp.push_back(*reinterpret_cast<float*>(&id));
+		tmp.push_back(id);
 		if (unique) ++id;
 	}
-
-	data.data = std::move(tmp);
+	return tmp;
 }
 
 TEST(kernel, compute_centroid_small)
@@ -51,10 +47,11 @@ TEST(kernel, compute_centroid_small)
 	std::string input = "3 32 -1.29547 8.00796 -7.49481 0.873838 0.59632 -1.51012 2.29091 0.944923 1.97487 -11.8492 0.220984 -3.32246 -3.18128 -0.856242 8.65632 -3.82426 3.51576 0.726751 0.468351 6.02061 1.30511 -3.4598 8.40714 -3.51013 0.875993 1.37086 -4.31532 5.93115 6.5827 3.40516 4.71282 4.14184 -2.94859 1.04552 4.30228 1.4721 -2.33436 -8.34392 -0.658711 7.88312 -3.95856 -4.61158 -5.23649 -2.20981 4.77685 -0.16196 0.051402 4.59879 -10.0206 0.902125 -0.0203374 1.64312 -2.10842 -1.20475 -12.092 0.0737986 2.18845 -1.17889 -11.8277 9.89593 3.83565 3.71229 -0.498549 0.436246 1.65099 4.69318 4.50654 4.72271 -3.79102 -5.22239 0.974885 -10.9422 5.59455 1.47331 5.72225 -1.47315 -2.90234 -7.91345 -9.92892 11.5448 -4.2494 -2.811 1.19261 -5.76345 -0.720766 16.3369 4.82052 0.6734 5.29015 1.93098 -2.19635 -2.60147 -3.42446 1.9895 -1.261 -2.28809";
 	auto data = clustering::reader::read_data_from_string<float>(input);
 
-	assign_ids(data, true);
+	auto assignments = assign_ids(data.points, true);
 
 	input_t cu_in;
 	float* cu_out;
+	clustering::asgn_t* cu_asgn;
 	float host_res[4];
 	kernel_info kernel{ 1, 32 };
 
@@ -63,12 +60,15 @@ TEST(kernel, compute_centroid_small)
 
 	CUCH(cudaSetDevice(0));
 
-	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim + data.points * sizeof(uint32_t)));
+	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
 	CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float) + sizeof(uint32_t)));
+	CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float) + sizeof(uint32_t)));
+	CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
 
-	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim + data.points * sizeof(uint32_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_compute_centroid(cu_in, cu_out, 0, kernel);
+	run_compute_centroid(cu_in, cu_asgn, cu_out, 0, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -87,12 +87,13 @@ TEST(kernel, compute_centroid_big)
 	///100 000 points with dim 15
 	auto data = clustering::reader::read_data_from_file<float>("big");
 
-	assign_ids(data, false);
+	auto assignments = assign_ids(data.points, false);
 
 	input_t cu_in;
 	float* cu_out;
+	clustering::asgn_t* cu_asgn;
 	float* host_res = new float[data.dim + 1];
-	kernel_info kernel{ 10,  128 };
+	kernel_info kernel{ 5,  128 };
 
 	cu_in.count = data.points;
 	cu_in.dim = data.dim;
@@ -101,11 +102,13 @@ TEST(kernel, compute_centroid_big)
 
 	CUCH(cudaSetDevice(0));
 
-	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim + data.points * sizeof(uint32_t)));
+	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
 	CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float) + sizeof(uint32_t)));
 	CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float) + sizeof(uint32_t)));
+	CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
 
-	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim + data.points * sizeof(uint32_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
 	CUCH(cudaDeviceSynchronize());
 
@@ -115,7 +118,7 @@ TEST(kernel, compute_centroid_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_compute_centroid(cu_in, cu_out, 0, kernel);
+	run_compute_centroid(cu_in, cu_asgn, cu_out, 0, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -127,7 +130,7 @@ TEST(kernel, compute_centroid_big)
 	CUCH(cudaMemcpy(host_res, cu_out, data.dim * sizeof(float) + sizeof(uint32_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 	start = std::chrono::system_clock::now();
-	auto ser = serial_compute_centroid(data, 0);
+	auto ser = serial_compute_centroid(data, assignments.data(), 0);
 	end = std::chrono::system_clock::now();
 	elapsed_seconds = end - start;
 	std::cout << "serial compute time: " << elapsed_seconds.count() << "\n";
