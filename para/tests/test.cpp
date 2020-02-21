@@ -1,3 +1,4 @@
+#include "covariance_test.hpp"
 #include "centroid_test.hpp"
 #include "min_test.hpp"
 

@@ -1,37 +1,9 @@
 #include <gmock/gmock.h>
 #include <reader.hpp>
 
-#include <cmath>
 #include <chrono>
 
-#include "../include/kernels.cuh"
-
-output_t serial_euclidean_min(const clustering::reader::data_t<float>& data)
-{
-	output_t res;
-	res.distance = FLT_MAX;
-	for (clustering::asgn_t i = 0; i < data.points; i++)
-	{
-		for (clustering::asgn_t j = i + 1; j < data.points; j++)
-		{
-			float tmp_dist = 0;
-			for (size_t k = 0; k < data.dim; k++)
-			{
-				auto tmp = (data.data[i * data.dim + k] - data.data[j * data.dim + k]);
-				tmp_dist += tmp * tmp;
-			}
-			tmp_dist = std::sqrt(tmp_dist);
-
-			if (tmp_dist < res.distance)
-			{
-				res.distance = tmp_dist;
-				res.i = i;
-				res.j = j;
-			}
-		}
-	}
-	return res;
-}
+#include "serial_impl.hpp"
 
 size_t compute_output_in_line(size_t shared_size, size_t point_count)
 {

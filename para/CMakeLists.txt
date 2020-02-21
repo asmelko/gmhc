@@ -19,7 +19,7 @@ IF (BUILD_GMHC_TESTS)
                 ${PROJECT_BINARY_DIR}/big
 				COPYONLY)
 
-	ADD_EXECUTABLE(para_test tests/test.cpp)
+	ADD_EXECUTABLE(para_test tests/test.cpp tests/serial_impl.cpp)
 
 	TARGET_LINK_LIBRARIES(para_test para gmock_main)
 	

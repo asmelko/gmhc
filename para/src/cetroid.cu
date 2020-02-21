@@ -2,18 +2,13 @@
 
 #include <device_launch_parameters.h>
 
-#define FLT2INTP(x) reinterpret_cast<uint32_t*>(x)
-
 using namespace clustering;
 
 __inline__ __device__ void reduce_sum_warp(float* point, size_t dim)
 {
 	for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
-	{
 		for (size_t i = 0; i < dim; ++i)
 			point[i] += __shfl_down_sync(0xFFFFFFFF, point[i], offset);
-		*(uint32_t*)(point + dim) += __shfl_down_sync(0xFFFFFFFF, *(uint32_t*)(point + dim), offset);
-	}
 }
 
 __inline__ __device__ void reduce_sum_block(float* point, size_t dim, float* shared_mem)
@@ -24,25 +19,23 @@ __inline__ __device__ void reduce_sum_block(float* point, size_t dim, float* sha
 	auto warp_id = threadIdx.x / warpSize;
 
 	if (lane_id == 0)
-		memcpy(shared_mem + warp_id * (dim + 1), point, dim * sizeof(float) + sizeof(uint32_t));
+		memcpy(shared_mem + warp_id * dim, point, dim * sizeof(float));
 
 	__syncthreads();
 
 	if (threadIdx.x < blockDim.x / warpSize)
-		memcpy(point, shared_mem + threadIdx.x * (dim + 1), dim * sizeof(float) + sizeof(uint32_t));
+		memcpy(point, shared_mem + threadIdx.x * dim, dim * sizeof(float));
 	else
-		memset(point, 0, dim * sizeof(float) + sizeof(uint32_t));
+		memset(point, 0, dim * sizeof(float));
 
 	reduce_sum_warp(point, dim);
 }
 
-__global__ void compute_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cid)
+__global__ void centroid(const input_t in, const asgn_t* __restrict__ assignments, float* __restrict__ out, asgn_t cid)
 {
 	extern __shared__ float shared_mem[];
 
-	uint32_t count = 0;
-
-	float* tmp = (float*)malloc(in.dim * sizeof(float) + sizeof(uint32_t));
+	float* tmp = (float*)malloc(in.dim * sizeof(float));
 
 	memset(tmp, 0, in.dim * sizeof(float));
 
@@ -52,25 +45,19 @@ __global__ void compute_centroid(const input_t in, const asgn_t* assignments, fl
 		{
 			for (size_t i = 0; i < in.dim; ++i)
 				tmp[i] += in.data[idx * in.dim + i];
-			++count;
 		}
 	}
-
-	*(uint32_t*)(tmp + in.dim) = count;
 
 	reduce_sum_block(tmp, in.dim, shared_mem);
 
 	if (threadIdx.x == 0)
-	{
 		for (size_t i = 0; i < in.dim; ++i)
 			atomicAdd(out + i, tmp[i]);
-		atomicAdd((uint32_t*)(out + in.dim), *FLT2INTP(tmp + in.dim));
-	}
 
 	free(tmp);
 }
 
-void run_compute_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, kernel_info info)
+void run_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, kernel_info info)
 {
-	compute_centroid << <info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float) + sizeof(uint32_t)) >> > (in, assignments, out, cetroid_id);
+	centroid << <info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float)) >> > (in, assignments, out, cetroid_id);
 }
