@@ -56,7 +56,7 @@ TEST(kernel, centroid_big)
 	float* cu_out;
 	clustering::asgn_t* cu_asgn;
 	float* host_res = new float[data.dim + 1];
-	kernel_info kernel{ 5,  128 };
+	kernel_info kernel{ 10,  256 };
 
 	cu_in.count = data.points;
 	cu_in.dim = data.dim;

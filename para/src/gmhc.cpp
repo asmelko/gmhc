@@ -9,9 +9,13 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 
 	CUCH(cudaSetDevice(0));
 
-	CUCH(cudaMalloc<float>(&cu_points_, data_points_size * data_point_dim));
+	CUCH(cudaMalloc(&cu_points_, data_points_size * data_point_dim * sizeof(float)));
+	CUCH(cudaMalloc(&cu_centroids_, data_points_size * data_point_dim * sizeof(float)));
+	CUCH(cudaMalloc(&cu_point_asgns_, data_points_size * sizeof(asgn_t)));
+	CUCH(cudaMalloc(&cu_centroid_asgns_, data_points_size * sizeof(asgn_t)));
 
-	CUCH(cudaMemcpy(cu_points_, data_points, sizeof(float) * data_points_size * data_point_dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_points_, data_points, data_points_size * data_point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
+	CUCH(cudaMemcpy(cu_centroids_, data_points, data_points_size * data_point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
 }
 
 

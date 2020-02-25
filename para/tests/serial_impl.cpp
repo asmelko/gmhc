@@ -97,10 +97,9 @@ std::vector<float> serial_covariance(const reader::data_t<float>& data, const as
 	return cov;
 }
 
-std::vector<float> serial_covariance_with_centroid(const reader::data_t<float>& data, const asgn_t* assignments, asgn_t cid)
+std::vector<float> serial_covariance_by_centroid(const reader::data_t<float>& data, const asgn_t* assignments, const float* centroid, asgn_t cid)
 {
 	std::vector<float> cov;
-	auto centroid = serial_centroid(data, assignments, cid);
 
 	for (size_t i = 0; i < data.dim; ++i)
 		for (size_t j = i; j < data.dim; ++j)

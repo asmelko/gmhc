@@ -35,7 +35,7 @@ __global__ void centroid(const input_t in, const asgn_t* __restrict__ assignment
 {
 	extern __shared__ float shared_mem[];
 
-	float* tmp = (float*)malloc(in.dim * sizeof(float));
+	float tmp[MAX_DIM];
 
 	memset(tmp, 0, in.dim * sizeof(float));
 
@@ -53,8 +53,6 @@ __global__ void centroid(const input_t in, const asgn_t* __restrict__ assignment
 	if (threadIdx.x == 0)
 		for (size_t i = 0; i < in.dim; ++i)
 			atomicAdd(out + i, tmp[i]);
-
-	free(tmp);
 }
 
 void run_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, kernel_info info)

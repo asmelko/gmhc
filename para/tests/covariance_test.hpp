@@ -62,41 +62,42 @@ TEST(kernel, covariance_big)
 	auto cov_size = ((data.dim + 1) * data.dim ) / 2;
 
 	input_t cu_in;
-	float* cu_out, * cu_centroid;
+	float* cu_out;
 	clustering::asgn_t* cu_asgn;
 	float* host_res = new float[cov_size];
-	float* host_centroid = new float[data.dim];
 	kernel_info kernel{ 50, 1024, 100 };
 
 	cu_in.count = data.points;
 	cu_in.dim = data.dim;
 
+	auto centroid = serial_centroid(data, assignments.data(), 0);
+
+	auto start = std::chrono::system_clock::now();
 	CUCH(cudaSetDevice(0));
 
 	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
 	CUCH(cudaMalloc(&cu_out, cov_size * sizeof(float)));
 	CUCH(cudaMemset(cu_out, 0, cov_size * sizeof(float)));
-	CUCH(cudaMalloc(&cu_centroid, data.dim * sizeof(float)));
-	CUCH(cudaMemset(cu_centroid, 0, data.dim * sizeof(float)));
 	CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
 
 	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 	CUCH(cudaMemcpy(cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_centroid(cu_in, cu_asgn, cu_centroid, 0, kernel_info{ 5, 128 });
-
-	CUCH(cudaMemcpy(host_centroid, cu_centroid, sizeof(float) * data.dim, cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-	for (size_t i = 0; i < data.dim; i++)
-		host_centroid[i] /= 100000;
-
-
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	assign_constant_storage(host_centroid, data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	assign_constant_storage(centroid.data(), data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	auto end = std::chrono::system_clock::now();
 
+	std::chrono::duration<double> elapsed_seconds = end - start;
+	std::cout << "gpu prepare time: " << elapsed_seconds.count() << "\n";
+
+	start = std::chrono::system_clock::now();
 	run_covariance(cu_in, cu_asgn, cu_out, 0, kernel);
+	end = std::chrono::system_clock::now();
+
+	elapsed_seconds = end - start;
+	std::cout << "gpu compute time: " << elapsed_seconds.count() << "\n";
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -105,8 +106,13 @@ TEST(kernel, covariance_big)
 
 	size_t count = 100000;
 
-	auto res = serial_covariance_with_centroid(data, assignments.data(), 0);
+	start = std::chrono::system_clock::now();
+	auto res = serial_covariance_by_centroid(data, assignments.data(),centroid.data(), 0);
+	end = std::chrono::system_clock::now();
+
+	 elapsed_seconds = end - start;
+	std::cout << "serial compute time: " << elapsed_seconds.count() << "\n";
 
 	for (size_t i = 0; i < data.dim; i++)
-		EXPECT_FLOAT_EQ(host_res[i] / count, res[i]);
+		EXPECT_LE(std::abs((host_res[i] / count) - res[i]), 10.f);
 }
