@@ -5,11 +5,6 @@
 
 #include <device_launch_parameters.h>
 
-struct size2
-{
-    size_t x, y;
-};
-
 void cuda_check(cudaError_t code, const char* file, int line)
 {
     if (code != cudaSuccess)

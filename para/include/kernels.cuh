@@ -18,6 +18,11 @@ template <typename T>
 T atomicAdd(T* address, T val) {}
 #endif
 
+struct size2
+{
+	size_t x, y;
+};
+
 struct output_t
 {
 	float distance;
