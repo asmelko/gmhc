@@ -4,7 +4,7 @@
 #include "../include/kernels.cuh"
 #include <reader.hpp>
 
-output_t serial_euclidean_min(const clustering::reader::data_t<float>& data);
+clustering::chunk_t serial_euclidean_min(const clustering::reader::data_t<float>& data);
 
 std::vector<clustering::asgn_t> create_assignments(size_t count, bool unique);
 

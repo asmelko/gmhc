@@ -31,7 +31,7 @@ __inline__ __device__ void reduce_sum_block(float* point, size_t dim, float* sha
 	reduce_sum_warp(point, dim);
 }
 
-__global__ void centroid(const input_t in, const asgn_t* __restrict__ assignments, float* __restrict__ out, asgn_t cid)
+__global__ void centroid(const input_t in, const asgn_t* __restrict__ assignments, float* __restrict__ out, asgn_t cid, size_t cluster_size)
 {
 	extern __shared__ float shared_mem[];
 
@@ -52,10 +52,10 @@ __global__ void centroid(const input_t in, const asgn_t* __restrict__ assignment
 
 	if (threadIdx.x == 0)
 		for (size_t i = 0; i < in.dim; ++i)
-			atomicAdd(out + i, tmp[i]);
+			atomicAdd(out + i, tmp[i] / cluster_size);
 }
 
-void run_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, kernel_info info)
+void run_centroid(const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, size_t cluster_size, kernel_info info)
 {
-	centroid << <info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float)) >> > (in, assignments, out, cetroid_id);
+	centroid << <info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float)) >> > (in, assignments, out, cetroid_id, cluster_size);
 }

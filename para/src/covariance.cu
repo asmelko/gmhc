@@ -78,10 +78,39 @@ __global__ void covariance(const float* __restrict__ points, size_t dim, size_t 
 			atomicAdd(cov_matrix + i, tmp_cov[i]);
 }
 
+__inline__ __device__ size2 compute_coordinates(size_t count_in_line, size_t plain_index)
+{
+	size_t y = 0;
+	while (plain_index >= count_in_line)
+	{
+		y++;
+		plain_index -= count_in_line--;
+	}
+	return { plain_index + y, y };
+}
+
+__global__ void finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
+{
+	size_t cov_size = ((N + 1) * N) / 2;
+
+	for (size_t idx = 0; idx < cov_size; idx+= blockDim.x)
+	{
+		auto coords = compute_coordinates(N, idx);
+		auto tmp = in_cov_matrix[idx] / divisor;
+		out_cov_matrix[coords.x + coords.y * N] = tmp;
+		out_cov_matrix[coords.x * N + coords.y] = tmp;
+	}
+}
+
 void run_covariance(const input_t in, const asgn_t* assignments, float* out, asgn_t centroid_id, kernel_info info)
 {
 	size_t cov_size = ((in.dim + 1) * in.dim) / 2;
 	size_t shared_chunks = info.shared_size;
 
 	covariance << <info.grid_dim, info.block_dim, shared_chunks* cov_size * sizeof(float) >> > (in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);
+}
+
+void run_finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
+{
+	finish_covariance<<<1, ((N + 1) * N) / 2 >>>(in_cov_matrix, divisor, N, out_cov_matrix);
 }

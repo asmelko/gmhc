@@ -4,10 +4,10 @@
 
 using namespace clustering;
 
-output_t serial_euclidean_min(const reader::data_t<float>& data)
+chunk_t serial_euclidean_min(const reader::data_t<float>& data)
 {
-	output_t res;
-	res.distance = FLT_MAX;
+	chunk_t res;
+	res.min_dist = FLT_MAX;
 	for (asgn_t i = 0; i < data.points; i++)
 	{
 		for (asgn_t j = i + 1; j < data.points; j++)
@@ -20,11 +20,11 @@ output_t serial_euclidean_min(const reader::data_t<float>& data)
 			}
 			tmp_dist = std::sqrt(tmp_dist);
 
-			if (tmp_dist < res.distance)
+			if (tmp_dist < res.min_dist)
 			{
-				res.distance = tmp_dist;
-				res.i = i;
-				res.j = j;
+				res.min_dist = tmp_dist;
+				res.min_i = i;
+				res.min_j = j;
 			}
 		}
 	}

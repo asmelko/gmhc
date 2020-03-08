@@ -31,18 +31,16 @@ TEST(kernel, centroid_small)
 	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 	CUCH(cudaMemcpy(cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_centroid(cu_in, cu_asgn, cu_out, 0, kernel);
+	run_centroid(cu_in, cu_asgn, cu_out, 0, 1, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
 	CUCH(cudaMemcpy(&host_res, cu_out, data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-	size_t count = 1;
-
-	EXPECT_FLOAT_EQ(host_res[0] / count, -1.29547f);
-	EXPECT_FLOAT_EQ(host_res[1] / count, 8.00796f);
-	EXPECT_FLOAT_EQ(host_res[2] / count, -7.49481f);
+	EXPECT_FLOAT_EQ(host_res[0], -1.29547f);
+	EXPECT_FLOAT_EQ(host_res[1], 8.00796f);
+	EXPECT_FLOAT_EQ(host_res[2], -7.49481f);
 }
 
 TEST(kernel, centroid_big)
@@ -81,7 +79,7 @@ TEST(kernel, centroid_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_centroid(cu_in, cu_asgn, cu_out, 0, kernel);
+	run_centroid(cu_in, cu_asgn, cu_out, 0, data.points, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -98,10 +96,8 @@ TEST(kernel, centroid_big)
 	elapsed_seconds = end - start;
 	std::cout << "serial compute time: " << elapsed_seconds.count() << "\n";
 
-	auto count = data.points;
-
 	for (size_t i = 0; i < data.dim; i++)
-		EXPECT_LE(std::abs((host_res[i] / count) - ser[i]), 0.0001f);
+		EXPECT_LE(std::abs((host_res[i]) - ser[i]), 0.0001f);
 
 	delete[] host_res;
 }
