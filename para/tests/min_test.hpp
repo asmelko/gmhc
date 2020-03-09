@@ -28,6 +28,7 @@ TEST(kernel, euclid_min_small)
 	input_t cu_in;
 	clustering::chunk_t* cu_out;
 	clustering::chunk_t host_res;
+	float** cu_invs;
 	kernel_info kernel{ 3, 64, shared_size };
 
 	cu_in.count = data.points;
@@ -37,10 +38,13 @@ TEST(kernel, euclid_min_small)
 
 	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
 	CUCH(cudaMalloc(&cu_out, sizeof(clustering::chunk_t) * output_size));
+	CUCH(cudaMalloc(&cu_invs, sizeof(float*) * data.points));
+
+	CUCH(cudaMemset(cu_invs, 0, sizeof(float*) * data.points));
 
 	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_euclidean_min(cu_in, cu_out, kernel);
+	run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -56,12 +60,13 @@ TEST(kernel, euclidean_min_big)
 	///100 000 points with dim 15
 	auto data = clustering::reader::read_data_from_file<float>("big");
 
-	size_t shared_size = 800;
+	size_t shared_size = 700;
 	size_t output_size = compute_output_size(shared_size, data.points);
 
 	input_t cu_in;
 	clustering::chunk_t* cu_out;
 	clustering::chunk_t host_res;
+	float** cu_invs;
 	kernel_info kernel{ 50,  1024, shared_size };
 
 	cu_in.count = data.points;
@@ -73,6 +78,9 @@ TEST(kernel, euclidean_min_big)
 
 	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
 	CUCH(cudaMalloc(&cu_out, sizeof(clustering::chunk_t) * output_size));
+	CUCH(cudaMalloc(&cu_invs, sizeof(float*) * data.points));
+
+	CUCH(cudaMemset(cu_invs, 0, sizeof(float*) * data.points));
 
 	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
@@ -85,7 +93,7 @@ TEST(kernel, euclidean_min_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_euclidean_min(cu_in, cu_out, kernel);
+	run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());

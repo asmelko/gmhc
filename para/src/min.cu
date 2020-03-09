@@ -48,9 +48,8 @@ void cuBLAS_check(cublasStatus_t code, const char* file, int line)
             std::cerr << "CUBLAS_STATUS_INTERNAL_ERROR" << " at " << file << ":" << line;
             return;
         }
+        std::cerr << "Unknown cuBLAS error" << " at " << file << ":" << line;
     }
-
-    std::cerr << "Unknown cuBLAS error" << " at " << file << ":" << line;
 }
 
 __device__ void print_point(const float* data, size_t x, size_t dim)
@@ -78,7 +77,7 @@ __inline__ __device__ float euclidean_norm(const float* mem, size_t x, size_t y,
     return sqrtf(tmp_sum);
 }
 
-__inline__ __device__ size2 load_data(const float* points, size_t count, size_t dim, float* dest, size_t hsize, size2 coords)
+__inline__ __device__ size2 load_data(const float* points, float const * const * inverses, size_t count, size_t dim, float* dest, size_t hsize, size2 coords)
 {
     size_t up_point_offset = hsize * coords.x;
     size_t left_point_offset = hsize * coords.y;
@@ -95,6 +94,16 @@ __inline__ __device__ size2 load_data(const float* points, size_t count, size_t 
             memcpy(dest + i * dim, up_ptr + i * dim, dim * sizeof(float));
         else
             memcpy(dest + i * dim, left_ptr + (i - up_size) * dim, dim * sizeof(float));
+    }
+
+    const float** inv_dest = reinterpret_cast<const float**>(dest + (up_size + left_size) * dim);
+
+    for (size_t i = threadIdx.x; i < up_size + left_size; i += blockDim.x)
+    {
+        if (i < up_size)
+            inv_dest[i] = inverses[hsize * coords.x + i];
+        else
+            inv_dest[i] = inverses[hsize * coords.y + (i - up_size)];
     }
 
     return { up_size, left_size };
@@ -176,7 +185,10 @@ __inline__ __device__ clustering::chunk_t diagonal_loop(size_t block_size, size_
         auto coords = compute_coordinates(block_size - 1, i);
         coords.x++;
 
-        float dist = euclidean_norm(shared_mem, coords.x, coords.y + block_size, dim);
+        float dist;
+        float** inv_mem = reinterpret_cast<float**>(shared_mem + (block_size * 2)*dim);
+        if (!inv_mem[coords.x] && !inv_mem[coords.y])
+            dist = euclidean_norm(shared_mem, coords.x, coords.y + block_size, dim);
 
         if (min.min_dist > dist)
         {
@@ -188,7 +200,7 @@ __inline__ __device__ clustering::chunk_t diagonal_loop(size_t block_size, size_
     return min;
 }
 
-__inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, size_t dim, float* shared_mem) 
+__inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, size_t dim, float* shared_mem)
 {
     clustering::chunk_t min;
     min.min_dist = FLT_MAX;
@@ -198,7 +210,10 @@ __inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, siz
         auto x = i % chunk_dim.x;
         auto y = i / chunk_dim.x;
 
-        float dist = euclidean_norm(shared_mem, x, y + chunk_dim.x, dim);
+        float dist;
+        float** inv_mem = reinterpret_cast<float**>(shared_mem + (chunk_dim.x + chunk_dim.y)*dim);
+        if (!inv_mem[x] && !inv_mem[y])
+            dist = euclidean_norm(shared_mem, x, y + chunk_dim.x, dim);
 
         if (min.min_dist > dist)
         {
@@ -210,9 +225,9 @@ __inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, siz
     return min;
 }
 
-__inline__ __device__ clustering::chunk_t block_euclidean_min(const float* points, size_t count, size_t dim, float* shared_mem, size_t hshsize, size2 coords)
+__inline__ __device__ clustering::chunk_t block_euclidean_min(const float* points, size_t count, size_t dim, float* shared_mem, size_t hshsize, size2 coords, const float* const* inverses)
 {
-    auto sh_sizes = load_data(points, count, dim, shared_mem, hshsize, coords);
+    auto sh_sizes = load_data(points, inverses, count, dim, shared_mem, hshsize, coords);
 
     __syncthreads();
 
@@ -233,7 +248,7 @@ __inline__ __device__ clustering::chunk_t block_euclidean_min(const float* point
     return min;
 }
 
-__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t half_shared_size, clustering::chunk_t* res, size_t chunks_in_line, size_t chunk_count)
+__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t half_shared_size, clustering::chunk_t* res, size_t chunks_in_line, size_t chunk_count, const float* const* inverses)
 {
     extern __shared__ float shared_mem[];
 
@@ -241,30 +256,30 @@ __global__ void euclidean_min(const float* points, size_t point_count, size_t po
     {
         auto coords = compute_coordinates(chunks_in_line, i);
 
-        auto block_min = block_euclidean_min(points, point_count, point_dim, shared_mem, half_shared_size, coords);
+        auto block_min = block_euclidean_min(points, point_count, point_dim, shared_mem, half_shared_size, coords, inverses);
 
         if (threadIdx.x == 0)
             res[i] = block_min;
     }
 }
 
-void run_euclidean_min(const input_t in, clustering::chunk_t* out, kernel_info info)
+void run_euclidean_min(const input_t in, clustering::chunk_t* out, const float * const * inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
     auto chunk_count =  ((chunks_in_line + 1) * chunks_in_line) / 2;
 
-    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size * in.dim * sizeof(float) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count);
+    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size * in.dim * sizeof(float) + info.shared_size * sizeof(float*) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
     reduce_min << <1, 1024 >> > (out, out, chunk_count);
 }
 
-void run_min(const input_t in, clustering::chunk_t* out, kernel_info info)
+void run_min(const input_t in, clustering::chunk_t* out, const float* const* inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
     auto chunk_count = ((chunks_in_line + 1) * chunks_in_line) / 2;
 
-    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size* in.dim * sizeof(float) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count);
+    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size* in.dim * sizeof(float) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
 }
 
 clustering::chunk_t run_reduce(const clustering::chunk_t* chunks, clustering::chunk_t* out, size_t chunk_count, kernel_info info)

@@ -44,7 +44,7 @@ std::vector<pasgn_t> gmhc::run()
 
 	while (chunk_count_)
 	{
-		run_min(input_t{ cu_centroids_, points_size, point_dim }, cu_chunks_, kernel_info{ 50, 1024, SH });
+		run_min(input_t{ cu_centroids_, points_size, point_dim }, cu_chunks_, nullptr, kernel_info{ 50, 1024, SH });
 		auto min = run_reduce(cu_chunks_, cu_min_, chunk_count_, {});
 
 		CUCH(cudaDeviceSynchronize());
