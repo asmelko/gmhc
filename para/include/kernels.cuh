@@ -27,6 +27,18 @@ struct size2
 	size_t x, y;
 };
 
+struct neighbour_t
+{
+	float distance;
+	clustering::asgn_t idx;
+};
+
+template <size_t N>
+struct neighbour_array_t
+{
+	neighbour_t neighbours[N];
+};
+
 struct input_t
 {
 	float* data;
