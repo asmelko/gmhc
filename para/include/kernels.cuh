@@ -69,4 +69,8 @@ void run_set_default_asgn(clustering::centroid_data_t* asgns, size_t N);
 
 void run_merge_clusters(clustering::asgn_t* assignments, size_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
+template <size_t N>
+void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* neighbours, clustering::chunk_t* result, kernel_info info);
+
+
 #endif

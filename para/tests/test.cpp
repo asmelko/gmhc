@@ -1,3 +1,4 @@
+#include "neighbour_test.hpp"
 #include "gmhc_test.hpp"
 #include "covariance_test.hpp"
 #include "centroid_test.hpp"

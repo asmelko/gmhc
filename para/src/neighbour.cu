@@ -14,12 +14,12 @@ __device__ void add_neighbour(neighbour_array_t<N>* neighbours, neighbour_t neig
 		if (neighbours->neighbours[i].distance > neighbour.distance)
 		{
 			prev_min = neighbours->neighbours[i];
-			neighbours->neighbours[i++] = neighbour;
+			neighbours->neighbours[i] = neighbour;
 			break;
 		}
 	}
 
-	for (; i < N; i++)
+	for (++i; i < N; i++)
 	{
 		if (prev_min.distance == FLT_MAX)
 			return;
@@ -101,7 +101,11 @@ __inline__ __device__ void reduce_min_block(neighbour_array_t<N>* neighbours, ne
 
 	__syncthreads();
 
-	*neighbours = (threadIdx.x < blockDim.x / warpSize) ? shared_mem[threadIdx.x] : shared_mem[0];
+	if (threadIdx.x < blockDim.x / warpSize)
+		*neighbours = shared_mem[threadIdx.x];
+	else
+		for (size_t i = 0; i < N; i++)
+			neighbours->neighbours[i].distance = FLT_MAX;
 
 	reduce_min_warp(neighbours);
 }
@@ -109,8 +113,6 @@ __inline__ __device__ void reduce_min_block(neighbour_array_t<N>* neighbours, ne
 template <size_t N>
 __global__ void reduce(const neighbour_array_t<N>* neighbours, size_t to_reduce, size_t count, neighbour_array_t<N>* reduced)
 {
-	size_t in_block = blockDim.x / to_reduce;
-
 	for (size_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
 	{
 		size_t block = idx / warpSize;
@@ -124,18 +126,23 @@ __global__ void reduce(const neighbour_array_t<N>* neighbours, size_t to_reduce,
 			for (size_t i = 0; i < N; i++)
 				local.neighbours[i].distance = FLT_MAX;
 
+
 		for (nei += warpSize; nei < to_reduce; nei+=warpSize)
 			local = merge_neighbours(&local, neighbours + block * to_reduce + nei);
 
+
 		reduce_min_warp(&local);
 
+
 		if (threadIdx.x % warpSize == 0)
+		{
 			reduced[block] = local;
+		}
 	}
 }
 
 template <size_t N>
-__global__ void neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* neighbours)
+__global__ void neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* neighbours_a)
 {
 	extern __shared__ float shared_mem[];
 
@@ -151,19 +158,23 @@ __global__ void neighbours(const float* centroids, size_t dim, size_t centroid_c
 
 		__syncthreads();
 
-		for (asgn_t y = x + threadIdx.x; y < centroid_count; y += blockDim.x * gridDim.x)
+		for (asgn_t y = x + 1 + threadIdx.x + blockIdx.x * blockDim.x; y < centroid_count; y += blockDim.x * gridDim.x)
 		{
 			float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
 
 			add_neighbour(&local_neighbours, neighbour_t{ dist, y });
 		}
 
-		reduce_min_block(&local_neighbours, reinterpret_cast<neighbour_array_t<N>*>(shared_mem));
+		reduce_min_block(&local_neighbours, reinterpret_cast<neighbour_array_t<N>*>(shared_mem + dim));
 
 		if (threadIdx.x == 0)
-			neighbours[gridDim.x * x + blockIdx.x] = local_neighbours;
+		{
+			neighbours_a[gridDim.x * x + blockIdx.x] = local_neighbours;
+		}
 	}
 }
+
+
 
 template <size_t N>
 __global__ void neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, size_t start, neighbour_array_t<N>* neighbours)
@@ -291,3 +302,73 @@ __global__ void neighbours_mat(const float* centroids, const float* const* inver
 			neighbours[gridDim.x * x + blockIdx.x] = local_neighbours;
 	}
 }
+
+__inline__ __device__ clustering::chunk_t reduce_min_warp(clustering::chunk_t data)
+{
+	for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
+	{
+		auto tmp_dist = __shfl_down_sync(0xFFFFFFFF, data.min_dist, offset);
+		auto tmp_i = __shfl_down_sync(0xFFFFFFFF, data.min_i, offset);
+		auto tmp_j = __shfl_down_sync(0xFFFFFFFF, data.min_j, offset);
+		if (tmp_dist < data.min_dist)
+		{
+			data.min_dist = tmp_dist;
+			data.min_i = tmp_i;
+			data.min_j = tmp_j;
+		}
+	}
+	return data;
+}
+
+__inline__ __device__ clustering::chunk_t reduce_min_block(clustering::chunk_t data, clustering::chunk_t* shared_mem)
+{
+	data = reduce_min_warp(data);
+
+	auto lane_id = threadIdx.x % warpSize;
+	auto warp_id = threadIdx.x / warpSize;
+
+	if (lane_id == 0)
+		shared_mem[warp_id] = data;
+
+	__syncthreads();
+
+	data = (threadIdx.x < blockDim.x / warpSize) ? shared_mem[threadIdx.x] : shared_mem[0];
+
+	data = reduce_min_warp(data);
+	return data;
+}
+
+template <size_t N>
+__global__ void min(const neighbour_array_t<N>* neighbours, size_t count, chunk_t* result)
+{
+	static __shared__ chunk_t shared_mem[32];
+
+	chunk_t tmp;
+	tmp.min_dist = FLT_MAX;
+	for (size_t idx = threadIdx.x; idx < count; idx+=blockDim.x)
+	{
+		if (tmp.min_dist > neighbours[idx].neighbours[0].distance)
+		{
+			tmp.min_dist = neighbours[idx].neighbours[0].distance;
+			tmp.min_j = neighbours[idx].neighbours[0].idx;
+			tmp.min_i = idx;
+		}
+	}
+
+	tmp = reduce_min_block(tmp, shared_mem);
+
+	if (threadIdx.x == 0)
+		*result = tmp;
+}
+
+template <size_t N>
+void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, chunk_t* result, kernel_info info)
+{
+	size_t shared = dim * sizeof(float) + info.grid_dim * sizeof(neighbour_array_t<N>);
+	neighbours << <info.grid_dim, info.block_dim, shared>> > (centroids, dim, centroid_count, tmp_neighbours);
+	reduce << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
+	min<<<1,1024>>>(act_neighbours, centroid_count, result);
+}
+
+template void run_neighbours<1>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<1>* tmp_neighbours, neighbour_array_t<1>* neighbours, chunk_t* result, kernel_info info);
+template void run_neighbours<5>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<5>* tmp_neighbours, neighbour_array_t<5>* neighbours, chunk_t* result, kernel_info info);

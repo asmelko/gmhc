@@ -53,7 +53,7 @@ __inline__ __device__ float maha(const float* icov, float* shared_mem, size_t di
 
 __global__ void maha_dist(const float* l_point, const float* r_point, const float* l_icov, const float* r_icov, size_t dim, float* result)
 {
-	extern __shared__ float* shared_mem;
+	extern __shared__ float shared_mem[];
 
 	for (size_t idx = threadIdx.x; idx < 2 * dim; idx += blockDim.x)
 	{

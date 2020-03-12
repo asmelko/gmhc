@@ -9,7 +9,7 @@ TARGET_COMPILE_FEATURES(para PUBLIC cxx_std_17)
 
 SET(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -g")
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_50,code=sm_50")
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_50,code=sm_50 -gencode=arch=compute_61,code=sm_61")
 
 set_target_properties(para
                        PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
