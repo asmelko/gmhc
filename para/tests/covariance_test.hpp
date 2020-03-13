@@ -94,13 +94,12 @@ TEST(kernel, covariance_big)
 
 	start = std::chrono::system_clock::now();
 	run_covariance(cu_in, cu_asgn, cu_out, 0, kernel);
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
 	end = std::chrono::system_clock::now();
 
 	elapsed_seconds = end - start;
 	std::cout << "gpu compute time: " << elapsed_seconds.count() << "\n";
-
-	CUCH(cudaGetLastError());
-	CUCH(cudaDeviceSynchronize());
 
 	CUCH(cudaMemcpy(host_res, cu_out, cov_size * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 

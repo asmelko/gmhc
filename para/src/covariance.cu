@@ -26,18 +26,22 @@ __inline__ __device__ void reduce_sum_warp(float* cov, size_t size, unsigned mas
 __inline__ __device__ void reduce_sum_block(float* shared_mem, size_t shared_chunks, size_t cov_size)
 {
 	float* tmp_cov;
+	unsigned mask = __ballot_sync(0xFFFFFFFF, threadIdx.x < shared_chunks);
 	if (threadIdx.x < shared_chunks)
 	{
 		tmp_cov = shared_mem + cov_size * threadIdx.x;
-		reduce_sum_warp(tmp_cov, cov_size, __activemask());
+		reduce_sum_warp(tmp_cov, cov_size, mask);
 	}
+
+	__syncthreads();
 
 	auto ciel_div = (shared_chunks + warpSize - 1) / warpSize;
 
+	mask = __ballot_sync(0xFFFFFFFF, threadIdx.x < ciel_div);
 	if (threadIdx.x < ciel_div)
 	{
 		tmp_cov = shared_mem + cov_size * threadIdx.x * warpSize;
-		reduce_sum_warp(tmp_cov, cov_size, __activemask());
+		reduce_sum_warp(tmp_cov, cov_size, mask);
 	}
 }
 
@@ -70,6 +74,8 @@ __global__ void covariance(const float* __restrict__ points, size_t dim, size_t 
 
 			point_covariance(tmp_point, dim, tmp_cov);
 		}
+
+	__syncthreads();
 
 	reduce_sum_block(shared_mem, shared_chunks, cov_size);
 
