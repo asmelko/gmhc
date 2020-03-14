@@ -4,20 +4,6 @@
 
 using namespace clustering;
 
-__global__ void set_default_asgn(clustering::centroid_data_t* __restrict__ asgns, size_t N)
-{
-	for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += gridDim.x * blockDim.x)
-	{
-		asgns[i].id = i;
-		asgns[i].icov = nullptr;
-	}
-}
-
-void run_set_default_asgn(clustering::centroid_data_t* asgns, size_t N)
-{
-	set_default_asgn << <50, 1024 >> > (asgns, N);
-}
-
 __global__ void set_default_asgn(clustering::asgn_t* __restrict__ asgns, size_t N)
 {
 	for (size_t i = blockIdx.x * blockDim.x + threadIdx.x; i < N; i += gridDim.x * blockDim.x)

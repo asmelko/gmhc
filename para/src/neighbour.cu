@@ -127,7 +127,7 @@ __global__ void reduce(const neighbour_array_t<N>* neighbours, size_t to_reduce,
 				local.neighbours[i].distance = FLT_MAX;
 
 
-		for (nei += warpSize; nei < to_reduce; nei+=warpSize)
+		for (nei += warpSize; nei < to_reduce; nei += warpSize)
 			local = merge_neighbours(&local, neighbours + block * to_reduce + nei);
 
 
@@ -253,7 +253,7 @@ __global__ void neighbours_mat(const float* centroids, const float* const* inver
 			float* curr_icov = this_icov + dim * dim;
 			curr_centroid = curr_icov + dim * dim;
 
-			for (size_t i = threadIdx.x; i < dim*dim; i+=blockDim.x)
+			for (size_t i = threadIdx.x; i < dim * dim; i += blockDim.x)
 				curr_icov[i] = inverses[y][i];
 
 			for (size_t i = thread_in_warp; i < dim; i += warpSize)
@@ -345,7 +345,7 @@ __global__ void min(const neighbour_array_t<N>* neighbours, size_t count, chunk_
 
 	chunk_t tmp;
 	tmp.min_dist = FLT_MAX;
-	for (size_t idx = threadIdx.x; idx < count; idx+=blockDim.x)
+	for (size_t idx = threadIdx.x; idx < count; idx += blockDim.x)
 	{
 		if (tmp.min_dist > neighbours[idx].neighbours[0].distance)
 		{
@@ -365,9 +365,9 @@ template <size_t N>
 void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, chunk_t* result, kernel_info info)
 {
 	size_t shared = dim * sizeof(float) + info.grid_dim * sizeof(neighbour_array_t<N>);
-	neighbours << <info.grid_dim, info.block_dim, shared>> > (centroids, dim, centroid_count, tmp_neighbours);
+	neighbours << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours);
 	reduce << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
-	min<<<1,1024>>>(act_neighbours, centroid_count, result);
+	min << <1, 1024 >> > (act_neighbours, centroid_count, result);
 }
 
 template void run_neighbours<1>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<1>* tmp_neighbours, neighbour_array_t<1>* neighbours, chunk_t* result, kernel_info info);
