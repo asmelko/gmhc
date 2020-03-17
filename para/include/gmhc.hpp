@@ -31,13 +31,21 @@ struct neighbour_array_t
     neighbour_t neighbours[N];
 };
 
+enum class cluster_kind : uint8_t
+{
+    EMPTY = 0, EUCL = 1, MAHA = 2
+};
+
 class gmhc : public hierarchical_clustering<float>
 {
+    using neighbour_type = neighbour_array_t<1>;
+
     float* cu_points_;
     asgn_t* cu_point_asgns_;
     float* cu_centroids_, *cu_centroids_tmp_;
     float** cu_icov_, **cu_icov_tmp_;
-    neighbour_array_t<1>* cu_neighs_, *cu_tmp_neighs_;
+    cluster_kind* cu_cluster_kinds_;
+    neighbour_type* cu_neighs_, *cu_neighs_tmp_;
     chunk_t* cu_chunks_;
     chunk_t* cu_min_;
 
@@ -62,7 +70,8 @@ public:
 
 private:
     void move_(size_t from, size_t to, int where);
-    void move_clusters(size_t i, size_t j);
+    size_t move_clusters(size_t i, size_t j);
+    void compute_icov(size_t pos, float* cu_tmp_icov);
 };
 
 }

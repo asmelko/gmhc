@@ -362,12 +362,21 @@ __global__ void min(const neighbour_array_t<N>* neighbours, size_t count, chunk_
 }
 
 template <size_t N>
-void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, chunk_t* result, kernel_info info)
+void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, kernel_info info)
 {
 	size_t shared = dim * sizeof(float) + info.grid_dim * sizeof(neighbour_array_t<N>);
 	neighbours << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours);
-	reduce << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
-	min << <1, 1024 >> > (act_neighbours, centroid_count, result);
+}
+
+template <size_t N>
+chunk_t run_neighbours_min(const neighbour_array_t<N>* neighbours, size_t count, chunk_t* result)
+{
+	min << <1, 1024 >> > (neighbours, count, result);
+
+	CUCH(cudaDeviceSynchronize());
+
+	chunk_t res;
+	CUCH(cudaMemcpy(&res, result, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 }
 
 template void run_neighbours<1>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<1>* tmp_neighbours, neighbour_array_t<1>* neighbours, chunk_t* result, kernel_info info);
