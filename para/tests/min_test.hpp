@@ -26,8 +26,8 @@ TEST(kernel, euclid_min_small)
 	auto data = clustering::reader::read_data_from_string<float>(input);
 
 	input_t cu_in;
-	clustering::chunk_t* cu_out;
-	clustering::chunk_t host_res;
+	chunk_t* cu_out;
+	chunk_t host_res;
 	float** cu_invs;
 	kernel_info kernel{ 3, 64, shared_size };
 
@@ -37,7 +37,7 @@ TEST(kernel, euclid_min_small)
 	CUCH(cudaSetDevice(0));
 
 	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
-	CUCH(cudaMalloc(&cu_out, sizeof(clustering::chunk_t) * output_size));
+	CUCH(cudaMalloc(&cu_out, sizeof(chunk_t) * output_size));
 	CUCH(cudaMalloc(&cu_invs, sizeof(float*) * data.points));
 
 	CUCH(cudaMemset(cu_invs, 0, sizeof(float*) * data.points));
@@ -49,7 +49,7 @@ TEST(kernel, euclid_min_small)
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(clustering::chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 	EXPECT_EQ(host_res.min_i, (clustering::asgn_t)6);
 	EXPECT_EQ(host_res.min_j, (clustering::asgn_t)29);
@@ -64,8 +64,8 @@ TEST(kernel, euclidean_min_big)
 	size_t output_size = compute_output_size(shared_size, data.points);
 
 	input_t cu_in;
-	clustering::chunk_t* cu_out;
-	clustering::chunk_t host_res;
+	chunk_t* cu_out;
+	chunk_t host_res;
 	float** cu_invs;
 	kernel_info kernel{ 50,  1024, shared_size };
 
@@ -77,7 +77,7 @@ TEST(kernel, euclidean_min_big)
 	auto start = std::chrono::system_clock::now();
 
 	CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
-	CUCH(cudaMalloc(&cu_out, sizeof(clustering::chunk_t) * output_size));
+	CUCH(cudaMalloc(&cu_out, sizeof(chunk_t) * output_size));
 	CUCH(cudaMalloc(&cu_invs, sizeof(float*) * data.points));
 
 	CUCH(cudaMemset(cu_invs, 0, sizeof(float*) * data.points));
@@ -106,7 +106,7 @@ TEST(kernel, euclidean_min_big)
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(clustering::chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 	start = std::chrono::system_clock::now();
 	auto ser = serial_euclidean_min(data);

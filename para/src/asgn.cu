@@ -26,3 +26,28 @@ void run_merge_clusters(asgn_t* assignments, size_t point_size, asgn_t old_A, as
 {
 	merge_clusters << <info.grid_dim, info.block_dim >> > (assignments, point_size, old_A, old_B, new_C);
 }
+
+__global__ void print_a(asgn_t* assignments, size_t point_size)
+{
+	for (size_t i = 0; i < point_size; i++)
+		printf("%d: %d\n", (int)i, (int)assignments[i]);
+}
+
+__global__ void print_kind(cluster_kind* kind, size_t count)
+{
+	for (size_t i = 0; i < count; i++)
+	{
+		printf("%d. %d\n", (int)i, (int)kind[i]);
+	}
+}
+
+
+void run_print_assg(asgn_t* assignments, size_t point_size)
+{
+	print_a << <1, 1 >> > (assignments, point_size);
+}
+
+void run_print_kind(cluster_kind* kind, size_t count)
+{
+	print_kind << <1, 1 >> > (kind, count);
+}

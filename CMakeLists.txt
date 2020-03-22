@@ -18,6 +18,10 @@ IF (NOT DEFINED BUILD_GMHC_SERIAL)
     SET(BUILD_GMHC_SERIAL true)
 ENDIF ()
 
+IF (NOT DEFINED BUILD_GMHC_PARA)
+    SET(BUILD_GMHC_PARA true)
+ENDIF ()
+
 IF (BUILD_GMHC_TESTS)
     # Download and unpack googletest at configure time
     configure_file(cmake/external_gtest.cmake googletest-download/CMakeLists.txt)
@@ -56,4 +60,7 @@ IF (BUILD_GMHC_SERIAL)
     ADD_SUBDIRECTORY(serial)
 ENDIF (BUILD_GMHC_SERIAL)
 
-ADD_SUBDIRECTORY(para)
+
+IF (BUILD_GMHC_PARA)
+    ADD_SUBDIRECTORY(para)
+ENDIF (BUILD_GMHC_PARA)

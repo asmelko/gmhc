@@ -99,7 +99,7 @@ __global__ void finish_covariance(const float* __restrict__ in_cov_matrix, size_
 {
 	size_t cov_size = ((N + 1) * N) / 2;
 
-	for (size_t idx = 0; idx < cov_size; idx+= blockDim.x)
+	for (size_t idx = threadIdx.x; idx < cov_size; idx+= blockDim.x)
 	{
 		auto coords = compute_coordinates(N, idx);
 		auto tmp = in_cov_matrix[idx] / divisor;
@@ -112,11 +112,23 @@ void run_covariance(const input_t in, const asgn_t* assignments, float* out, asg
 {
 	size_t cov_size = ((in.dim + 1) * in.dim) / 2;
 	size_t shared_chunks = info.shared_size;
-
+	
+	CUCH(cudaMemset(out, 0, cov_size * sizeof(float)));
 	covariance << <info.grid_dim, info.block_dim, shared_chunks* cov_size * sizeof(float) >> > (in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);
 }
 
 void run_finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
 {
-	finish_covariance<<<1, ((N + 1) * N) / 2 >>>(in_cov_matrix, divisor, N, out_cov_matrix);
+	finish_covariance<<<1, ((N + 1) * N) / 2>>>(in_cov_matrix, divisor, N, out_cov_matrix);
+}
+
+__global__ void set_default(float* icov_matrix, size_t size)
+{
+	for (size_t i = threadIdx.x; i < size; i += blockDim.x)
+		icov_matrix[i] = 1;
+}
+
+void run_set_default_inverse(float* icov_matrix, size_t size)
+{
+	set_default << <1, size >> > (icov_matrix, size);
 }

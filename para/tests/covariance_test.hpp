@@ -65,7 +65,7 @@ TEST(kernel, covariance_big)
 	float* cu_out;
 	clustering::asgn_t* cu_asgn;
 	float* host_res = new float[cov_size];
-	kernel_info kernel{ 50, 1024, 100 };
+	kernel_info kernel{ 1, 32, 1 };
 
 	cu_in.count = data.points;
 	cu_in.dim = data.dim;
@@ -103,7 +103,7 @@ TEST(kernel, covariance_big)
 
 	CUCH(cudaMemcpy(host_res, cu_out, cov_size * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-	size_t count = 100000;
+	size_t count = data.points;
 
 	start = std::chrono::system_clock::now();
 	auto res = serial_covariance_by_centroid(data, assignments.data(),centroid.data(), 0);

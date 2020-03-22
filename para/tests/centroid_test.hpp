@@ -16,7 +16,7 @@ TEST(kernel, centroid_small)
 	float* cu_out;
 	clustering::asgn_t* cu_asgn;
 	float host_res[4];
-	kernel_info kernel{ 1, 32 };
+	kernel_info kernel{ 50, 512};
 
 	cu_in.count = data.points;
 	cu_in.dim = data.dim;

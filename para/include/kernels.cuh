@@ -1,7 +1,7 @@
 #ifndef KERNELS_CUH
 #define KERNELS_CUH
 
-#include <gmhc.hpp>
+#include <clustering.hpp>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 
@@ -27,6 +27,28 @@ struct size2
 	size_t x, y;
 };
 
+struct chunk_t
+{
+	float min_dist;
+	clustering::asgn_t min_i, min_j;
+};
+
+struct neighbour_t
+{
+	float distance;
+	clustering::asgn_t idx;
+};
+
+template <size_t N>
+struct neighbour_array_t
+{
+	neighbour_t neighbours[N];
+};
+
+enum class cluster_kind : uint8_t
+{
+	EMPTY = 0, EUCL = 1, MAHA = 2
+};
 
 
 struct input_t
@@ -45,24 +67,35 @@ struct kernel_info
 
 void assign_constant_storage(const float* value, size_t size, cudaMemcpyKind kind);
 
-void run_euclidean_min(const input_t in, clustering::chunk_t* out, const float* const* inverses, kernel_info info);
-void run_min(const input_t in, clustering::chunk_t* out, const float* const* inverses, kernel_info info);
-clustering::chunk_t run_reduce(const clustering::chunk_t* chunks, clustering::chunk_t* out, size_t chunk_size, kernel_info info);
+void run_euclidean_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
+void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
+chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, size_t chunk_size, kernel_info info);
 
 void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, size_t cluster_size, kernel_info info);
 
 void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
 void run_finish_covariance(const float* in_cov_matrix, size_t divisor, size_t N, float* out_cov_matrix);
+void run_set_default_inverse(float* icov_matrix, size_t size);
 
 void run_set_default_asgn(clustering::asgn_t* asgns, size_t N);
 
 void run_merge_clusters(clustering::asgn_t* assignments, size_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
 template <size_t N>
-void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, clustering::neighbour_array_t<N>* tmp_neighbours, clustering::neighbour_array_t<N>* neighbours, kernel_info info);
+void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* neighbours, 
+	cluster_kind* cluster_kinds, kernel_info info);
 
 template <size_t N>
-clustering::chunk_t run_neighbours_min(const clustering::neighbour_array_t<N>* neighbours, size_t count, chunk_t* result);
+chunk_t run_neighbours_min(const neighbour_array_t<N>* neighbours, size_t count, chunk_t* result);
+
+template <size_t N>
+void run_update_neighbours(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
+
+void print_nei(neighbour_array_t<1>* neighbours, size_t count);
+void run_print_assg(clustering::asgn_t* assignments, size_t point_size);
+void run_print_centroid(const float* centroid, size_t dim, size_t count);
+void run_print_kind(cluster_kind* kind, size_t count);
+
 
 
 #endif

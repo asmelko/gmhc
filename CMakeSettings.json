@@ -2,12 +2,12 @@
   "configurations": [
     {
       "name": "WSL-Debug",
-      "generator": "Ninja",
+      "generator": "Unix Makefiles",
       "configurationType": "Debug",
       "buildRoot": "${projectDir}\\build\\${name}",
       "installRoot": "${projectDir}\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
-      "cmakeCommandArgs": "",
+      "cmakeCommandArgs": "-DBUILD_GMHC_PARA=false",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_x64" ],

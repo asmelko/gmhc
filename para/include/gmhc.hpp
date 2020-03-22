@@ -2,38 +2,16 @@
 #define GMHC_HPP
 
 #include <clustering.hpp>
-#include <cublas_v2.h>
+#include <validator.hpp>
+#include "kernels.cuh"
 
 namespace clustering
 {
-
-struct chunk_t
-{
-    float min_dist;
-    asgn_t min_i, min_j;
-};
 
 struct cluster_data_t
 {
     asgn_t id;
     size_t size;
-};
-
-struct neighbour_t
-{
-    float distance;
-    clustering::asgn_t idx;
-};
-
-template <size_t N>
-struct neighbour_array_t
-{
-    neighbour_t neighbours[N];
-};
-
-enum class cluster_kind : uint8_t
-{
-    EMPTY = 0, EUCL = 1, MAHA = 2
 };
 
 class gmhc : public hierarchical_clustering<float>
@@ -42,36 +20,51 @@ class gmhc : public hierarchical_clustering<float>
 
     float* cu_points_;
     asgn_t* cu_point_asgns_;
-    float* cu_centroids_, *cu_centroids_tmp_;
-    float** cu_icov_, **cu_icov_tmp_;
+    float* cu_centroids_;
+    float** cu_icov_;
     cluster_kind* cu_cluster_kinds_;
-    neighbour_type* cu_neighs_, *cu_neighs_tmp_;
+    neighbour_type* cu_neighs_;
     chunk_t* cu_chunks_;
     chunk_t* cu_min_;
+    uint8_t* cu_updated;
+
+    kernel_info starting_info_;
+
+    neighbour_type* tmp_neigh;
+    float* tmp_icov;
+
+    float** cu_read_icov, ** cu_write_icov;
+    int* cu_info;
 
     size_t chunk_count_;
     size_t cluster_count_;
     size_t big_cluster_count_, small_cluster_count_;
     asgn_t id_;
 
-    cluster_data_t* cluster_data_, *cluster_data_tmp_;
+    cluster_data_t* cluster_data_;
     
-    static constexpr size_t maha_threshold_ = 20;
+    size_t maha_threshold_;
     size_t icov_size_;
 
     cublasHandle_t handle_;
 
+    validator* vld_;
+
 public:
-    virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
+    void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim, size_t mahalanobis_threshold, validator* vld = nullptr);
 
     virtual std::vector<pasgn_t> run() override;
 
     virtual void free() override;
 
+protected:
+    virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
+
+
 private:
-    void move_(size_t from, size_t to, int where);
-    size_t move_clusters(size_t i, size_t j);
-    void compute_icov(size_t pos, float* cu_tmp_icov);
+    void update_iteration(size_t cluster_idx, const cluster_data_t* merged);
+    void move_clusters(size_t old_pos);
+    void compute_icov(size_t pos, bool have_inplace_icov);
 };
 
 }

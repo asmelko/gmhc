@@ -61,7 +61,7 @@ __device__ void print_point(const float* data, size_t x, size_t dim)
     printf("\n");
 }
 
-__device__ void print_min(const clustering::chunk_t* output)
+__device__ void print_min(const chunk_t* output)
 {
     printf("%f %d %d\n", output->min_dist, output->min_i,output->min_j);
 }
@@ -109,7 +109,7 @@ __inline__ __device__ size2 load_data(const float* points, float const * const *
     return { up_size, left_size };
 }
 
-__inline__ __device__ clustering::chunk_t reduce_min_warp(clustering::chunk_t data)
+__inline__ __device__ chunk_t reduce_min_warp(chunk_t data)
 {
     for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
     {
@@ -126,7 +126,7 @@ __inline__ __device__ clustering::chunk_t reduce_min_warp(clustering::chunk_t da
     return data;
 }
 
-__inline__ __device__ clustering::chunk_t reduce_min_block(clustering::chunk_t data, clustering::chunk_t* shared_mem)
+__inline__ __device__ chunk_t reduce_min_block(chunk_t data, chunk_t* shared_mem)
 {
     data = reduce_min_warp(data);
 
@@ -144,11 +144,11 @@ __inline__ __device__ clustering::chunk_t reduce_min_block(clustering::chunk_t d
     return data;
 }
 
-__global__ void reduce_min(const clustering::chunk_t* input, clustering::chunk_t* output, size_t input_size)
+__global__ void reduce_min(const chunk_t* input, chunk_t* output, size_t input_size)
 {
-    static __shared__ clustering::chunk_t shared_mem[32];
+    static __shared__ chunk_t shared_mem[32];
 
-    clustering::chunk_t min;
+    chunk_t min;
     min.min_dist = FLT_MAX;
 
     for (size_t i = threadIdx.x; i < input_size; i += blockDim.x)
@@ -175,9 +175,9 @@ __inline__ __device__ size2 compute_coordinates(size_t count_in_line, size_t pla
     return { plain_index + y, y };
 }
 
-__inline__ __device__ clustering::chunk_t diagonal_loop(size_t block_size, size_t dim, float* shared_mem)
+__inline__ __device__ chunk_t diagonal_loop(size_t block_size, size_t dim, float* shared_mem)
 {
-    clustering::chunk_t min;
+    chunk_t min;
     min.min_dist = FLT_MAX;
 
     for (size_t i = threadIdx.x; i < (((block_size + 1) * block_size) / 2) - block_size; i += blockDim.x)
@@ -200,9 +200,9 @@ __inline__ __device__ clustering::chunk_t diagonal_loop(size_t block_size, size_
     return min;
 }
 
-__inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, size_t dim, float* shared_mem)
+__inline__ __device__ chunk_t non_diagonal_loop(size2 chunk_dim, size_t dim, float* shared_mem)
 {
-    clustering::chunk_t min;
+    chunk_t min;
     min.min_dist = FLT_MAX;
 
     for (size_t i = threadIdx.x; i < chunk_dim.x * chunk_dim.y; i += blockDim.x)
@@ -225,13 +225,13 @@ __inline__ __device__ clustering::chunk_t non_diagonal_loop(size2 chunk_dim, siz
     return min;
 }
 
-__inline__ __device__ clustering::chunk_t block_euclidean_min(const float* points, size_t count, size_t dim, float* shared_mem, size_t hshsize, size2 coords, const float* const* inverses)
+__inline__ __device__ chunk_t block_euclidean_min(const float* points, size_t count, size_t dim, float* shared_mem, size_t hshsize, size2 coords, const float* const* inverses)
 {
     auto sh_sizes = load_data(points, inverses, count, dim, shared_mem, hshsize, coords);
 
     __syncthreads();
 
-    clustering::chunk_t min;
+    chunk_t min;
 
     if (coords.x == coords.y)
         min = diagonal_loop(sh_sizes.x, dim, shared_mem);
@@ -241,14 +241,14 @@ __inline__ __device__ clustering::chunk_t block_euclidean_min(const float* point
     min.min_i += coords.y * hshsize;
     min.min_j += coords.x * hshsize;
 
-    clustering::chunk_t* tmp_res = reinterpret_cast<clustering::chunk_t*>(shared_mem);
+    chunk_t* tmp_res = reinterpret_cast<chunk_t*>(shared_mem);
 
     min = reduce_min_block(min, tmp_res);
 
     return min;
 }
 
-__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t half_shared_size, clustering::chunk_t* res, size_t chunks_in_line, size_t chunk_count, const float* const* inverses)
+__global__ void euclidean_min(const float* points, size_t point_count, size_t point_dim, size_t half_shared_size, chunk_t* res, size_t chunks_in_line, size_t chunk_count, const float* const* inverses)
 {
     extern __shared__ float shared_mem[];
 
@@ -263,7 +263,7 @@ __global__ void euclidean_min(const float* points, size_t point_count, size_t po
     }
 }
 
-void run_euclidean_min(const input_t in, clustering::chunk_t* out, const float * const * inverses, kernel_info info)
+void run_euclidean_min(const input_t in, chunk_t* out, const float * const * inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
@@ -273,7 +273,7 @@ void run_euclidean_min(const input_t in, clustering::chunk_t* out, const float *
     reduce_min << <1, 1024 >> > (out, out, chunk_count);
 }
 
-void run_min(const input_t in, clustering::chunk_t* out, const float* const* inverses, kernel_info info)
+void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
@@ -282,11 +282,11 @@ void run_min(const input_t in, clustering::chunk_t* out, const float* const* inv
     euclidean_min << <info.grid_dim, info.block_dim, info.shared_size* in.dim * sizeof(float) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
 }
 
-clustering::chunk_t run_reduce(const clustering::chunk_t* chunks, clustering::chunk_t* out, size_t chunk_count, kernel_info info)
+chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, size_t chunk_count, kernel_info info)
 {
     reduce_min << <1, 1024 >> > (chunks, out, chunk_count);
     CUCH(cudaDeviceSynchronize());
-    clustering::chunk_t res;
-    CUCH(cudaMemcpy(&res, out, sizeof(clustering::chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+    chunk_t res;
+    CUCH(cudaMemcpy(&res, out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
     return res;
 }
