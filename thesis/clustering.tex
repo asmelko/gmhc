@@ -1,12 +1,36 @@
 \chapter{Clustering}
 
-define clustering
+In the field of clustering analysis, there is no strict definition for cluster itself. That may be one reason why there is such a vast amount of clustering algorithms; many papers such as \cite{estivill2002so} address this topic.  However, the one think in common that we can find among all the algorithms is a work with a group of data objects.
 
-what is it used for
+Suppose data $\mathcal{D}$ given as a $n$ $d$-dimensional vectors $(x_1,\dots,x_d) \subset \R_d$  -- objects; each element of a vector describes specific object property. Two objects are similar if values of their respective properties are alike. Then, clustering analysis can be defined as a form of grouping objects into subsets of $\mathbf{D}$ while maximizing inter-set object similarity and minimizing intra-set object similarity.
 
-\section{Hierarchical clustering}
+\section{Clustering models}
 
-definition 
+Concrete variations of clustering analysis are defined by a clustering model. They are divided into several sections.
+
+\subsection{Centroid-based model}
+
+\emph{Centroid-based clustering model} represents clusters only by a central vector which is not necessarily a member of a working set. 
+
+The most common implementation of centroid-based clustering is \emph{k-means}. It divides data into $k$ clusters (hence, \emph{k}-means) in a iterative manner; each iteration finding more suitable centroid vector. Its algorithm can be expressed in a few simple steps:
+
+\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7\catcode`_=8},frame=lines,label=$k$-means]
+[0]  initialize dataset $\mathcal{D}$
+[1]  choose first $k$ objects from $\mathcal{D}$ as centroids $c_1,\dots,c_k$ 
+[2]  $\mathcal{C}$ <- $\{c_1,\dots,c_k\}$
+[3]  do
+[4]    for each $c_i$ create empty cluster $K_i$
+[5]    for each $o$ in $\mathcal{D}$ find closest centroid $c_i$; do
+[6]      $K_i$ <- $K_i \cup o$
+[7]    for each $K_i$ compute new centroid $c^\prime_i$
+[8]    $\mathcal{C}^\prime$ <- $\{c^\prime_1,\dots,c^\prime_k\}$
+[9]    swap $\mathcal{C}$ and $\mathcal{C}^\prime$
+[10] while $\mathcal{C}$ != $\mathcal{C}^\prime$
+\end{Verbatim}
+  
+
+\subsection{Hierarchical model}
+In \emph{Hierarchical clustering model} objects are \emph{connected} together forming tree-like structure. Two clusters are connected based on predefined ditance always chosing the closest clusters to connect. 
 
 \subsection{some hierarchical clusterings}
 
