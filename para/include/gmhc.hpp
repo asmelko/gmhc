@@ -35,6 +35,7 @@ class gmhc : public hierarchical_clustering<float>
 
     float** cu_read_icov, ** cu_write_icov;
     int* cu_info;
+    int* cu_pivot;
 
     size_t chunk_count_;
     size_t cluster_count_;

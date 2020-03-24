@@ -159,9 +159,9 @@ std::vector<float> compute_covariance(const float* points, size_t dim, size_t si
 
 bool float_diff(float a, float b)
 {
-	auto avg = (a + b) / 2;
-	auto sdev = (a - avg) * (a - avg) * 2;
-	if (sdev >= 0.0009f)
+	auto diff = std::abs(a - b);
+	auto fr = (diff / a + diff / b) / 2;
+	if (fr >= 0.05f)
 		return true;
 	else
 

@@ -158,7 +158,7 @@ __global__ void update_neighbours(size_t centroid_count, neighbour_array_t<N>* n
 
 	for (asgn_t x = idx; x < centroid_count; x += blockDim.x * gridDim.x)
 	{
-		if (x == old_i)
+		if (x == old_i || x == old_j)
 		{
 			updated[x] = 1;
 			continue;

@@ -39,6 +39,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	CUCH(cudaMalloc(&cu_read_icov, sizeof(float*)));
 	CUCH(cudaMalloc(&cu_write_icov, sizeof(float*)));
 	CUCH(cudaMalloc(&cu_info, sizeof(int)));
+	CUCH(cudaMalloc(&cu_pivot, sizeof(int)*data_point_dim));
 
 	cluster_data_ = new cluster_data_t[cluster_count_];
 
@@ -91,6 +92,9 @@ std::vector<pasgn_t> gmhc::run()
 
 		if (vld_)
 		{
+			printf("\rIteration %d", (int)points_size - (int)cluster_count_);
+			fflush(stderr);
+
 			std::vector<float> tmp_centr;
 			tmp_centr.resize(point_dim);
 			CUCH(cudaMemcpy(tmp_centr.data(), cu_centroids_ + new_centr_pos * point_dim, sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToHost));
@@ -189,7 +193,13 @@ void gmhc::compute_icov(size_t pos, bool have_inplace_icov)
 	CUCH(cudaMemcpy(cu_read_icov, &tmp_icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 	CUCH(cudaMemcpy(cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	BUCH(cublasSmatinvBatched(handle_, (int)point_dim, cu_read_icov, (int)point_dim, cu_write_icov, (int)point_dim, cu_info, 1));
+	if (point_dim <= 16)
+		BUCH(cublasSmatinvBatched(handle_, (int)point_dim, cu_read_icov, (int)point_dim, cu_write_icov, (int)point_dim, cu_info, 1));
+	else
+	{
+		BUCH(cublasSgetrfBatched(handle_, (int)point_dim, cu_read_icov, (int)point_dim, cu_pivot, cu_info, 1));
+		BUCH(cublasSgetriBatched(handle_, (int)point_dim, cu_read_icov, (int)point_dim, cu_pivot, cu_write_icov, (int)point_dim, cu_info, 1));
+	}
 
 	CUCH(cudaDeviceSynchronize());
 
