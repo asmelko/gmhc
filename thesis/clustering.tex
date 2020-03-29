@@ -41,6 +41,40 @@ The most common implementation of centroid-based clustering is \emph{k-means}. I
 [10] while $\mathcal{C}$ != $\mathcal{C}^\prime$
 \end{Verbatim}
 
+
+\begin{algorithm}
+\caption{demo jao vysazet algoritmus \xxx{odstranit}}
+\label{alg:embedsom}
+\begin{algorithmic}[1]
+\Procedure{EmbedSOM}{$X\in\R^n$, $L\in\R^{n\times D}$, $l\in\R^{n\times 2}$, $k\in\{4\dots n\}$, $m>0$, $a>0$}
+\State $c \gets$ a sequence of $c_i = \langle X-L_i \rangle$ for $i\in\{1\dots n\}$
+\State $o \gets$ indexes of $k$ smallest elements of $c$ in order
+\State $\mu \gets \sum_{i\leq k}\frac{c_{o(i)}}{i\cdot k}$ \Comment estimate the distribution of landmark distances
+\State $\sigma \gets \sqrt{\sum_{i\leq k}\left(\frac{c_{o(i)}-\mu}{i}\right)^2}$
+\State $S \gets$ a sequence of $S_i =
+ \exp\frac{b\cdot\left(\mu-c_{o(i)}\right)}{\sigma}
+ \cdot
+ \left(1-\exp\frac{c_{o(i)}-c_{o(k)}}
+ {m\cdot c_{o(k)}}\right)$
+\State $M \gets \left(\begin{array}{ll|l}0 & 0 & 0 \\ 0 & 0 & 0 \end{array}\right)$ \Comment accumulator for the linear equation system
+\For{$i'\in\{1\dots k-2\}$} \Comment iterate through pairs of $k-1$ closest landmarks
+\For{$j'\in\{i+1\dots k-1\}$}
+\State $i \gets o(i')$ \Comment obtain non-permuted landmark indexes
+\State $j \gets o(j')$
+\State $d \gets \frac{\langle X-L_i, L_j-L_i\rangle}{\langle L_j-L_i\rangle}$ \Comment projection position in the affine space
+\State $h \gets l_j - l_i$ \Comment helper values
+\State $y \gets d+\frac{\langle h, l_i \rangle}{\langle h \rangle}$
+\State $s \gets (1+\langle h \rangle)^{-a} \cdot e^{(d-\frac{1}{2})^2}\cdot S_{i'}\cdot S_{j'},$
+\State $M \gets M + s\cdot\left(\frac{h\cdot h^T}{\langle h \rangle}\ \begin{array}{|c}y\cdot h_1\\y\cdot h_2\end{array}\right)$
+\EndFor
+\EndFor
+
+\State \textbf{return} solution $(x_1, x_2)$ of the linear system in $M$
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
 The algorithm divides data into $k$ clusters (hence, \emph{k}-means) in a iterative manner. Before the first iteration, initial $k$ central vectors are selected from the dataset. Each iteration, dataset objects are grouped into clusters according to the closest centroid. After that, new centroids are then computed from new clusters. Next iteration follows until centroids does not change or predefined number of iterations is reached. 
 
 The advantage of this algorithm is the fact that it is easily comprehensible; hence can sustain for large variety of datasets. Another think is that it is said to be the speediest centroid-based algorithm. However, the disadvantages are inability to deal with the noise in a dataset and clusters of non-convex shape (\cite{uppada2014centroid}).
@@ -55,8 +89,8 @@ The above described approach of a hierarchical algorith is called \emph{agglomer
 The result of hierarchical clustering can be viewed in a \emph{dendrogram} see \ref{fig01:dendro}. The x-axis states the distance of connected clusters. The y-axix shows the objects from a dataset.
 
 \begin{figure}\centering
-	\includegraphics{img/dendro}
-	\caption{An example of dendrogram. placeholder}
+	\includegraphics[width=\linewidth]{img/dendro}
+	\caption{An example of dendrogram. placeholder \xxx{tady k tomu sem pridal presnou velikost na sirku radku, aby to nesypalo ten osklivej overflow okraj}}
 	\label{fig01:dendro}
 \end{figure}
 
