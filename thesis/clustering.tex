@@ -54,18 +54,70 @@ The above described approach of a hierarchical algorith is called \emph{agglomer
 
 The result of hierarchical clustering can be viewed in a \emph{dendrogram} see \ref{fig01:dendro}. The x-axis states the distance of connected clusters. The y-axix shows the objects from a dataset.
 
-This model distinguishes various kind of hierarical clustering algorithms based on the choice of a \emph{distance function} and so called \emph{linkage criterion}. 
-
 \begin{figure}\centering
 	\includegraphics{img/dendro}
-	\caption{An example of dendrogram.}
+	\caption{An example of dendrogram. placeholder}
 	\label{fig01:dendro}
-	
 \end{figure}
 
-\subsection{some hierarchical clusterings}
+To know which two clusters are connected (or respectively, how a cluster is divided into two), algorithms use a \emph{measure of a dissimilarity} between clusters.  
+Hierarchical model distinguishes various kind of algorithms based on the choice of this measure. Commonly, the computation is dependent on the two factors; \emph{distance function} and \emph{linkage criterion}. 
 
-examples
+\subsubsection{Distance functions}
+
+\emph{Distance function} is used on objects of a dataset to express how far they are from each other in the observed domain. Supposing objects are represented as vectors $v_i \in \R_d$, variations of \emph{Minkowski distance formula} (see \ref{eq01:mink}) are the most commonly used.
+This variations are \emph{Manhattan distance} ($p=1$), \emph{Euclidean distance} ($p=2$) and \emph{Chebyshev distance} ($p \to \infty$) (see \ref{tab01:mink}).
+
+It is obvious that the choice of a distance function can influence the result of a clustering. Hence, it should be chosen with respect to the properties of a provided dataset. \cite{aggarwal2001surprising} shows the qualitative behavior of different distance functions in the $k$-means algorithm.  
+
+\begin{equation}\label{eq01:mink}
+||a-b||_p = (\sum_{i=1...d}|a_i-b_i|^p)^{\frac{1}{p}}
+\end{equation}
+
+\begin{table}
+	\centering
+	\begin{tabular}{ll}
+		\toprule
+		Manhattan & $||a-b||_1 = \sum_{i=1...d}|a_i-b_i|$          \\
+		Euclidean & $||a-b||_2 = \sqrt{\sum_{i=1...d}(a_i-b_i)^2}$ \\
+		Chebyshev & $||a-b||_\infty = \max_{i=1\dots d}|a_i-b_i|$  \\ \bottomrule
+	\end{tabular}
+	\caption{Variations of Minkowski distance formula.}
+	\label{tab01:mink}
+\end{table}
+
+\subsubsection{Linkage criteria}
+
+As the reader may have already discovered, one particular problem arises. The hierarchical algorithm can not compute proximity of two clusters only using distance function as it is the function of \emph{dataset objects} Hence, we define a function of \emph{object clusters} to complete the process of measuring dissimilarity -- \emph{linkage criterion}. Supposing clusters $A$ and $B$ as sets of dataset objects and distance function $d$, wer define following \emph{linkage criteria} (\cite{yim2015hierarchical}):
+
+\begin{description}
+	\item[Single linkage] -- Also referred to as minimum method, \emph{single linkage criterion} computes distance between $A$ and $B$ as the minimum distance between any pair $(a,b) \in A\times B$ (see \ref{eq01:single_link}).
+	\begin{equation}\label{eq01:single_link}
+	\min\{d(a,b) : a \in A, b \in B\}
+	\end{equation}
+	
+	The major drawback this criterion suffers is \emph{cluster chaining}. Such two clusters can be connected that they do not share any other pair of close proximity objects than the one that determined the connection. This produces long thin clusters with great distance between some objects.
+	
+	\item[Complete linkage] -- Also referred to as maximum method, \emph{complete linkage criterion} is similar to the single linkage criterion. But as opposed to to finding minimum, this criterion uses the maximum of object pairs in computing cluster dissimilarity (see \ref{eq01:complete_link}). 
+	\begin{equation}\label{eq01:complete_link}
+	\max\{d(a,b) : a \in A, b \in B\}
+	\end{equation}
+	
+	The criterion suffers from its simplicity as well as the single linkage. But instead of naively connecting dissmimilar clusters, here simmilar clusters are not connected in some cases. Having all two clusters' objects in close proximity to each other but one object being rather far from the others, the criterion will not link the clusters as the maximum distance deteriorates the rest.
+	
+	\item[Centroid linkage] -- \emph{Centroid linkage criterion} tries to solve problems of criteria above by measuring the distance between the centroids of clusters. It introduces a form of an average into the computation; the think that criteria above lack.
+\end{description}
+
+\begin{figure}\centering
+	\includegraphics[width=\linewidth]{img/linkage_criteria}
+	\caption{Example of linkage criteria. The double line represents the distance between clusters A and B according to respective criterion.}
+	\label{fig01:link}
+\end{figure}
+
+A choice of a linkage criterion in hierarchical clustering algorithm is vital. As statet above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
+
+\section{Time complexity}
+
 
 \subsection{mahalanobis clustering}
 
