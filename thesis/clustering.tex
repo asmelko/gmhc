@@ -1,6 +1,6 @@
 \chapter{Clustering}
 
-In the field of clustering analysis, there is no strict definition for cluster itself. That may be one reason why there is such a vast amount of clustering algorithms; many authors such as \citet{estivill2002so} address this topic.  However, the one think in common that we can find among all the algorithms is a work with a group of data objects.
+In the field of clustering analysis, there is no strict definition for cluster itself. That may be one reason why there is such a vast amount of clustering algorithms; many authors such as \citet{estivill2002so} discuss this topic.  However, the one think in common that we can find among all the algorithms is a work with a group of data objects.
 
 Suppose data $\mathcal{D}$ given as a $n$ $d$-dimensional vectors $(x_1,\dots,x_d) \subset \R_d$  -- objects; each element of a vector describes specific object property. Two objects are similar if values of their respective properties are alike. Then, clustering analysis can be defined as a form of grouping objects into subsets of $\mathbf{D}$ while maximizing inter-set object similarity and minimizing intra-set object similarity.
 
@@ -25,53 +25,31 @@ This problem is uneasy to solve due to its exponential complexity. Hence, many a
 
 \subsubsection{k-means}
 
-The most common implementation of centroid-based clustering is \emph{k-means}. Its algorithm can be expressed in a few simple steps:
-
-\begin{Verbatim}[commandchars=\\\{\},codes={\catcode`$=3\catcode`^=7\catcode`_=8},frame=lines,label=$k$-means]
-[0]  initialize dataset $\mathcal{D}$
-[1]  choose first $k$ objects from $\mathcal{D}$ as centroids $c_1,\dots,c_k$ 
-[2]  $\mathcal{C}$ <- $\{c_1,\dots,c_k\}$
-[3]  do
-[4]    for each $c_i$ create empty cluster $K_i$
-[5]    for each $o \in \mathcal{D}$ find closest centroid $c_i$; do
-[6]      $K_i$ <- $K_i \cup o$
-[7]    for each $K_i$ compute new centroid $c^\prime_i$
-[8]    $\mathcal{C}^\prime$ <- $\{c^\prime_1,\dots,c^\prime_k\}$
-[9]    swap $\mathcal{C}$ and $\mathcal{C}^\prime$
-[10] while $\mathcal{C}$ != $\mathcal{C}^\prime$
-\end{Verbatim}
-
+The most common implementation of centroid-based clustering is \emph{k-means}. Its algorithm can be expressed in a few simple steps (see \ref{alg01:kmeans}).
 
 \begin{algorithm}
-\caption{demo jao vysazet algoritmus \xxx{odstranit}}
-\label{alg:embedsom}
-\begin{algorithmic}[1]
-\Procedure{EmbedSOM}{$X\in\R^n$, $L\in\R^{n\times D}$, $l\in\R^{n\times 2}$, $k\in\{4\dots n\}$, $m>0$, $a>0$}
-\State $c \gets$ a sequence of $c_i = \langle X-L_i \rangle$ for $i\in\{1\dots n\}$
-\State $o \gets$ indexes of $k$ smallest elements of $c$ in order
-\State $\mu \gets \sum_{i\leq k}\frac{c_{o(i)}}{i\cdot k}$ \Comment estimate the distribution of landmark distances
-\State $\sigma \gets \sqrt{\sum_{i\leq k}\left(\frac{c_{o(i)}-\mu}{i}\right)^2}$
-\State $S \gets$ a sequence of $S_i =
- \exp\frac{b\cdot\left(\mu-c_{o(i)}\right)}{\sigma}
- \cdot
- \left(1-\exp\frac{c_{o(i)}-c_{o(k)}}
- {m\cdot c_{o(k)}}\right)$
-\State $M \gets \left(\begin{array}{ll|l}0 & 0 & 0 \\ 0 & 0 & 0 \end{array}\right)$ \Comment accumulator for the linear equation system
-\For{$i'\in\{1\dots k-2\}$} \Comment iterate through pairs of $k-1$ closest landmarks
-\For{$j'\in\{i+1\dots k-1\}$}
-\State $i \gets o(i')$ \Comment obtain non-permuted landmark indexes
-\State $j \gets o(j')$
-\State $d \gets \frac{\langle X-L_i, L_j-L_i\rangle}{\langle L_j-L_i\rangle}$ \Comment projection position in the affine space
-\State $h \gets l_j - l_i$ \Comment helper values
-\State $y \gets d+\frac{\langle h, l_i \rangle}{\langle h \rangle}$
-\State $s \gets (1+\langle h \rangle)^{-a} \cdot e^{(d-\frac{1}{2})^2}\cdot S_{i'}\cdot S_{j'},$
-\State $M \gets M + s\cdot\left(\frac{h\cdot h^T}{\langle h \rangle}\ \begin{array}{|c}y\cdot h_1\\y\cdot h_2\end{array}\right)$
-\EndFor
-\EndFor
-
-\State \textbf{return} solution $(x_1, x_2)$ of the linear system in $M$
-\EndProcedure
-\end{algorithmic}
+	\caption{$k$-means clustering}
+	\label{alg01:kmeans}
+	\begin{algorithmic}[1]
+		\Procedure{$k$-means}{$k\in\R$, $\mathcal{D} \subset \R^d$, $d \in \R^d \times \R^d \to \R$}
+		\State $\mathcal{C} \gets$ first $k$ objects from  $\mathcal{D}$ \Comment{select initial centroids}
+		\Repeat
+			\For{$i \in \{1\dots k\}$}
+				\State $K_i \gets \{\}$\Comment{create empty clusters}
+			\EndFor
+			\ForAll{$o \in \mathcal{D}$}
+				\State $i' \gets$ index of the closest centroid $c_i \in \mathcal{C}$ to $o$; $d(o,c_i)$ is minimal
+				\State $K_{i'} \gets K_{i'} \cup o$ \Comment{assign objects to clusters}
+			\EndFor
+			\For{$i \in \{1\dots k\}$}
+				\State $c'_i \gets$ centroid of $K_i$ \Comment{compute new centroids}
+			\EndFor
+			\State $\mathcal{C}' \gets \{c'_1,\dots,c'_k\}$
+			\State swap $\mathcal{C}$ and $\mathcal{C}'$
+		\Until{$\mathcal{C} = \mathcal{C}^\prime$}
+		\State \textbf{return} $\mathcal{C}$
+		\EndProcedure
+	\end{algorithmic}
 \end{algorithm}
 
 
@@ -90,7 +68,7 @@ The result of hierarchical clustering can be viewed in a \emph{dendrogram} see \
 
 \begin{figure}\centering
 	\includegraphics[width=\linewidth]{img/dendro}
-	\caption{An example of dendrogram. placeholder \xxx{tady k tomu sem pridal presnou velikost na sirku radku, aby to nesypalo ten osklivej overflow okraj}}
+	\caption{An example of dendrogram. placeholder }
 	\label{fig01:dendro}
 \end{figure}
 
@@ -148,7 +126,7 @@ As the reader may have already discovered, one particular problem arises. The hi
 	\label{fig01:link}
 \end{figure}
 
-A choice of a linkage criterion in hierarchical clustering algorithm is vital. As statet above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
+A choice of a linkage criterion in hierarchical clustering algorithm is vital. As stated above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
 
 \section{mahalanobis clustering}
 
