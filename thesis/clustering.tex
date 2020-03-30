@@ -128,7 +128,29 @@ As the reader may have already discovered, one particular problem arises. The hi
 
 A choice of a linkage criterion in hierarchical clustering algorithm is vital. As stated above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
 
-\section{mahalanobis clustering}
+\section{Mahalanobis-based clustering}
 
+To produce more meaningful results, hierarchical clustering algorithms have branched into many variations each focusing on a specific dataset types. \emph{Ma\-ha\-la\-no\-bis-based hierarchical clustering} focuses on datasets that create clusters of ellipsoid shapes. This datasets are common products during natural measurements of cell cytometry data in bio-informatics.
+
+\subsection{Mahalanobis distance}
+
+The significant part of this clustering variation is the measure of cluster dissimilarity. To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongide rather than in prolongation of one another \cite{dagnelie1991using} (see \ref{fig01:ellipses}). 
+
+\begin{figure}\centering
+	\includegraphics[width=\linewidth]{img/ellipses}
+	\caption{Example of cluster dissimilarity in Mahalanobis-based hierarchical clustering.}
+	\label{fig01:ellipses}
+\end{figure}
+
+\begin{defn}
+	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$. We define \emph{the random vector of a cluster} $\mathbf{v}$ as a $d$-element vector; $i$-th element being a discrete random variable with equal probability values $\{o_i:o\in \mathcal{C}\}$
+\end{defn}
+
+\begin{defn}
+	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, the centroid $c$ of $\mathcal{C}$ and covariance matrix $\mathcal{S}$ from the random vector $\mathbf{v}$ of the cluster $\mathcal{C}$. We define \emph{Mahalanobis distance} between $u \in \R^d$ and $\mathcal{C}$ is defined by the equation \ref{eq01:maha}.
+	\begin{equation}\label{eq01:maha}
+	d_M(u,\mathcal{C}) = \sqrt{(u-c)^TS^{-1}(u-c)}
+	\end{equation}
+\end{defn}
 
 \section{performance}
