@@ -10,7 +10,7 @@ Concrete variations of clustering analysis are defined by a clustering model. Th
 
 \subsection{Centroid-based model}
 
-\emph{Centroid-based clustering model} represents clusters only by a central vector --- \emph{centroid} --- which is not necessarily a member of a working set. Many implementations of this model need the number of required centroids in advance. We define the following optimalization problem for this kinds of algorithms. 
+\emph{Centroid-based clustering model} represents clusters only by a central vector --- \emph{centroid} (see def. \ref{def01:centr}) --- which is not necessarily a member of a working set. Many implementations of this model need the number of required centroids in advance. We define the following optimalization problem for this kinds of algorithms. 
 
 \begin{problem}
 	Having a distance function $d$, find $k$ centroids $C_1,\dots,C_k$ from the domain of the dataset $\mathcal{D}$ such that the sum \ref{eq01:sum}
@@ -22,6 +22,11 @@ Concrete variations of clustering analysis are defined by a clustering model. Th
 \end{equation}
 
 This problem is uneasy to solve due to its exponential complexity. Hence, many approximation algorithms emerged. 
+
+\begin{defn}
+	Suppose a cluster $\mathcal{C} \subset \R^d$. We define the \emph{centroid} $c \in \R^d$ of the cluster $\mathcal{C}$ as the average of all points $o \in \mathcal{C}$. 
+	\label{def01:centr}
+\end{defn}
 
 \subsubsection{k-means}
 
@@ -64,7 +69,7 @@ In \emph{Hierarchical clustering model}, objects are \emph{connected} together f
 
 The above described approach of a hierarchical algorith is called \emph{agglomerative} approach. The algorithm begins with each object representing a cluster on its own. Then, in a bottom-up fashion clusters are successively connected into the only cluster. The other option is \emph{divisive approach}. Beginning with a single all-inclusive cluster it is divided into sub-clusters until single objects remain~\cite{rokach2005clustering}. 
 
-The result of hierarchical clustering can be viewed in a \emph{dendrogram} see \ref{fig01:dendro}. The x-axis states the distance of connected clusters. The y-axix shows the objects from a dataset.
+The result of hierarchical clustering can be viewed in a \emph{dendrogram} (see fig. \ref{fig01:dendro}). The x-axis states the distance of connected clusters. The y-axix shows the objects from a dataset.
 
 \begin{figure}\centering
 	\includegraphics[width=\linewidth]{img/dendro}
@@ -78,7 +83,7 @@ Hierarchical model distinguishes various kind of algorithms based on the choice 
 \subsubsection{Distance functions}
 
 \emph{Distance function} is used on objects of a dataset to express how far they are from each other in the observed domain. Supposing objects are represented as vectors $v_i \in \R_d$, variations of \emph{Minkowski distance formula} (see \ref{eq01:mink}) are the most commonly used.
-This variations are \emph{Manhattan distance} ($p=1$), \emph{Euclidean distance} ($p=2$) and \emph{Chebyshev distance} ($p \to \infty$) (see \ref{tab01:mink}).
+This variations are \emph{Manhattan distance} ($p=1$), \emph{Euclidean distance} ($p=2$) and \emph{Chebyshev distance} ($p \to \infty$) (see table \ref{tab01:mink}).
 
 It is obvious that the choice of a distance function can influence the result of a clustering. Hence, it should be chosen with respect to the properties of a provided dataset. \citet{aggarwal2001surprising} show the qualitative behavior of different distance functions in the $k$-means algorithm.  
 
@@ -103,7 +108,7 @@ It is obvious that the choice of a distance function can influence the result of
 As the reader may have already discovered, one particular problem arises. The hierarchical algorithm can not compute proximity of two clusters only using distance function as it is the function of \emph{dataset objects} Hence, we define a function of \emph{object clusters} to complete the process of measuring dissimilarity -- \emph{linkage criterion}. Supposing clusters $A$ and $B$ as sets of dataset objects and distance function $d$, wer define following \emph{linkage criteria}~\cite{yim2015hierarchical}:
 
 \begin{description}
-	\item[Single linkage] -- Also referred to as minimum method, \emph{single linkage criterion} computes distance between $A$ and $B$ as the minimum distance between any pair $(a,b) \in A\times B$ (see \ref{eq01:single_link}).
+	\item[Single linkage] -- Also referred to as minimum method, \emph{single linkage criterion} computes distance between $A$ and $B$ as the minimum distance between any pair $(a,b) \in A\times B$ (see  \ref{eq01:single_link}).
 	\begin{equation}\label{eq01:single_link}
 	\min\{d(a,b) : a \in A, b \in B\}
 	\end{equation}
@@ -120,37 +125,74 @@ As the reader may have already discovered, one particular problem arises. The hi
 	\item[Centroid linkage] -- \emph{Centroid linkage criterion} tries to solve problems of criteria above by measuring the distance between the centroids of clusters. It introduces a form of an average into the computation; the think that criteria above lack.
 \end{description}
 
+A choice of a linkage criterion in hierarchical clustering algorithm is vital. As stated above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
+
 \begin{figure}\centering
-	\includegraphics[width=\linewidth]{img/linkage_criteria}
-	\caption{Example of linkage criteria. The double line represents the distance between clusters A and B according to respective criterion.}
+	\includegraphics[width=10cm]{img/linkage_criteria}
+	\caption{Example of linkage criteria. The double line represents the distance between clusters A and B according to the respective criterion.}
 	\label{fig01:link}
 \end{figure}
 
-A choice of a linkage criterion in hierarchical clustering algorithm is vital. As stated above, it can change the course of clustering in a great manner. Chosen improperly, it can have disastrous effect on the resulting solution.
-
 \section{Mahalanobis-based clustering}
 
-To produce more meaningful results, hierarchical clustering algorithms have branched into many variations each focusing on a specific dataset types. \emph{Ma\-ha\-la\-no\-bis-based hierarchical clustering} focuses on datasets that create clusters of ellipsoid shapes. This datasets are common products during natural measurements of cell cytometry data in bio-informatics.
+To produce more meaningful results, hierarchical clustering algorithms have branched into many variations each focusing on a specific dataset types. \emph{Ma\-ha\-la\-no\-bis-based hierarchical clustering analysis} (MHCA) focuses on datasets that create clusters of ellipsoid shapes. This datasets are common products during natural measurements of cell cytometry data in bio-informatics.
 
 \subsection{Mahalanobis distance}
 
-The significant part of this clustering variation is the measure of cluster dissimilarity. To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongide rather than in prolongation of one another \cite{dagnelie1991using} (see \ref{fig01:ellipses}). 
+The significant part of this clustering variation is the measure of cluster dissimilarity. It is based on the \emph{Mahalanobis distance} \cite{mahalanobis1936generalized} (see def. \ref{def01:maha}), a distance between a point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis then points laying on the axis are closer to the set than points that are not; even if their euclidian distance to the center of the set is closer.
+
+\begin{defn}
+	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$. We define \emph{the random vector of a cluster} $\mathbf{v}$ as a $d$-element vector; the $i$-th element being a discrete random variable with equal probability values $\{o_i:o\in \mathcal{C}\}$
+\end{defn}
+
+\begin{defn}
+	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, the centroid $c$ of $\mathcal{C}$ and covariance matrix $\mathcal{S}$ from the random vector $\mathbf{v}$ of the cluster $\mathcal{C}$. \emph{Mahalanobis distance} between $u \in \R^d$ and $\mathcal{C}$ is defined by the equation \ref{eq01:maha}.
+	\begin{equation}\label{eq01:maha}
+	d_M(u,\mathcal{C}) = \sqrt{(u-c)^TS^{-1}(u-c)}
+	\end{equation}
+	\label{def01:maha}
+\end{defn}
+
+
+With \emph{Mahalanobis distance}, we are able to compute a point-cluster proximity. To fully incorporate the distance in a hierarchical algorithm, we need to find a method how to measure cluster-cluster distance. We achieve it with the \emph{Generalized distance} (see def. \ref{def01:gene}).
+
+\begin{defn}
+	Suppose we have a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$. We define the \emph{generalized distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average of the mahalanobis distances between $c$ and $\mathcal{C}'$ and between $c'$ and $\mathcal{C}$ (see \ref{eq01:gene}).
+	\begin{equation}\label{eq01:gene}
+	d_G(\mathcal{C},\mathcal{C}') = \frac{d_M(c,\mathcal{C}')+d_M(c',\mathcal{C})}{2}
+	\end{equation}
+	\label{def01:gene}
+\end{defn}
+
+To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongide rather than in a prolongation of one another \cite{dagnelie1991using} (see \ref{fig01:ellipses}). Only when the cluster objects are uncorrelated, this measure of dissimilarity is equal to the variant of euclidean distance with centroid linkage.
 
 \begin{figure}\centering
-	\includegraphics[width=\linewidth]{img/ellipses}
+	\includegraphics[width=10cm]{img/ellipses}
 	\caption{Example of cluster dissimilarity in Mahalanobis-based hierarchical clustering.}
 	\label{fig01:ellipses}
 \end{figure}
 
-\begin{defn}
-	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$. We define \emph{the random vector of a cluster} $\mathbf{v}$ as a $d$-element vector; $i$-th element being a discrete random variable with equal probability values $\{o_i:o\in \mathcal{C}\}$
-\end{defn}
+\subsection{Algorithm optimizations}
+
+In early stages of MHCA it is sub-optimal to use full \emph{generalized distance}. It is due to the fact that clusters with one to few points does not form computable ellipsoids; in other words, Mahalanobis distance equation would produce distorted results. 
+
+To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
 
 \begin{defn}
-	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, the centroid $c$ of $\mathcal{C}$ and covariance matrix $\mathcal{S}$ from the random vector $\mathbf{v}$ of the cluster $\mathcal{C}$. We define \emph{Mahalanobis distance} between $u \in \R^d$ and $\mathcal{C}$ is defined by the equation \ref{eq01:maha}.
-	\begin{equation}\label{eq01:maha}
-	d_M(u,\mathcal{C}) = \sqrt{(u-c)^TS^{-1}(u-c)}
+	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:
+	\begin{equation}
+	d_A(\mathcal{C},\mathcal{C}')=
+	\begin{cases}
+	d_G(\mathcal{C}, \mathcal{C}'), & \text{if $|\mathcal{C}|\ge T_M$ and $|\mathcal{C}'|\ge T_M$},\\
+	\dfrac{d_M(c, \mathcal{C}')+||c-c'||_2}{2}, & \text{if $|\mathcal{C}| < T_M$ and $|\mathcal{C}'|\ge T_M$},\\
+	\dfrac{||c-c'||_2+d_M(c', \mathcal{C})}{2}, & \text{if $|\mathcal{C}|\ge T_M$ and $|\mathcal{C}'|< T_M$},\\
+	||c-c'||_2, & \text{if $|\mathcal{C}|< T_M$ and $|\mathcal{C}'|< T_M$}.\\
+	\end{cases}
+	\label{eq01:alt}
 	\end{equation}
+	\label{def01:alt}
 \end{defn}
+
+
 
 \section{performance}
