@@ -109,9 +109,9 @@ TEST(kernel, covariance_big)
 	auto res = serial_covariance_by_centroid(data, assignments.data(),centroid.data(), 0);
 	end = std::chrono::system_clock::now();
 
-	 elapsed_seconds = end - start;
+	elapsed_seconds = end - start;
 	std::cout << "serial compute time: " << elapsed_seconds.count() << "\n";
 
 	for (size_t i = 0; i < data.dim; i++)
-		EXPECT_LE(std::abs((host_res[i] / count) - res[i]), 10.f);
+		EXPECT_FALSE(float_diff(host_res[i] / count, res[i]));
 }

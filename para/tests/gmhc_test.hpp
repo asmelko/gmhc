@@ -27,7 +27,7 @@ TEST(para, small)
 	EXPECT_EQ(res, expected);
 }
 
-/*
+
 TEST(para, big)
 {
 	auto data = clustering::reader::read_data_from_file<float>("big");
@@ -35,11 +35,12 @@ TEST(para, big)
 	clustering::gmhc para;
 	clustering::validator vld;
 
-	vld.initialize(data.data.data(), data.points, data.dim, 3);
-	para.initialize(data.data.data(), data.points, data.dim, &vld);
+	auto thresh = 20;
+
+	vld.initialize(data.data.data(), data.points, data.dim, thresh);
+	para.initialize(data.data.data(), data.points, data.dim, thresh, &vld);
 
 	auto res = para.run();
 
 	ASSERT_FALSE(vld.has_error());
 }
-*/

@@ -44,12 +44,10 @@ TEST(kernel, euclid_min_small)
 
 	CUCH(cudaMemcpy(cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
+	host_res = run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
-
-	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 	EXPECT_EQ(host_res.min_i, (clustering::asgn_t)6);
 	EXPECT_EQ(host_res.min_j, (clustering::asgn_t)29);
@@ -93,7 +91,7 @@ TEST(kernel, euclidean_min_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
+	host_res = run_euclidean_min(cu_in, cu_out, cu_invs, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
@@ -102,11 +100,6 @@ TEST(kernel, euclidean_min_big)
 
 	elapsed_seconds = end - start;
 	std::cout << "gpu compute time: " << elapsed_seconds.count() << "\n";
-
-	CUCH(cudaGetLastError());
-	CUCH(cudaDeviceSynchronize());
-
-	CUCH(cudaMemcpy(&host_res, cu_out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 	start = std::chrono::system_clock::now();
 	auto ser = serial_euclidean_min(data);
