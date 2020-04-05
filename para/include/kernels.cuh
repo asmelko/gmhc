@@ -67,7 +67,7 @@ struct kernel_info
 
 void assign_constant_storage(const float* value, size_t size, cudaMemcpyKind kind);
 
-void run_euclidean_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
+chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
 void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
 chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, size_t chunk_size, kernel_info info);
 
@@ -96,6 +96,7 @@ void run_print_assg(clustering::asgn_t* assignments, size_t point_size);
 void run_print_centroid(const float* centroid, size_t dim, size_t count);
 void run_print_kind(cluster_kind* kind, size_t count);
 
+chunk_t run_simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out);
 
 
 #endif

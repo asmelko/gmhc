@@ -157,69 +157,35 @@ std::vector<float> compute_covariance(const float* points, size_t dim, size_t si
 	return cov;
 }
 
-bool float_diff(float a, float b)
+void print_pairs(size_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
 {
-	auto diff = std::abs(a - b);
-	auto fr = (diff / a + diff / b) / 2;
-	if (fr >= 0.05f)
-		return true;
-	else
+	std::cerr << "Iteration " << iteration << ": pairs do not match: "
+		<< lhs.first << ", " << lhs.second << " =/= "
+		<< rhs.first << ", " << rhs.second << std::endl;
+}
 
-	return false;
+void print_arrays(size_t iteration, const std::string& msg, size_t size, const float* lhs, const float* rhs)
+{
+	std::cerr << "Iteration " << iteration << ": " << msg << std::endl;
+
+	for (size_t j = 0; j < size; j++)
+		std::cerr << lhs[j] << " ";
+
+	std::cerr << std::endl;
+
+	for (size_t j = 0; j < size; j++)
+		std::cerr << rhs[j] << " ";
+
+	std::cerr << std::endl;
 }
 
 bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 {
-	pasgn_t min_pair;
-	std::pair<size_t, size_t> min_idx;
-	float min_dist = FLT_MAX;
-
-	if (pair_v == std::make_pair<asgn_t, asgn_t>(47, 49))
-	{
-		int i;
-		i = 5;
-	}
-
-	for (size_t i = 0; i < cluster_count_; i++)
-	{
-		for (size_t j = i+1; j < cluster_count_; j++)
-		{
-			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
-
-			if (tmp_dist < min_dist)
-			{
-				min_pair = std::make_pair(clusters_[i].id, clusters_[j].id);
-				min_idx = std::make_pair(i,j);
-				min_dist = tmp_dist;
-			}
-		}
-	}
-
-	size_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
-
-	cluster c;
-	c.id = id_;
-	c.centroid = compute_centroid(points_, point_dim_, point_count_, point_asgns_.data(), id_);
-
-	if (icov_v.size())
-		for (size_t i = 0; i < point_dim_ * point_dim_; i++)
-			c.icov.push_back(icov_v[i]);
-
-	clusters_.erase(clusters_.begin() + min_idx.second);
-	clusters_.erase(clusters_.begin() + min_idx.first);
-	clusters_.emplace_back(std::move(c));
-
-	++id_;
-	++iteration_;
-	--cluster_count_;
-
-	//check
+	auto [min_pair, new_clust, min_dist, cluster_count] = iterate(pair_v);
 
 	if (min_pair != pair_v)
 	{
-		std::cerr << "Iteration " << iteration_ << ": pairs does not match: "
-			<< min_pair.first << ", " << min_pair.second << " =/= "
-			<< pair_v.first << ", " << pair_v.second << std::endl;
+		print_pairs(iteration_, min_pair, pair_v);
 
 		error_ = true;
 		return false;
@@ -227,7 +193,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 
 	if (float_diff(min_dist, dist_v))
 	{
-		std::cerr << "Iteration " << iteration_ << ": distances does not match: "
+		std::cerr << "Iteration " << iteration_ << ": distances do not match: "
 			<< min_dist << " =/= "
 			<< dist_v << std::endl;
 
@@ -235,29 +201,16 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 		return false;
 	}
 
-	for (size_t i = 0; i < point_dim_; i++)
+	if (float_diff(clusters_[new_clust].centroid.data(), centroid_v, point_dim_))
 	{
-		if (float_diff(clusters_.back().centroid[i], centroid_v[i]))
-		{
-			std::cerr << "Iteration " << iteration_ << ": centroids does not match: ";
+		print_arrays(iteration_, "centroids do not match", point_dim_, clusters_[new_clust].centroid.data(), centroid_v);
 
-			for (size_t j = 0; j < point_dim_; j++)
-				std::cerr << clusters_.back().centroid[j] << " ";
-
-			std::cerr << std::endl;
-
-			for (size_t j = 0; j < point_dim_; j++)
-				std::cerr << centroid_v[j] << " ";
-
-			std::cerr << std::endl;
-
-			error_ = true;
-			return false;
-		}
+		error_ = true;
+		return false;
 	}
 
 	for (size_t i = 0; i < point_dim_; i++)
-		clusters_.back().centroid[i] =centroid_v[i];
+		clusters_[new_clust].centroid[i] = centroid_v[i];
 
 	if (cluster_count >= maha_threshold_)
 	{
@@ -272,31 +225,17 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 		for (size_t i = 0; i < cov_size; i++)
 			cov_v[i] /= cluster_count;
 
-		auto this_cov = compute_covariance(points_, point_dim_, point_count_, point_asgns_.data(), clusters_.back().centroid.data(), clusters_.back().id);
-		for (size_t i = 0; i < cov_size; i++)
+		auto this_cov = compute_covariance(points_, point_dim_, point_count_, point_asgns_.data(), clusters_[new_clust].centroid.data(), clusters_[new_clust].id);
+
+		if (float_diff(this_cov.data(), cov_v.data(), cov_size))
 		{
-			if (float_diff(this_cov[i],cov_v[i]))
-			{
-				std::cerr << "Iteration " << iteration_ << ": covariance matrices does not match: " << std::endl;
-				std::cerr << this_cov[i] << " =/= " << cov_v[i] << std::endl;
+			print_arrays(iteration_, "covariances do not match", cov_size, this_cov.data(), cov_v.data());
 
-				const float* to_print = this_cov.data();
-				while (true)
-				{
-					for (size_t j = 0; j < cov_size; j++)
-						std::cerr << to_print[j] << " ";
-
-					if (to_print == cov_v.data())
-						break;
-
-					std::cerr << std::endl << "=/=" << std::endl;
-					to_print = cov_v.data();
-				}
-				error_ = true;
-				return false;
-			}
+			error_ = true;
+			return false;
 		}
 	}
+
 	cov_v.resize(0);
 	icov_v.resize(0);
 	return true;
@@ -305,4 +244,65 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 bool validator::has_error() const
 {
 	return error_;
+}
+
+std::tuple<pasgn_t, size_t, float, size_t> validator::iterate(const pasgn_t& expected)
+{
+	pasgn_t min_pair;
+	std::pair<size_t, size_t> min_idx, expected_idx;
+	float min_dist = FLT_MAX;
+	float expected_dist = FLT_MAX;
+
+	for (size_t i = 0; i < cluster_count_; i++)
+	{
+		for (size_t j = i + 1; j < cluster_count_; j++)
+		{
+			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
+
+			pasgn_t curr_ids = clusters_[i].id > clusters_[j].id ?
+				std::make_pair(clusters_[j].id, clusters_[i].id) : std::make_pair(clusters_[i].id, clusters_[j].id);
+
+			if (curr_ids == expected)
+			{
+				expected_idx = std::make_pair(i, j);
+				expected_dist = tmp_dist;
+			}
+
+			if (tmp_dist < min_dist)
+			{
+				min_pair = curr_ids;
+				min_idx = std::make_pair(i, j);
+				min_dist = tmp_dist;
+			}
+		}
+	}
+
+	if (expected != min_pair && !float_diff(expected_dist, min_dist, 0.001f))
+	{
+		std::cout << "cluster branching" << std::endl;
+		min_pair = expected;
+		min_idx = expected_idx;
+	}
+
+	size_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
+
+	cluster c;
+	c.id = id_;
+	c.centroid = compute_centroid(points_, point_dim_, point_count_, point_asgns_.data(), id_);
+
+	if (icov_v.size())
+		for (size_t i = 0; i < point_dim_ * point_dim_; i++)
+			c.icov.push_back(icov_v[i]);
+
+	if (min_idx.second != clusters_.size() - 1)
+		clusters_[min_idx.second] = std::move(clusters_.back());
+
+	clusters_.pop_back();
+	clusters_[min_idx.first] = std::move(c);
+
+	++id_;
+	++iteration_;
+	--cluster_count_;
+
+	return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
 }

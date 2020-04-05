@@ -95,7 +95,7 @@ __inline__ __device__ size2 load_data(const float* points, float const * const *
         else
             memcpy(dest + i * dim, left_ptr + (i - up_size) * dim, dim * sizeof(float));
     }
-
+    
     const float** inv_dest = reinterpret_cast<const float**>(dest + (up_size + left_size) * dim);
 
     for (size_t i = threadIdx.x; i < up_size + left_size; i += blockDim.x)
@@ -263,7 +263,64 @@ __global__ void euclidean_min(const float* points, size_t point_count, size_t po
     }
 }
 
-void run_euclidean_min(const input_t in, chunk_t* out, const float * const * inverses, kernel_info info)
+__inline__ __device__ float euclidean_norm(const float* l_point, const float* r_point, size_t dim)
+{
+    float tmp_sum = 0;
+    for (size_t i = 0; i < dim; ++i)
+    {
+        auto tmp = l_point[i] - r_point[i];
+        tmp_sum += tmp * tmp;
+    }
+    return sqrtf(tmp_sum);
+}
+
+__global__ void simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
+{
+    __shared__ chunk_t shared_mem[32];
+
+    auto new_count = ((count + 1) * (count)) / 2;
+
+    chunk_t tmp;
+    tmp.min_dist = FLT_MAX;
+
+    for (size_t idx = threadIdx.x; idx < new_count; idx+= blockDim.x)
+    {
+        auto coords = compute_coordinates(count, idx);
+        
+        if (coords.x == coords.y)
+            continue;
+        
+        float dist = euclidean_norm(clusters + coords.x * dim, clusters + coords.y * dim, dim);
+
+        if (dist < tmp.min_dist)
+        {
+            tmp.min_i = (clustering::asgn_t)coords.x;
+            tmp.min_j = (clustering::asgn_t)coords.y;
+            tmp.min_dist = dist;
+        }
+    }
+
+    tmp = reduce_min_block(tmp, shared_mem);
+
+    if (threadIdx.x == 0)
+        *out = tmp;
+}
+
+chunk_t run_simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
+{
+    simple_min << <1, 1024 >> > (clusters, dim, count, out);
+
+    CUCH(cudaDeviceSynchronize());
+    chunk_t res;
+    CUCH(cudaMemcpy(&res, out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    if (res.min_i > res.min_j)
+        std::swap(res.min_i, res.min_j);
+
+    return res;
+}
+
+chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float * const * inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
@@ -271,6 +328,15 @@ void run_euclidean_min(const input_t in, chunk_t* out, const float * const * inv
 
     euclidean_min << <info.grid_dim, info.block_dim, info.shared_size * in.dim * sizeof(float) + info.shared_size * sizeof(float*) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
     reduce_min << <1, 1024 >> > (out, out, chunk_count);
+
+    CUCH(cudaDeviceSynchronize());
+    chunk_t res;
+    CUCH(cudaMemcpy(&res, out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    if (res.min_i > res.min_j)
+        std::swap(res.min_i, res.min_j);
+
+    return res;
 }
 
 void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info)

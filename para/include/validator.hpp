@@ -34,6 +34,8 @@ public:
 	bool verify(pasgn_t pair_v, float dist_v, const float* centroid_v);
 
 	bool has_error() const;
+private:
+	std::tuple<pasgn_t, size_t, float, size_t> iterate(const pasgn_t& expected);
 };
 
 }
