@@ -176,7 +176,7 @@ To easily imagine the measure, suppose we have two elliptic clusters. The algori
 
 In early stages of MHCA it is sub-optimal to use full \emph{generalized distance}. It is due to the fact that clusters with one to few points does not form computable ellipsoids; in other words, Mahalanobis distance equation would produce distorted results. 
 
-To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
+To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
 
 \begin{defn}
 	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:
@@ -195,4 +195,111 @@ To solve this problem, we used the variant of euclidean distance with centroid l
 
 
 
-\section{performance}
+\section{Algorithm complexity}
+
+The common problem in clustering algorithms is their \emph{time complexity}. In hierarchical clustering algorithms, we trivially achieve time complexity of $O(n^3)$ using $O(n^2)$ space. This restricts the use of the algorithms to dataset sizes varying between $10^3$ and $10^5$ points. Be aware that this restrictions is present not only due to the time complexity; the current computers can only with great difficulties store $10^6$ data points with the mentioned \emph{space complexity}.
+
+Let us elaborate more about the space and time complexity of the hierarchical clustering analysis (HCA) algorithms. \citet{day1984efficient} describes three implementations of HCA. In this thesis, we employ them in the manner of further research and describe them with emphases on the algorithm complexity:
+
+\begin{description}
+	\item[HCA with the dissmilarity matrix] -- The first and the most trivial implementation uses the \emph{dissimilarity matrix} $M$ (see def. \ref{def01:dismat}). Unless there remains only one cluster, the algorithm searches $M$ for the closest pair of clusters, stores the pair and updates $M$ (see alg. \ref{alg01:dismat}).
+	
+	\begin{defn}
+		Suppose a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the \emph{dissimilarity matrix} $M$ is $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
+		\label{def01:dismat}
+	\end{defn}
+	
+	\begin{algorithm}
+		\caption{HCA with dissimilarity matrix}
+		\label{alg01:dismat}
+		\begin{algorithmic}[1]
+			\Procedure{dismat}{$\mathcal{D} \subset \R^d$}
+			\State initialize the dissimilarity matrix $M$
+			\For{$k=|\mathcal{D}|$ \textbf{downto} $1$}
+			\State search $M$ for the closest pair $(i,j)$ \Comment{time: $O(k^2)$}
+			\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
+			\State update $M$ \Comment{time: $O(k)$}
+			\EndFor
+			\State \textbf{return} list of merged clusters
+			\EndProcedure
+		\end{algorithmic}
+	\end{algorithm}
+
+	The main cycle in line $3$ repeats $n = |\mathbb{D}|$ times; each time the number of clusters being reduced by 1. The search in line $4$ is bounded by $O(n^2)$ time, having its peak in the first iteration when $k=n$. The update in line $6$ is required to reflect deletion of clusters $i$ and $j$ and addition of the new one. Hence, it needs to perform $k$ new dissimilarity measures for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are $n$ iterations performed, this results in the overall time complexity of $O(n^3)$. 
+	
+	The space required to store $M$ is in $O(n^2)$. As there is no other non-trivial requirement, space complexity is $O(n^2)$. 
+	\begin{rem}
+		However, there is no need to store the matrix at all. We can choose to measure cluster dissimilarity \emph{in-place}. Line $6$ would become redundant and the time complexity of line $4$ would increase by a constant multiplicative factor; hence, time complexity remains the same while the space complexity becomes $O(n)$.
+	\end{rem}
+	
+
+	\item[HCA with the nearest neighbor array] -- This algorithm introduces the array of the nearest neighbour (see def. \ref{def01:neigh}). Instead of the dissimilarity matrix, each cluster is assigned the index of the closest neighboring cluster (see alg. \ref{alg01:neigh}).
+	
+	\begin{defn}
+		Suppose a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the \emph{nearest neighbor array} $N$ is $m$-element array of indices $\{1,\dots,m\}$ where each element $N_i$ satisfies the equation \ref{eq01:neigh}.
+		\begin{equation}
+			d(C_i,C_{N_i}) = \min\{d(C_i,C_j) : j \in \{1,\dots,m\} \setminus \{i\}\}
+			\label{eq01:neigh}
+		\end{equation}
+		
+		\label{def01:neigh}
+	\end{defn}
+	
+	\begin{algorithm}
+		\caption{HCA with the nearest neighbor array}
+		\label{alg01:neigh}
+		\begin{algorithmic}[1]
+			\Procedure{neighbor}{$\mathcal{D} \subset \R^d$}
+			\State initialize $N$
+			\For{$k=|\mathcal{D}|$ \textbf{downto} $1$}
+			\State search $N$ for the closest pair $(i,j)$ \Comment{time: $O(k)$}
+			\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
+			\State update $N$ \Comment{time: $O(k^2)$}
+			\EndFor
+			\State \textbf{return} list of merged clusters
+			\EndProcedure
+		\end{algorithmic}
+	\end{algorithm}
+	
+	Compared to the alg. \ref{alg01:dismat}, this algorithm trades the expensive \emph{closest pair search} with the expensive \emph{structure update}:
+	
+	 In line $4$, each closest pair search can be performed in $O(n)$ time as the array length does not exceeds $n$ elements. However in line $6$, the worst case update of $N$ happens when every cluster is in the closest neighborhood with the clusters that are being merged; the clusters of indices $i$ and $j$. In this case, the whole array has to be recomputed, which corresponds to the computation of the whole dissimilarity matrix. Hence, the time complexity for this step is $O(n^2)$. The overall time complexity is $O(n^3)$. The space complexity is $O(n)$ as $N$ does not have more than linear space requirements.
+	 
+	 \begin{rem}
+	 	Despite equal time complexities, this algorithm may outperform the previous one as in the majority of situations the update step in line $6$ does not require the whole array to be recomputed. Moreover, if the number of elements to be updated will be constant each iteration, the overall algorithm time complexity may be $O(n^2)$. 
+	 \end{rem}
+	 
+	 \item[HCA with priority queues] -- This algorithm takes advantage of the previous one employing the fast search and combines it with the fast update using \emph{priority queues} (see alg. \ref{alg01:queue}).
+	 
+	 \begin{algorithm}
+	 	\caption{HCA with priority queues}
+	 	\label{alg01:queue}
+	 	\begin{algorithmic}[1]
+	 		\Procedure{queues}{$\mathcal{D} \subset \R^d$}
+	 		\ForAll{$o \in \mathcal{D}$}
+	 		\State initialize a priority queue from $\mathcal{D} \setminus \{o\}$
+	 		\EndFor
+	 		\For{$k=|\mathcal{D}|$ \textbf{downto} $1$}
+	 		\State search $k$ queues for the closest pair $(i,j)$ \Comment{time: $O(k)$}
+	 		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
+	 		\State update $k$ priority queues \Comment{time: $O(k\log{k})$}
+	 		\EndFor
+	 		\State \textbf{return} list of merged clusters
+	 		\EndProcedure
+	 	\end{algorithmic}
+	 \end{algorithm}
+ 
+ 	The priority labels of queued elements are the dissimilarity measures. 
+ 	
+ 	As operation for retrieving a minimum in a priority queue has $O(1)$ time complexity, the search step in line $4$ takes $O(k)$ time (bounded by $O(n)$ during the first iteration). Next in line $6$, we need one insert and two delete operations (corresponding to deleting two merged clusters and inserting one new). As these operations require $O(\log{n})$ time, we can update $n$ queues in $O(n\log{n})$ time.
+ 	
+ 	To sum up, the overall time complexity is $O(n^2\log{n})$. The space complexity is back to $O(n^2)$ due to the linear space requirements of queue.
+ 	
+ 	\begin{rem}
+ 		Note that this is the only algorithm from the three described that unavoidably requires quadratic space. This may lead to the further restrictions of its usage having large datasets.
+ 	\end{rem}
+
+\end{description}
+
+
+
