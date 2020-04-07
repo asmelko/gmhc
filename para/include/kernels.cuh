@@ -4,14 +4,13 @@
 #include <clustering.hpp>
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include "common_structures.hpp"
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
 void cuda_check(cudaError_t code, const char* file, int line);
 
 #define BUCH(x) cuBLAS_check(x, __FILE__, __LINE__)
 void cuBLAS_check(cublasStatus_t code, const char* file, int line);
-
-constexpr size_t MAX_DIM = 50;
 
 #ifdef __INTELLISENSE__
 void __syncthreads() {}
@@ -27,43 +26,7 @@ struct size2
 	size_t x, y;
 };
 
-struct chunk_t
-{
-	float min_dist;
-	clustering::asgn_t min_i, min_j;
-};
-
-struct neighbour_t
-{
-	float distance;
-	clustering::asgn_t idx;
-};
-
-template <size_t N>
-struct neighbour_array_t
-{
-	neighbour_t neighbours[N];
-};
-
-enum class cluster_kind : uint8_t
-{
-	EMPTY = 0, EUCL = 1, MAHA = 2
-};
-
-
-struct input_t
-{
-	float* data;
-	size_t count;
-	size_t dim;
-};
-
-struct kernel_info
-{
-	unsigned int grid_dim;
-	unsigned int block_dim;
-	size_t shared_size;
-};
+constexpr size_t MAX_DIM = 50;
 
 void assign_constant_storage(const float* value, size_t size, cudaMemcpyKind kind);
 

@@ -1,9 +1,12 @@
 #ifndef GMHC_HPP
 #define GMHC_HPP
 
+#include <cublas_v2.h>
+
 #include <clustering.hpp>
 #include <validator.hpp>
-#include "kernels.cuh"
+#include <common_structures.hpp>
+
 
 namespace clustering
 {
