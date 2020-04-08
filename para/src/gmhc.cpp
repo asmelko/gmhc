@@ -1,6 +1,5 @@
 #include <gmhc.hpp>
 #include <kernels.cuh>
-#include <cublas_v2.h>
 #include <cassert>
 
 using namespace clustering;

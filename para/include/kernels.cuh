@@ -2,8 +2,8 @@
 #define KERNELS_CUH
 
 #include <clustering.hpp>
-#include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include <cuda_runtime.h>
 #include "common_structures.hpp"
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
@@ -15,6 +15,7 @@ void cuBLAS_check(cublasStatus_t code, const char* file, int line);
 #ifdef __INTELLISENSE__
 void __syncthreads() {}
 void __syncwarp() {}
+unsigned __ballot_sync(unsigned mask, bool predicate);
 unsigned __activemask() {}
 template <typename T>
 T __shfl_down_sync(unsigned mask, T var, unsigned int delta, int width = warpSize) {}
@@ -39,8 +40,8 @@ void run_centroid(const input_t in, const clustering::asgn_t* assignments, float
 
 void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
 void run_finish_covariance(const float* in_cov_matrix, size_t divisor, size_t N, float* out_cov_matrix);
-void run_set_default_inverse(float* icov_matrix, size_t size);
 
+void run_set_default_inverse(float* icov_matrix, size_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, size_t N);
 
 void run_merge_clusters(clustering::asgn_t* assignments, size_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);

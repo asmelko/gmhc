@@ -2,6 +2,8 @@
 
 #include <device_launch_parameters.h>
 
+#include "common_kernels.cuh"
+
 using namespace clustering;
 
 __constant__ float expected_point[MAX_DIM];
@@ -84,17 +86,6 @@ __global__ void covariance(const float* __restrict__ points, size_t dim, size_t 
 			atomicAdd(cov_matrix + i, tmp_cov[i]);
 }
 
-__inline__ __device__ size2 compute_coordinates(size_t count_in_line, size_t plain_index)
-{
-	size_t y = 0;
-	while (plain_index >= count_in_line)
-	{
-		y++;
-		plain_index -= count_in_line--;
-	}
-	return { plain_index + y, y };
-}
-
 __global__ void finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
 {
 	size_t cov_size = ((N + 1) * N) / 2;
@@ -122,13 +113,3 @@ void run_finish_covariance(const float* __restrict__ in_cov_matrix, size_t divis
 	finish_covariance<<<1, ((N + 1) * N) / 2>>>(in_cov_matrix, divisor, N, out_cov_matrix);
 }
 
-__global__ void set_default(float* icov_matrix, size_t size)
-{
-	for (size_t i = threadIdx.x; i < size; i += blockDim.x)
-		icov_matrix[i] = 1;
-}
-
-void run_set_default_inverse(float* icov_matrix, size_t size)
-{
-	set_default << <1, size >> > (icov_matrix, size);
-}

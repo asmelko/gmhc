@@ -1,7 +1,7 @@
 #include <kernels.cuh>
 
 #include <device_launch_parameters.h>
-#include "common_kernels.cuh"
+#include "neighbor_common.cuh"
 
 using namespace clustering;
 

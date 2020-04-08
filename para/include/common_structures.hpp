@@ -1,6 +1,8 @@
 #ifndef COMMON_STRUCTURES_CUH
 #define COMMON_STRUCTURES_CUH
 
+#include <clustering.hpp>
+
 struct chunk_t
 {
 	float min_dist;
@@ -17,7 +19,6 @@ enum class cluster_kind : uint8_t
 {
 	EMPTY = 0, EUCL = 1, MAHA = 2
 };
-
 
 struct input_t
 {

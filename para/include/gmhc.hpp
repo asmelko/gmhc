@@ -7,7 +7,6 @@
 #include <validator.hpp>
 #include <common_structures.hpp>
 
-
 namespace clustering
 {
 

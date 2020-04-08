@@ -1,81 +1,8 @@
 #include <kernels.cuh>
-#include <clustering.hpp>
-#include <iostream>
-#include <cstdio>
 
 #include <device_launch_parameters.h>
 
-void cuda_check(cudaError_t code, const char* file, int line)
-{
-    if (code != cudaSuccess)
-    {
-        std::cerr << cudaGetErrorString(code) << " at " << file << ":" << line;
-        exit(code);
-    }
-}
-
-void cuBLAS_check(cublasStatus_t code, const char* file, int line)
-{
-    if (code != CUBLAS_STATUS_SUCCESS)
-    {
-        switch (code)
-        {
-        case CUBLAS_STATUS_NOT_INITIALIZED:
-            std::cerr << "CUBLAS_STATUS_NOT_INITIALIZED" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_ALLOC_FAILED:
-            std::cerr << "CUBLAS_STATUS_ALLOC_FAILED" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_INVALID_VALUE:
-            std::cerr << "CUBLAS_STATUS_INVALID_VALUE" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_ARCH_MISMATCH:
-            std::cerr << "CUBLAS_STATUS_ARCH_MISMATCH" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_MAPPING_ERROR:
-            std::cerr << "CUBLAS_STATUS_MAPPING_ERROR" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_EXECUTION_FAILED:
-            std::cerr << "CUBLAS_STATUS_EXECUTION_FAILED" << " at " << file << ":" << line;
-            return;
-
-        case CUBLAS_STATUS_INTERNAL_ERROR:
-            std::cerr << "CUBLAS_STATUS_INTERNAL_ERROR" << " at " << file << ":" << line;
-            return;
-        }
-        std::cerr << "Unknown cuBLAS error" << " at " << file << ":" << line;
-    }
-}
-
-__device__ void print_point(const float* data, size_t x, size_t dim)
-{
-    for (size_t i = 0; i < dim; i++)
-    {
-        printf("%f ", data[x * dim + i]);
-    }
-    printf("\n");
-}
-
-__device__ void print_min(const chunk_t* output)
-{
-    printf("%f %d %d\n", output->min_dist, output->min_i,output->min_j);
-}
-
-__inline__ __device__ float euclidean_norm(const float* mem, size_t x, size_t y, size_t dim)
-{
-    float tmp_sum = 0;
-    for (size_t i = 0; i < dim; ++i)
-    {
-        auto tmp = mem[x * dim + i] - mem[y * dim + i];
-        tmp_sum += tmp * tmp;
-    }
-    return sqrtf(tmp_sum);
-}
+#include "common_kernels.cuh"
 
 __inline__ __device__ size2 load_data(const float* points, float const * const * inverses, size_t count, size_t dim, float* dest, size_t hsize, size2 coords)
 {
@@ -109,41 +36,6 @@ __inline__ __device__ size2 load_data(const float* points, float const * const *
     return { up_size, left_size };
 }
 
-__inline__ __device__ chunk_t reduce_min_warp(chunk_t data)
-{
-    for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
-    {
-        auto tmp_dist = __shfl_down_sync(0xFFFFFFFF, data.min_dist, offset);
-        auto tmp_i = __shfl_down_sync(0xFFFFFFFF, data.min_i, offset);
-        auto tmp_j = __shfl_down_sync(0xFFFFFFFF, data.min_j, offset);
-        if (tmp_dist < data.min_dist)
-        {
-            data.min_dist = tmp_dist;
-            data.min_i = tmp_i;
-            data.min_j = tmp_j;
-        }
-    }
-    return data;
-}
-
-__inline__ __device__ chunk_t reduce_min_block(chunk_t data, chunk_t* shared_mem)
-{
-    data = reduce_min_warp(data);
-
-    auto lane_id = threadIdx.x % warpSize;
-    auto warp_id = threadIdx.x / warpSize;
-
-    if (lane_id == 0)
-        shared_mem[warp_id] = data;
-
-    __syncthreads();
-
-    data = (threadIdx.x < blockDim.x / warpSize) ? shared_mem[threadIdx.x] : shared_mem[0];
-
-    data = reduce_min_warp(data);
-    return data;
-}
-
 __global__ void reduce_min(const chunk_t* input, chunk_t* output, size_t input_size)
 {
     static __shared__ chunk_t shared_mem[32];
@@ -164,17 +56,6 @@ __global__ void reduce_min(const chunk_t* input, chunk_t* output, size_t input_s
         *output = min;
 }
 
-__inline__ __device__ size2 compute_coordinates(size_t count_in_line, size_t plain_index)
-{  
-    size_t y = 0;
-    while (plain_index >= count_in_line)
-    {
-        y++;
-        plain_index -= count_in_line--;
-    }
-    return { plain_index + y, y };
-}
-
 __inline__ __device__ chunk_t diagonal_loop(size_t block_size, size_t dim, float* shared_mem)
 {
     chunk_t min;
@@ -188,7 +69,7 @@ __inline__ __device__ chunk_t diagonal_loop(size_t block_size, size_t dim, float
         float dist;
         float** inv_mem = reinterpret_cast<float**>(shared_mem + (block_size * 2)*dim);
         if (!inv_mem[coords.x] && !inv_mem[coords.y])
-            dist = euclidean_norm(shared_mem, coords.x, coords.y + block_size, dim);
+            dist = euclidean_norm(shared_mem + coords.x * dim, shared_mem + (coords.y + block_size) * dim, dim);
 
         if (min.min_dist > dist)
         {
@@ -213,7 +94,7 @@ __inline__ __device__ chunk_t non_diagonal_loop(size2 chunk_dim, size_t dim, flo
         float dist;
         float** inv_mem = reinterpret_cast<float**>(shared_mem + (chunk_dim.x + chunk_dim.y)*dim);
         if (!inv_mem[x] && !inv_mem[y])
-            dist = euclidean_norm(shared_mem, x, y + chunk_dim.x, dim);
+            dist = euclidean_norm(shared_mem + x * dim, shared_mem + (y + chunk_dim.x) * dim, dim);
 
         if (min.min_dist > dist)
         {
@@ -261,63 +142,6 @@ __global__ void euclidean_min(const float* points, size_t point_count, size_t po
         if (threadIdx.x == 0)
             res[i] = block_min;
     }
-}
-
-__inline__ __device__ float euclidean_norm(const float* l_point, const float* r_point, size_t dim)
-{
-    float tmp_sum = 0;
-    for (size_t i = 0; i < dim; ++i)
-    {
-        auto tmp = l_point[i] - r_point[i];
-        tmp_sum += tmp * tmp;
-    }
-    return sqrtf(tmp_sum);
-}
-
-__global__ void simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
-{
-    __shared__ chunk_t shared_mem[32];
-
-    auto new_count = ((count + 1) * (count)) / 2;
-
-    chunk_t tmp;
-    tmp.min_dist = FLT_MAX;
-
-    for (size_t idx = threadIdx.x; idx < new_count; idx+= blockDim.x)
-    {
-        auto coords = compute_coordinates(count, idx);
-        
-        if (coords.x == coords.y)
-            continue;
-        
-        float dist = euclidean_norm(clusters + coords.x * dim, clusters + coords.y * dim, dim);
-
-        if (dist < tmp.min_dist)
-        {
-            tmp.min_i = (clustering::asgn_t)coords.x;
-            tmp.min_j = (clustering::asgn_t)coords.y;
-            tmp.min_dist = dist;
-        }
-    }
-
-    tmp = reduce_min_block(tmp, shared_mem);
-
-    if (threadIdx.x == 0)
-        *out = tmp;
-}
-
-chunk_t run_simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
-{
-    simple_min << <1, 1024 >> > (clusters, dim, count, out);
-
-    CUCH(cudaDeviceSynchronize());
-    chunk_t res;
-    CUCH(cudaMemcpy(&res, out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-    if (res.min_i > res.min_j)
-        std::swap(res.min_i, res.min_j);
-
-    return res;
 }
 
 chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float * const * inverses, kernel_info info)
