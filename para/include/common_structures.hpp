@@ -13,12 +13,6 @@ struct neighbour_t
 	clustering::asgn_t idx;
 };
 
-template <size_t N>
-struct neighbour_array_t
-{
-	neighbour_t neighbours[N];
-};
-
 enum class cluster_kind : uint8_t
 {
 	EMPTY = 0, EUCL = 1, MAHA = 2

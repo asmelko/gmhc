@@ -21,7 +21,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	CUCH(cudaMalloc(&cu_point_asgns_, data_points_size * sizeof(asgn_t)));
 	CUCH(cudaMalloc(&cu_cluster_kinds_, data_points_size * sizeof(cluster_kind)));
 	CUCH(cudaMalloc(&cu_min_, sizeof(chunk_t)));
-	CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbour_type) * data_points_size));
+	CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbour_t) * neigh_number_ * data_points_size));
 	CUCH(cudaMalloc(&cu_icov_, sizeof(float*) * data_points_size));
 
 	CUCH(cudaMemcpy(cu_points_, data_points, data_points_size * data_point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -31,7 +31,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	CUCH(cudaMemset(cu_cluster_kinds_, 1, data_points_size * sizeof(cluster_kind)));
 
 	starting_info_ = kernel_info{ 5, 512, 500 };
-	CUCH(cudaMalloc(&tmp_neigh, sizeof(neighbour_type) * points_size * starting_info_.grid_dim));
+	CUCH(cudaMalloc(&tmp_neigh, sizeof(neighbour_t) * neigh_number_ * points_size * starting_info_.grid_dim));
 
 	CUCH(cudaMalloc(&tmp_icov, point_dim * point_dim * sizeof(float)));
 	CUCH(cudaMalloc(&cu_updated, cluster_count_ * sizeof(uint8_t)));
@@ -65,11 +65,11 @@ std::vector<pasgn_t> gmhc::run()
 {
 	std::vector<pasgn_t> ret;
 
-	run_neighbours(cu_centroids_, point_dim, cluster_count_, tmp_neigh, cu_neighs_, cu_cluster_kinds_, starting_info_);
+	run_neighbours<neigh_number_>(cu_centroids_, point_dim, cluster_count_, tmp_neigh, cu_neighs_, cu_cluster_kinds_, starting_info_);
 
 	while (cluster_count_ > 1)
 	{
-		chunk_t min = run_neighbours_min(cu_neighs_, cluster_count_, cu_min_);
+		chunk_t min = run_neighbours_min<neigh_number_>(cu_neighs_, cluster_count_, cu_min_);
 
 		cluster_data_t data[2];
 
@@ -108,7 +108,7 @@ std::vector<pasgn_t> gmhc::run()
 			}
 		}
 
-		run_update_neighbours(cu_centroids_, cu_icov_, point_dim, cluster_count_, tmp_neigh, cu_neighs_, cu_cluster_kinds_, cu_updated, min.min_i, min.min_j, starting_info_);
+		run_update_neighbours<neigh_number_>(cu_centroids_, cu_icov_, point_dim, cluster_count_, tmp_neigh, cu_neighs_, cu_cluster_kinds_, cu_updated, min.min_i, min.min_j, starting_info_);
 	}
 
 	return ret;
@@ -150,8 +150,8 @@ void gmhc::move_clusters(size_t old_pos)
 		cluster_data_[old_pos] = cluster_data_[end_idx];
 
 
-		CUCH(cudaMemcpy(cu_neighs_ + old_pos, cu_neighs_ + end_idx,
-			sizeof(neighbour_type), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+		CUCH(cudaMemcpy(cu_neighs_ + old_pos * neigh_number_, cu_neighs_ + end_idx * neigh_number_,
+			sizeof(neighbour_t), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 		CUCH(cudaMemcpy(cu_cluster_kinds_ + old_pos, cu_cluster_kinds_ + end_idx,
 			sizeof(cluster_kind), cudaMemcpyKind::cudaMemcpyDeviceToDevice));

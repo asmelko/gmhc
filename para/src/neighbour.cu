@@ -5,16 +5,16 @@
 using namespace clustering;
 
 template <size_t N>
-__device__ void add_neighbour(neighbour_array_t<N>* neighbours, neighbour_t neighbour)
+__device__ void add_neighbour(neighbour_t* neighbours, neighbour_t neighbour)
 {
 	neighbour_t prev_min;
 	size_t i = 0;
 	for (; i < N; ++i)
 	{
-		if (neighbours->neighbours[i].distance > neighbour.distance)
+		if (neighbours[i].distance > neighbour.distance)
 		{
-			prev_min = neighbours->neighbours[i];
-			neighbours->neighbours[i] = neighbour;
+			prev_min = neighbours[i];
+			neighbours[i] = neighbour;
 			break;
 		}
 	}
@@ -24,28 +24,24 @@ __device__ void add_neighbour(neighbour_array_t<N>* neighbours, neighbour_t neig
 		if (prev_min.distance == FLT_MAX)
 			return;
 
-		neighbour_t tmp = neighbours->neighbours[i];
-		neighbours->neighbours[i] = prev_min;
+		neighbour_t tmp = neighbours[i];
+		neighbours[i] = prev_min;
 		prev_min = tmp;
 	}
 }
 
 template <size_t N>
-__device__ neighbour_array_t<N> merge_neighbours(const neighbour_array_t<N>* l_neighbours, const neighbour_array_t<N>* r_neighbours)
+__device__ void merge_neighbours(const neighbour_t* l_neighbours, const neighbour_t* r_neighbours, neighbour_t* res)
 {
-	neighbour_array_t<N> tmp;
-
 	size_t l_idx = 0, r_idx = 0;
 
 	for (size_t i = 0; i < N; ++i)
 	{
-		if (l_neighbours->neighbours[l_idx].distance < r_neighbours->neighbours[r_idx].distance)
-			tmp.neighbours[i] = l_neighbours->neighbours[l_idx++];
+		if (l_neighbours[l_idx].distance < r_neighbours[r_idx].distance)
+			res[i] = l_neighbours[l_idx++];
 		else
-			tmp.neighbours[i] = r_neighbours->neighbours[r_idx++];
+			res[i] = r_neighbours[r_idx++];
 	}
-
-	return tmp;
 }
 
 
@@ -73,84 +69,90 @@ __inline__ __device__ void reduce_sum_warp(float* point, size_t dim)
 
 
 template <size_t N>
-__inline__ __device__ void reduce_min_warp(neighbour_array_t<N>* neighbours)
+__inline__ __device__ void reduce_min_warp(neighbour_t* neighbours)
 {
 	for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
 	{
-		neighbour_array_t<N> tmp;
+		neighbour_t tmp[N];
 		for (size_t i = 0; i < N; ++i)
 		{
-			tmp.neighbours[i].distance = __shfl_down_sync(0xFFFFFFFF, neighbours->neighbours[i].distance, offset);
-			tmp.neighbours[i].idx = __shfl_down_sync(0xFFFFFFFF, neighbours->neighbours[i].idx, offset);
+			tmp[i].distance = __shfl_down_sync(0xFFFFFFFF, neighbours[i].distance, offset);
+			tmp[i].idx = __shfl_down_sync(0xFFFFFFFF, neighbours[i].idx, offset);
 		}
 
-		*neighbours = merge_neighbours(neighbours, &tmp);
+		neighbour_t tmp_cpy[N];
+		merge_neighbours<N>(neighbours, tmp, tmp_cpy);
+		memcpy(neighbours, tmp_cpy, sizeof(neighbour_t) * N);
 	}
 }
 
 template <size_t N>
-__inline__ __device__ void reduce_min_block(neighbour_array_t<N>* neighbours, neighbour_array_t<N>* shared_mem, bool reduce_warp = true)
+__inline__ __device__ void reduce_min_block(neighbour_t* neighbours, neighbour_t* shared_mem, bool reduce_warp = true)
 {
 	if (reduce_warp)
-		reduce_min_warp(neighbours);
+		reduce_min_warp<N>(neighbours);
 
 	auto lane_id = threadIdx.x % warpSize;
 	auto warp_id = threadIdx.x / warpSize;
 
 	if (lane_id == 0)
-		shared_mem[warp_id] = *neighbours;
+		memcpy(shared_mem + warp_id * N, neighbours, sizeof(neighbour_t) * N);
 
 	__syncthreads();
 
 	if (threadIdx.x < blockDim.x / warpSize)
-		*neighbours = shared_mem[threadIdx.x];
+		memcpy(neighbours, shared_mem + threadIdx.x * N, sizeof(neighbour_t) * N);
 	else
 		for (size_t i = 0; i < N; i++)
-			neighbours->neighbours[i].distance = FLT_MAX;
+			neighbours[i].distance = FLT_MAX;
 
-	reduce_min_warp(neighbours);
+	reduce_min_warp<N>(neighbours);
 }
 
 template <size_t N>
-__inline__ __device__ void point_reduce(const neighbour_array_t<N>* neighbours, size_t to_reduce, size_t count, neighbour_array_t<N>* reduced, size_t idx)
+__inline__ __device__ void point_reduce(const neighbour_t* neighbours, size_t to_reduce, size_t count, neighbour_t* reduced, size_t idx)
 {
 	size_t block = idx / warpSize;
-	neighbour_array_t<N> local;
+	neighbour_t local[N];
 
 	size_t nei = idx % warpSize;
 
 	if (nei < to_reduce)
-		local = neighbours[block * to_reduce + nei];
+		memcpy(local, neighbours + (block * to_reduce + nei) * N, sizeof(neighbour_t) * N);
 	else
 		for (size_t i = 0; i < N; i++)
-			local.neighbours[i].distance = FLT_MAX;
+			local[i].distance = FLT_MAX;
 
 
 	for (nei += warpSize; nei < to_reduce; nei += warpSize)
-		local = merge_neighbours(&local, neighbours + block * to_reduce + nei);
+	{
+		neighbour_t tmp[N];
+		merge_neighbours<N>(local, neighbours + (block * to_reduce + nei)*N, tmp);
+		memcpy(local, tmp, sizeof(neighbour_t) * N);
+	}
 
 
-	reduce_min_warp(&local);
+	reduce_min_warp<N>(local);
 
 
 	if (threadIdx.x % warpSize == 0)
 	{
-		reduced[block] = local;
+		memcpy(reduced + block*N, local, sizeof(neighbour_t) * N);
 	}
 }
 
 
 template <size_t N>
-__global__ void reduce(const neighbour_array_t<N>* neighbours, size_t to_reduce, size_t count, neighbour_array_t<N>* reduced)
+__global__ void reduce(const neighbour_t* neighbours, size_t to_reduce, size_t count, neighbour_t* reduced)
 {
 	for (size_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
 	{
-		point_reduce(neighbours, to_reduce, count, reduced, idx);
+		point_reduce<N>(neighbours, to_reduce, count, reduced, idx);
 	}
 }
 
 template <size_t N>
-__global__ void update_neighbours(size_t centroid_count, neighbour_array_t<N>* neighbours_a, uint8_t* updated, size_t old_i, size_t old_j)
+__global__ void update_neighbours(size_t centroid_count, neighbour_t* neighbours_a, uint8_t* updated, size_t old_i, size_t old_j)
 {
 	extern __shared__ float shared_mem[];
 
@@ -164,39 +166,40 @@ __global__ void update_neighbours(size_t centroid_count, neighbour_array_t<N>* n
 			continue;
 		}
 
-		auto tmp_nei = neighbours_a[x];
+		neighbour_t tmp_nei[N];
+		memcpy(tmp_nei, neighbours_a + x * N, sizeof(neighbour_t) * N);
 
 		size_t last_empty = 0;
 
 		for (size_t i = 0; i < N; i++)
 		{
-			if (tmp_nei.neighbours[i].distance == FLT_MAX)
+			if (tmp_nei[i].distance == FLT_MAX)
 				break;
 
-			if (tmp_nei.neighbours[i].idx == old_i || tmp_nei.neighbours[i].idx == old_j)
-				tmp_nei.neighbours[i].distance = FLT_MAX;
+			if (tmp_nei[i].idx == old_i || tmp_nei[i].idx == old_j)
+				tmp_nei[i].distance = FLT_MAX;
 			else
 			{
-				if (tmp_nei.neighbours[i].idx == centroid_count)
-					tmp_nei.neighbours[i].idx = old_j;
+				if (tmp_nei[i].idx == centroid_count)
+					tmp_nei[i].idx = old_j;
 
-				tmp_nei.neighbours[last_empty++] = tmp_nei.neighbours[i];
+				tmp_nei[last_empty++] = tmp_nei[i];
 			}
 		}
 
-		updated[x] = tmp_nei.neighbours[0].distance == FLT_MAX ? 1 : 0;
+		updated[x] = tmp_nei[0].distance == FLT_MAX ? 1 : 0;
 
-		neighbours_a[x] = tmp_nei;
+		memcpy(neighbours_a + x * N,tmp_nei, sizeof(neighbour_t) * N);
 	}
 }
 
 template <size_t N>
-__global__ void reduce_u(const neighbour_array_t<N>* neighbours, size_t to_reduce, size_t count, neighbour_array_t<N>* reduced, uint8_t* updated)
+__global__ void reduce_u(const neighbour_t* neighbours, size_t to_reduce, size_t count, neighbour_t* reduced, uint8_t* updated)
 {
 	for (size_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
 	{
 		if (updated[idx / warpSize])
-			point_reduce(neighbours, to_reduce, count, reduced, idx);
+			point_reduce<N>(neighbours, to_reduce, count, reduced, idx);
 	}
 }
 
@@ -236,7 +239,7 @@ __inline__ __device__ chunk_t reduce_min_block(chunk_t data, chunk_t* shared_mem
 }
 
 template <size_t N>
-__global__ void min(const neighbour_array_t<N>* neighbours, size_t count, chunk_t* result)
+__global__ void min(const neighbour_t* neighbours, size_t count, chunk_t* result)
 {
 	static __shared__ chunk_t shared_mem[32];
 
@@ -244,10 +247,10 @@ __global__ void min(const neighbour_array_t<N>* neighbours, size_t count, chunk_
 	tmp.min_dist = FLT_MAX;
 	for (size_t idx = threadIdx.x; idx < count; idx += blockDim.x)
 	{
-		if (tmp.min_dist > neighbours[idx].neighbours[0].distance)
+		if (tmp.min_dist > neighbours[idx*N].distance)
 		{
-			tmp.min_dist = neighbours[idx].neighbours[0].distance;
-			tmp.min_j = neighbours[idx].neighbours[0].idx;
+			tmp.min_dist = neighbours[idx * N].distance;
+			tmp.min_j = neighbours[idx * N].idx;
 			tmp.min_i = idx;
 		}
 	}
@@ -266,61 +269,50 @@ __global__ void print_up(uint8_t* updated, size_t count)
 	}
 }
 
-template <size_t N>
-__global__ void print_ne(neighbour_array_t<N>* neighbours, size_t count)
+__global__ void print_ne(neighbour_t* neighbours, size_t nei_number, size_t count)
 {
 	for (size_t i = 0; i < count; i++)
 	{
-		printf("%d. %f %d\n", (int)i, neighbours[i].neighbours[0].distance, (int)neighbours[i].neighbours[0].idx);
+		printf("%d. %f %d\n", (int)i, neighbours[i * nei_number].distance, (int)neighbours[i* nei_number].idx);
 	}
 }
 
-void print_nei(neighbour_array_t<1>* neighbours, size_t count)
+void print_nei(neighbour_t* neighbours, size_t nei_number, size_t count)
 {
-	print_ne << <1, 1 >> > (neighbours, count);
+	print_ne << <1, 1 >> > (neighbours, nei_number, count);
 }
 
 #include "neighbour_eucl.cu"
 #include "neighbour_maha.cu"
 
 template <size_t N>
-void run_update_neighbours(const float* centroids, const float*const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info)
+void run_update_neighbours(const float* centroids, const float*const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info)
 {
-	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_array_t<N>);
-	size_t shared_mat = (dim + 33) * dim * sizeof(float) + 32 * sizeof(neighbour_array_t<N>);
-	update_neighbours<<<info.grid_dim, info.block_dim >>>(centroid_count, act_neighbours, updated, old_i, old_j);
+	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	size_t shared_mat = (dim + 33) * dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	update_neighbours<N><<<info.grid_dim, info.block_dim >>>(centroid_count, act_neighbours, updated, old_i, old_j);
 
-
-	if (old_i == 18 && old_j == 23)
-	{
-		cudaDeviceSynchronize();
-		print_up<<<1,1>>>(updated, centroid_count);
-		cudaDeviceSynchronize();
-	}
-
-	neighbours_u << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours, cluster_kinds, updated, old_i);
-
-
-	neighbours_mat_u << <info.grid_dim, info.block_dim, shared_mat >> > (centroids, inverses, dim, centroid_count, tmp_neighbours, cluster_kinds, updated, old_i);
+	neighbours_u<N> << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours, cluster_kinds, updated, old_i);
+	neighbours_mat_u<N> << <info.grid_dim, info.block_dim, shared_mat >> > (centroids, inverses, dim, centroid_count, tmp_neighbours, cluster_kinds, updated, old_i);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	reduce_u<<<info.grid_dim, info.block_dim>>>(tmp_neighbours, info.grid_dim, centroid_count, act_neighbours, updated);
+	reduce_u<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbours, info.grid_dim, centroid_count, act_neighbours, updated);
 }
 
 template <size_t N>
-void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<N>* tmp_neighbours, neighbour_array_t<N>* act_neighbours, cluster_kind* cluster_kinds, kernel_info info)
+void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, kernel_info info)
 {
-	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_array_t<N>);
-	neighbours << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours, cluster_kinds);
-	reduce << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
+	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	neighbours<N> << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours, cluster_kinds);
+	reduce<N> << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
 }
 
 template <size_t N>
-chunk_t run_neighbours_min(const neighbour_array_t<N>* neighbours, size_t count, chunk_t* result)
+chunk_t run_neighbours_min(const neighbour_t* neighbours, size_t count, chunk_t* result)
 {
-	min << <1, 1024 >> > (neighbours, count, result);
+	min<N> << <1, 1024 >> > (neighbours, count, result);
 
 	CUCH(cudaDeviceSynchronize());
 
@@ -333,12 +325,12 @@ chunk_t run_neighbours_min(const neighbour_array_t<N>* neighbours, size_t count,
 	return res;
 }
 
-template void run_neighbours<1>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<1>* tmp_neighbours, neighbour_array_t<1>* neighbours, cluster_kind* cluster_kinds, kernel_info info);
-template void run_neighbours<2>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<2>* tmp_neighbours, neighbour_array_t<2>* neighbours, cluster_kind* cluster_kinds, kernel_info info);
-template void run_neighbours<5>(const float* centroids, size_t dim, size_t centroid_count, neighbour_array_t<5>* tmp_neighbours, neighbour_array_t<5>* neighbours, cluster_kind* cluster_kinds, kernel_info info);
-template chunk_t run_neighbours_min<1>(const neighbour_array_t<1>* neighbours, size_t count, chunk_t* result);
-template chunk_t run_neighbours_min<2>(const neighbour_array_t<2>* neighbours, size_t count, chunk_t* result);
-template chunk_t run_neighbours_min<5>(const neighbour_array_t<5>* neighbours, size_t count, chunk_t* result);
-template void run_update_neighbours<1>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<1>* tmp_neighbours, neighbour_array_t<1>* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
-template void run_update_neighbours<2>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<2>* tmp_neighbours, neighbour_array_t<2>* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
-template void run_update_neighbours<5>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<5>* tmp_neighbours, neighbour_array_t<5>* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
+template void run_neighbours<1>(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, cluster_kind* cluster_kinds, kernel_info info);
+template void run_neighbours<2>(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, cluster_kind* cluster_kinds, kernel_info info);
+template void run_neighbours<5>(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, cluster_kind* cluster_kinds, kernel_info info);
+template chunk_t run_neighbours_min<1>(const neighbour_t* neighbours, size_t count, chunk_t* result);
+template chunk_t run_neighbours_min<2>(const neighbour_t* neighbours, size_t count, chunk_t* result);
+template chunk_t run_neighbours_min<5>(const neighbour_t* neighbours, size_t count, chunk_t* result);
+template void run_update_neighbours<1>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
+template void run_update_neighbours<2>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
+template void run_update_neighbours<5>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);

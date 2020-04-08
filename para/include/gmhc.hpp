@@ -19,21 +19,21 @@ struct cluster_data_t
 
 class gmhc : public hierarchical_clustering<float>
 {
-    using neighbour_type = neighbour_array_t<1>;
-
     float* cu_points_;
     asgn_t* cu_point_asgns_;
     float* cu_centroids_;
     float** cu_icov_;
     cluster_kind* cu_cluster_kinds_;
-    neighbour_type* cu_neighs_;
+    neighbour_t* cu_neighs_;
     chunk_t* cu_chunks_;
     chunk_t* cu_min_;
     uint8_t* cu_updated;
 
+    static constexpr size_t neigh_number_ = 2;
+
     kernel_info starting_info_;
 
-    neighbour_type* tmp_neigh;
+    neighbour_t* tmp_neigh;
     float* tmp_icov;
 
     float** cu_read_icov, ** cu_write_icov;

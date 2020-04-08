@@ -47,7 +47,7 @@ __inline__ __device__ float maha_dist(const float* point, const float* matrix, s
 
 template <size_t N>
 __inline__ __device__ void point_neighbours_mat_warp
-(const float* centroids, const float* const* inverses, size_t dim, neighbour_array_t<N>* neighbours, float* curr_centroid,
+(const float* centroids, const float* const* inverses, size_t dim, neighbour_t* neighbours, float* curr_centroid,
 	const float* this_centroid, const float* this_icov, const cluster_kind* cluster_kinds, asgn_t idx, bool eucl = false)
 {
 	float dist = 0;
@@ -99,11 +99,11 @@ __inline__ __device__ void point_neighbours_mat_warp
 	//	printf("dist fin %d %f\n", (int)idx, dist);
 
 	if (lane_id == 0)
-		add_neighbour(neighbours, neighbour_t{ dist / 2, idx });
+		add_neighbour<N>(neighbours, neighbour_t{ dist / 2, idx });
 }
 
 template <size_t N>
-__inline__ __device__ void point_neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<N>* neighbours, cluster_kind* cluster_kinds, float* shared_mem, asgn_t x, bool from_start)
+__inline__ __device__ void point_neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* neighbours, cluster_kind* cluster_kinds, float* shared_mem, asgn_t x, bool from_start)
 {
 	//extern __shared__ float shared_mem[];
 
@@ -111,10 +111,10 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 	float* this_icov = shared_mem + dim;
 	float* curr_centroid = shared_mem + dim + dim * dim;
 
-	neighbour_array_t<N> local_neighbours;
+	neighbour_t local_neighbours[N];
 
 	for (size_t i = 0; i < N; ++i)
-		local_neighbours.neighbours[i].distance = FLT_MAX;
+		local_neighbours[i].distance = FLT_MAX;
 
 
 
@@ -137,7 +137,7 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 			if (y == x || cluster_kinds[y] != cluster_kind::MAHA)
 				continue;
 
-			point_neighbours_mat_warp(centroids, inverses, dim, &local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y, true);
+			point_neighbours_mat_warp<N>(centroids, inverses, dim, local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y, true);
 		}
 	}
 	else
@@ -164,7 +164,7 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 
 				size_t y = idx / warpSize;
 
-				point_neighbours_mat_warp(centroids, inverses, dim, &local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
+				point_neighbours_mat_warp<N>(centroids, inverses, dim, local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
 			}
 		else
 			idx += x * warpSize;
@@ -177,39 +177,40 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 			if (threadIdx.x % warpSize == 0 && x == 8)
 				printf("was here %d\n", (int)y);
 
-			point_neighbours_mat_warp(centroids, inverses, dim, &local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
+			point_neighbours_mat_warp<N>(centroids, inverses, dim, local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
 		}
 	}
 
-	reduce_min_block(&local_neighbours, reinterpret_cast<neighbour_array_t<N>*>(shared_mem + (33 + dim) * dim), false);
+	reduce_min_block<N>(local_neighbours, reinterpret_cast<neighbour_t*>(shared_mem + (33 + dim) * dim), false);
 
 	if (threadIdx.x == 0)
 	{
 		if (needs_merge)
 		{
-			auto tmp = neighbours[gridDim.x * x + blockIdx.x];
-			local_neighbours = merge_neighbours(&tmp, &local_neighbours);
+			neighbour_t tmp_nei[N];
+			merge_neighbours<N>(neighbours + (gridDim.x * x + blockIdx.x) * N, local_neighbours, tmp_nei);
+			memcpy(local_neighbours, tmp_nei, sizeof(neighbour_t) * N);
 		}
-		neighbours[gridDim.x * x + blockIdx.x] = local_neighbours;
+		memcpy(neighbours + (gridDim.x * x + blockIdx.x) * N, local_neighbours, sizeof(neighbour_t )*N);
 	}
 }
 
 
 template <size_t N>
-__global__ void neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<N>* neighbours, cluster_kind* cluster_kinds, kernel_info info)
+__global__ void neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* neighbours, cluster_kind* cluster_kinds, kernel_info info)
 {
-	size_t shared_mat = (dim + 33) * dim * sizeof(float) + 32 * sizeof(neighbour_array_t<N>);
+	size_t shared_mat = (dim + 33) * dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
 	for (asgn_t x = 0; x < centroid_count; ++x)
 	{
 		if (cluster_kinds[x] != cluster_kind::MAHA)
 			continue;
 
-		point_neighbours_mat << <info.grid_dim, info.block_dim, shared_mat >> > (centroids, inverses, dim, centroid_count, neighbours, cluster_kinds, x);
+		point_neighbours_mat<N> << <info.grid_dim, info.block_dim, shared_mat >> > (centroids, inverses, dim, centroid_count, neighbours, cluster_kinds, x);
 	}
 }
 
 template <size_t N>
-__global__ void neighbours_mat_u(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_array_t<N>* neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t new_idx)
+__global__ void neighbours_mat_u(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t new_idx)
 {
 	extern __shared__ float shared_mem[];
 	for (asgn_t x = 0; x < centroid_count; ++x)
@@ -217,6 +218,6 @@ __global__ void neighbours_mat_u(const float* centroids, const float* const* inv
 		if (!updated[x] || (cluster_kinds[x] != cluster_kind::MAHA && x != new_idx))
 			continue;
 
-		point_neighbours_mat(centroids, inverses, dim, centroid_count, neighbours, cluster_kinds, shared_mem, x, x == new_idx);
+		point_neighbours_mat<N>(centroids, inverses, dim, centroid_count, neighbours, cluster_kinds, shared_mem, x, x == new_idx);
 	}
 }

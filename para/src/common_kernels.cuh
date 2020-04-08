@@ -4,12 +4,10 @@ __inline__ __device__ float euclidean_norm(const float* l_point, const float* r_
 
 
 template <size_t N>
-__device__ void add_neighbour(neighbour_array_t<N>* neighbours, neighbour_t neighbour);
+__device__ void add_neighbour(neighbour_t* neighbours, neighbour_t neighbour);
 
 template <size_t N>
-__device__ neighbour_array_t<N> merge_neighbours(const neighbour_array_t<N>* l_neighbours, const neighbour_array_t<N>* r_neighbours);
-
+__device__ void merge_neighbours(const neighbour_t* l_neighbours, const neighbour_t* r_neighbours, neighbour_t* res);
 
 template <size_t N>
-__inline__ __device__ void reduce_min_block(neighbour_array_t<N>* neighbours, neighbour_array_t<N>* shared_mem, bool reduce_warp);
-
+__inline__ __device__ void reduce_min_block(neighbour_t* neighbours, neighbour_t* shared_mem, bool reduce_warp);
