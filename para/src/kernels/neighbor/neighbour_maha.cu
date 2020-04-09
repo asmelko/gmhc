@@ -63,40 +63,15 @@ __inline__ __device__ void point_neighbours_mat_warp
 	if (eucl || cluster_kinds[idx] == cluster_kind::EUCL)
 		dist += euclidean_norm(this_centroid, curr_centroid + warp_id * dim, dim);
 
-	//if (lane_id == 0)
-	//	printf("dist eucl %d %f\n", (int)idx, dist);
-
 	for (size_t i = lane_id; i < dim; i += warpSize)
 		curr_centroid[warp_id * dim + i] = curr_centroid[warp_id * dim + i] - this_centroid[i];
 
 	__syncwarp();
 
-	/*
-	if (lane_id == 0)
-	{
-		printf("centr ");
-		for (size_t i = 0; i < dim; i++)
-		{
-			printf("%f ", curr_centroid[warp_id * dim + i]);
-		}
-		printf("\n");
-	}*/
-
 	if (!eucl)
 		dist += maha_dist(curr_centroid + warp_id * dim, this_icov, dim, lane_id);
-
-	//if (lane_id == 0)
-	//	printf("dist maha %d %f\n", (int)idx, dist);
-
 	if (eucl || cluster_kinds[idx] == cluster_kind::MAHA)
 		dist += maha_dist(curr_centroid + warp_id * dim, inverses[idx], dim, lane_id);
-
-
-	//if (lane_id == 0)
-	//	printf("dist maha2 %d %f\n", (int)idx, dist);
-
-	//if (lane_id == 0)
-	//	printf("dist fin %d %f\n", (int)idx, dist);
 
 	if (lane_id == 0)
 		add_neighbour<N>(neighbours, neighbour_t{ dist / 2, idx });
@@ -105,8 +80,6 @@ __inline__ __device__ void point_neighbours_mat_warp
 template <size_t N>
 __inline__ __device__ void point_neighbours_mat(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* neighbours, cluster_kind* cluster_kinds, float* shared_mem, asgn_t x, bool from_start)
 {
-	//extern __shared__ float shared_mem[];
-
 	float* this_centroid = shared_mem;
 	float* this_icov = shared_mem + dim;
 	float* curr_centroid = shared_mem + dim + dim * dim;
@@ -115,8 +88,6 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 
 	for (size_t i = 0; i < N; ++i)
 		local_neighbours[i].distance = FLT_MAX;
-
-
 
 	auto idx = threadIdx.x + blockIdx.x * blockDim.x;
 
@@ -142,11 +113,6 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 	}
 	else
 	{
-
-
-		if (threadIdx.x == 0 && x == 8)
-			printf("was here\n");
-
 		for (size_t i = threadIdx.x; i < dim + dim * dim; i += blockDim.x)
 			if (i < dim)
 				shared_mem[i] = centroids[x * dim + i];
@@ -158,10 +124,6 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 		if (from_start)
 			for (; idx < x * warpSize; idx += blockDim.x * gridDim.x)
 			{
-
-				if (threadIdx.x % warpSize == 0 && x == 8)
-					printf("was from start\n");
-
 				size_t y = idx / warpSize;
 
 				point_neighbours_mat_warp<N>(centroids, inverses, dim, local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
@@ -172,10 +134,6 @@ __inline__ __device__ void point_neighbours_mat(const float* centroids, const fl
 		for (; idx < (centroid_count - 1) * warpSize; idx += blockDim.x * gridDim.x)
 		{
 			size_t y = (idx / warpSize) + 1;
-
-
-			if (threadIdx.x % warpSize == 0 && x == 8)
-				printf("was here %d\n", (int)y);
 
 			point_neighbours_mat_warp<N>(centroids, inverses, dim, local_neighbours, curr_centroid, this_centroid, this_icov, cluster_kinds, (asgn_t)y);
 		}

@@ -56,9 +56,10 @@ chunk_t run_neighbours_min(const neighbour_t* neighbours, size_t count, chunk_t*
 template <size_t N>
 void run_update_neighbours(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
 
-void print_nei(neighbour_t* neighbours, size_t count);
+void print_nei(neighbour_t* neighbours, size_t nei_number, size_t count);
 void run_print_assg(clustering::asgn_t* assignments, size_t point_size);
 void run_print_centroid(const float* centroid, size_t dim, size_t count);
+void run_print_up(uint8_t* updated, size_t count);
 void run_print_kind(cluster_kind* kind, size_t count);
 
 chunk_t run_simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out);

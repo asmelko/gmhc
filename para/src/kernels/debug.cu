@@ -122,11 +122,19 @@ __global__ void print_up(uint8_t* updated, size_t count)
 	}
 }
 
+void run_print_up(uint8_t* updated, size_t count)
+{
+	print_up << <1, 1 >> > (updated, count);
+}
+
 __global__ void print_ne(neighbour_t* neighbours, size_t nei_number, size_t count)
 {
 	for (size_t i = 0; i < count; i++)
 	{
-		printf("%d. %f %d\n", (int)i, neighbours[i * nei_number].distance, (int)neighbours[i * nei_number].idx);
+		for (size_t j = 0; j < nei_number; j++)
+		{
+			printf("%d. %f %d\n", (int)i, neighbours[i * nei_number + j].distance, (int)neighbours[i * nei_number + j].idx);
+		}
 	}
 }
 

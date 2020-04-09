@@ -29,7 +29,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	run_set_default_asgn(cu_point_asgns_, data_points_size);
 	CUCH(cudaMemset(cu_cluster_kinds_, 1, data_points_size * sizeof(cluster_kind)));
 
-	starting_info_ = kernel_info{ 5, 512, 500 };
+	starting_info_ = kernel_info{ 5, 512 };
 	CUCH(cudaMalloc(&tmp_neigh, sizeof(neighbour_t) * neigh_number_ * points_size * starting_info_.grid_dim));
 
 	CUCH(cudaMalloc(&tmp_icov, point_dim * point_dim * sizeof(float)));
@@ -150,7 +150,7 @@ void gmhc::move_clusters(size_t old_pos)
 
 
 		CUCH(cudaMemcpy(cu_neighs_ + old_pos * neigh_number_, cu_neighs_ + end_idx * neigh_number_,
-			sizeof(neighbour_t), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+			sizeof(neighbour_t) * neigh_number_, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 		CUCH(cudaMemcpy(cu_cluster_kinds_ + old_pos, cu_cluster_kinds_ + end_idx,
 			sizeof(cluster_kind), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
