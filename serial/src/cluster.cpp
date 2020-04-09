@@ -31,31 +31,25 @@ void cluster_t::compute_centroid()
 void cluster_t::compute_inverse_covariance_matrix()
 {
 	icov.resize(point_dim * point_dim);
-	blas::scal(point_dim * point_dim, 0, icov.data(), 1); //zero out
 
 	for (size_t i = 0; i < point_dim; ++i)
 		for (size_t j = i; j < point_dim; ++j)
-			icov[i + j * point_dim] = covariance(i, j);
+		{
+			float res = 0;
+			size_t count = 0;
+			for (size_t k = 0; k < points.size() / point_dim; ++k)
+			{
+				res += (points[k * point_dim + i] - centroid[i]) *
+					(points[k * point_dim + j] - centroid[j]);
+			}
+			icov[i + j * point_dim] = res / (points.size() / point_dim);
+		}
 
 	std::vector<int64_t> piv;
 	piv.resize(point_dim);
 
 	LACH(lapack::sytrf(lapack::Uplo::Upper, point_dim, icov.data(), point_dim, piv.data())); //factorization
 	LACH(lapack::sytri(lapack::Uplo::Upper, point_dim, icov.data(), point_dim, piv.data())); //inversion
-}
-
-float cluster_t::covariance(size_t X, size_t Y) const
-{
-	float res = 0;
-	for (size_t i = 0; i < points.size(); i += point_dim)
-	{
-		for (size_t j = i + point_dim; j < points.size(); j += point_dim)
-		{
-			res += ((points.data() + i)[X] - (points.data() + j)[X]) *
-				((points.data() + i)[Y] - (points.data() + j)[Y]);
-		}
-	}
-	return res / ((points.size() / point_dim) * (points.size() / point_dim));
 }
 
 float cluster_t::euclidean_distance(const float* point) const

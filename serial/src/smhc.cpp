@@ -65,27 +65,15 @@ float smhc::distance(const std::array<size_t, 2>& cluster_pair) const
 
 void smhc::merge_clusters(const std::array<size_t, 2>& cluster_pair)
 {
-	size_t from, to;
+	clusters_[cluster_pair[0]].add_points(clusters_[cluster_pair[1]].points.data(), clusters_[cluster_pair[1]].points.size() / point_dim);
 
-	if (clusters_[cluster_pair[0]].points.size() <= clusters_[cluster_pair[1]].points.size())
-	{
-		from = 0;
-		to = 1;
-	}
-	else
-	{
-		from = 1;
-		to = 0;
-	}
+	clusters_[cluster_pair[0]].compute_centroid();
 
-	clusters_[cluster_pair[to]].add_points(clusters_[cluster_pair[from]].points.data(), clusters_[cluster_pair[from]].points.size() / point_dim);
+	clusters_[cluster_pair[0]].id = id_++;
 
-	clusters_[cluster_pair[to]].compute_centroid();
+	if (clusters_[cluster_pair[0]].points.size() / point_dim >= maha_threshold_)
+		clusters_[cluster_pair[0]].compute_inverse_covariance_matrix();
 
-	clusters_[cluster_pair[to]].id = id_++;
-
-	if (clusters_[cluster_pair[to]].points.size() / point_dim >= maha_threshold_)
-		clusters_[cluster_pair[to]].compute_inverse_covariance_matrix();
-
-	clusters_.erase(clusters_.begin() + cluster_pair[from]);
+	clusters_[cluster_pair[1]] = std::move(clusters_.back());
+	clusters_.pop_back();
 }

@@ -17,7 +17,6 @@ struct cluster_t
 	void add_points(const float* points, size_t count);
 	void compute_centroid();
 	void compute_inverse_covariance_matrix();
-	float covariance(size_t X, size_t Y) const;
 
 	float euclidean_distance(const float* point) const;
 	float mahalanobis_distance(const float* point) const;
