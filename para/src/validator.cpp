@@ -306,3 +306,23 @@ std::tuple<pasgn_t, size_t, float, size_t> validator::iterate(const pasgn_t& exp
 
 	return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
 }
+
+
+bool validator::float_diff(float a, float b, float d)
+{
+	return float_diff(&a, &b, 1, d);
+}
+
+bool validator::float_diff(const float* a, const float* b, size_t size, float d)
+{
+	float fr = 0;
+	for (size_t i = 0; i < size; i++)
+	{
+		auto diff = std::abs(a[i] - b[i]);
+		auto tmp = (diff / a[i] + diff / b[i]) / 2;
+
+		if (tmp >= d * 4)
+			return true;
+	}
+	return fr / size >= d;
+}

@@ -34,6 +34,9 @@ public:
 	bool verify(pasgn_t pair_v, float dist_v, const float* centroid_v);
 
 	bool has_error() const;
+
+	static bool float_diff(float a, float b, float d = 0.05f);
+	static bool float_diff(const float* a, const float* b, size_t size, float d = 0.05f);
 private:
 	std::tuple<pasgn_t, size_t, float, size_t> iterate(const pasgn_t& expected);
 };

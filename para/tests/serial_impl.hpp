@@ -1,7 +1,8 @@
 #ifndef SERIAL_IMPL_HPP
 #define SERIAL_IMPL_HPP
 
-#include "../include/kernels.cuh"
+#include <validator.hpp>
+#include <kernels.cuh>
 #include <reader.hpp>
 
 chunk_t serial_euclidean_min(const clustering::reader::data_t<float>& data);
@@ -12,8 +13,5 @@ std::vector<float> serial_centroid(const clustering::reader::data_t<float>& data
 
 std::vector<float> serial_covariance(const clustering::reader::data_t<float>& data, const clustering::asgn_t* assignments, clustering::asgn_t cid);
 std::vector<float> serial_covariance_by_centroid(const clustering::reader::data_t<float>& data, const clustering::asgn_t* assignments, const float* centroid, clustering::asgn_t cid);
-
-bool float_diff(float a, float b, float d = 0.05f);
-bool float_diff(const float* a, const float* b, size_t size, float d = 0.05f);
 
 #endif

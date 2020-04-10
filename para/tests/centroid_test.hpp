@@ -97,7 +97,7 @@ TEST(kernel, centroid_big)
 	std::cout << "serial compute time: " << elapsed_seconds.count() << "\n";
 
 	for (size_t i = 0; i < data.dim; i++)
-		EXPECT_FALSE(float_diff(host_res[i],ser[i]));
+		EXPECT_FALSE(validator::float_diff(host_res[i],ser[i]));
 
 	delete[] host_res;
 }
