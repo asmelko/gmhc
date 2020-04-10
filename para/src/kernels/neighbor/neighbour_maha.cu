@@ -7,40 +7,21 @@ using namespace clustering;
 
 __inline__ __device__ float maha_dist(const float* point, const float* matrix, size_t size, size_t lane_id)
 {
-	float tmp_point[MAX_DIM];
-	for (size_t i = 0; i < size; i++)
-		tmp_point[i] = 0;
+	float tmp_point = 0;
 
 	for (size_t i = lane_id; i < size * size; i += warpSize)
 	{
 		size_t mat_x = i / size;
 		size_t mat_y = i % size;
 
-		tmp_point[mat_x] += matrix[mat_x * size + mat_y] * point[mat_y];
+		tmp_point += matrix[mat_x * size + mat_y] * point[mat_y] * point[mat_x];
 	}
 
-	reduce_sum_warp(tmp_point, size);
-
-	/*
-	if (lane_id == 0)
-	{
-		printf("matvec ");
-		for (size_t i = 0; i < size; i++)
-		{
-			printf("%f ", tmp_point[i]);
-		}
-		printf("\n");
-	}*/
+	reduce_sum_warp(&tmp_point, 1);
 
 	if (lane_id == 0)
 	{
-		float tmp_res = 0;
-		for (size_t i = 0; i < size; ++i)
-			tmp_res += tmp_point[i] * point[i];
-
-		//printf("dot %f\n", tmp_res);
-
-		return sqrtf(tmp_res);
+		return sqrtf(tmp_point);
 	}
 	return 0;
 }
