@@ -21,7 +21,7 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_points_;
     asgn_t* cu_point_asgns_;
     float* cu_centroids_;
-    float** cu_icov_;
+    float* cu_icov_;
     cluster_kind* cu_cluster_kinds_;
     neighbour_t* cu_neighs_;
     chunk_t* cu_chunks_;
@@ -67,7 +67,7 @@ protected:
 private:
     void update_iteration(size_t cluster_idx, const cluster_data_t* merged);
     void move_clusters(size_t old_pos);
-    void compute_icov(size_t pos, bool have_inplace_icov);
+    void compute_icov(size_t pos);
 };
 
 }

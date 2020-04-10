@@ -127,7 +127,7 @@ __global__ void min(const neighbour_t* neighbours, size_t count, chunk_t* result
 #include "neighbour_maha.cu"
 
 template <size_t N>
-void run_update_neighbours(const float* centroids, const float*const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info)
+void run_update_neighbours(const float* centroids, const float* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info)
 {
 	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
 	size_t shared_mat = (dim + 33) * dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
@@ -169,9 +169,11 @@ chunk_t run_neighbours_min(const neighbour_t* neighbours, size_t count, chunk_t*
 #define INIT_TEMPLATES(N) \
 template void run_neighbours<N>(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, cluster_kind* cluster_kinds, kernel_info info);\
 template chunk_t run_neighbours_min<N>(const neighbour_t* neighbours, size_t count, chunk_t* result);\
-template void run_update_neighbours<N>(const float* centroids, const float* const* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
+template void run_update_neighbours<N>(const float* centroids, const float* inverses, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_kind* cluster_kinds, uint8_t* updated, size_t old_i, size_t old_j, kernel_info info);
 
 INIT_TEMPLATES(1)
 INIT_TEMPLATES(2)
+INIT_TEMPLATES(3)
 INIT_TEMPLATES(5)
+INIT_TEMPLATES(10)
 
