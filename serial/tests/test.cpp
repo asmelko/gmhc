@@ -17,7 +17,7 @@ TEST(serial, basic_maha_dist_test)
 	serial.initialize(data.data.data(), data.points, data.dim);
 
 	auto res = serial.run();
-	std::vector<pasgn_t> expected{ {0, 1}, {5, 6}, {10, 11}, {15, 16}, {20, 3}, {21, 8}, {22, 13}, {23, 18}, {27, 19}, {28, 17}, {25, 9}, {30, 7}, {26, 14}, {32, 12}, {24, 2}, {34, 4}, {35, 31}, {36, 33}, {37, 29} };
+	std::vector<pasgn_t> expected{ {0, 1}, {19, 15}, {5, 6}, {10, 11}, {20, 3}, {21, 17}, {22, 8}, {14, 23}, {26, 9}, {28, 7}, {24, 2}, {30, 4}, {27, 12}, {13, 32}, {25, 16}, {34, 18}, {31, 29}, {36, 33}, {37, 35} };
 
 	EXPECT_EQ(res, expected);
 }
