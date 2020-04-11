@@ -22,11 +22,10 @@ class gmhc : public hierarchical_clustering<float>
     asgn_t* cu_point_asgns_;
     float* cu_centroids_;
     float* cu_icov_;
-    cluster_kind* cu_cluster_kinds_;
     neighbour_t* cu_neighs_;
     chunk_t* cu_chunks_;
     chunk_t* cu_min_;
-    uint8_t* cu_updated;
+    uint8_t* cu_update_;
 
     static constexpr size_t neigh_number_ = 2;
 
@@ -39,15 +38,16 @@ class gmhc : public hierarchical_clustering<float>
     int* cu_info;
     int* cu_pivot;
 
-    size_t chunk_count_;
     size_t cluster_count_;
-    size_t big_cluster_count_, small_cluster_count_;
     asgn_t id_;
 
     cluster_data_t* cluster_data_;
     
     size_t maha_threshold_;
-    size_t icov_size_;
+
+    cluster_bound_t bounds_;
+    centroid_data_t compute_data_;
+    update_data_t upd_data_;
 
     cublasHandle_t handle_;
 
@@ -65,9 +65,12 @@ protected:
 
 
 private:
-    void update_iteration(size_t cluster_idx, const cluster_data_t* merged);
-    void move_clusters(size_t old_pos);
+    void update_iteration(const cluster_data_t* merged);
+    void gmhc::move_clusters(size_t i, size_t j, bool maha);
+    bool hole(size_t idx);
     void compute_icov(size_t pos);
+
+    void verify(pasgn_t id_pair, float dist);
 };
 
 }

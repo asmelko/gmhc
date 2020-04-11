@@ -60,23 +60,9 @@ __global__ void print_a(asgn_t* assignments, size_t point_size)
 		printf("%d: %d\n", (int)i, (int)assignments[i]);
 }
 
-__global__ void print_kind(cluster_kind* kind, size_t count)
-{
-	for (size_t i = 0; i < count; i++)
-	{
-		printf("%d. %d\n", (int)i, (int)kind[i]);
-	}
-}
-
-
 void run_print_assg(asgn_t* assignments, size_t point_size)
 {
 	print_a << <1, 1 >> > (assignments, point_size);
-}
-
-void run_print_kind(cluster_kind* kind, size_t count)
-{
-	print_kind << <1, 1 >> > (kind, count);
 }
 
 __global__ void print_centroid(const float* centroid, size_t dim, size_t count)

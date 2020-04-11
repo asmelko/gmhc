@@ -15,16 +15,36 @@ struct neighbour_t
 	clustering::asgn_t idx;
 };
 
-enum class cluster_kind : uint8_t
-{
-	EMPTY = 0, EUCL = 1, MAHA = 2
-};
-
 struct input_t
 {
 	float* data;
 	size_t count;
 	size_t dim;
+};
+
+using flag_t = std::uint8_t;
+
+struct update_data_t
+{
+	clustering::asgn_t new_idx;
+	clustering::pasgn_t move_a;
+	clustering::pasgn_t move_b;
+	
+	flag_t* to_update;
+};
+
+struct cluster_bound_t
+{
+	clustering::asgn_t eucl_size;
+	clustering::asgn_t maha_begin;
+	clustering::asgn_t maha_size;
+};
+
+struct centroid_data_t
+{
+	float* centroids;
+	float* inverses;
+	clustering::asgn_t dim;
 };
 
 struct kernel_info
