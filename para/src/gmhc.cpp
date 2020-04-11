@@ -10,9 +10,11 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 
 	id_ = (asgn_t)data_points_size;
 	cluster_count_ = data_points_size;
-	bounds_.eucl_size = data_points_size;
+	bounds_.eucl_size = (asgn_t)data_points_size;
 	bounds_.maha_size = 0;
-	bounds_.maha_begin = data_points_size;
+	bounds_.maha_begin = (asgn_t)data_points_size;
+
+	icov_size = (point_dim + 1) * point_dim / 2;
 
 	CUCH(cudaSetDevice(0));
 
@@ -21,7 +23,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	CUCH(cudaMalloc(&cu_point_asgns_, data_points_size * sizeof(asgn_t)));
 	CUCH(cudaMalloc(&cu_min_, sizeof(chunk_t)));
 	CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbour_t) * neigh_number_ * data_points_size));
-	CUCH(cudaMalloc(&cu_icov_, sizeof(float) * point_dim * point_dim * data_points_size));
+	CUCH(cudaMalloc(&cu_icov_, sizeof(float) * icov_size * data_points_size));
 
 	CUCH(cudaMemcpy(cu_points_, data_points, data_points_size * data_point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
 	CUCH(cudaMemcpy(cu_centroids_, data_points, data_points_size * data_point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -31,7 +33,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	starting_info_ = kernel_info{ 5,  512 };
 	CUCH(cudaMalloc(&tmp_neigh, sizeof(neighbour_t) * neigh_number_ * points_size * starting_info_.grid_dim));
 
-	CUCH(cudaMalloc(&tmp_icov, point_dim * point_dim * sizeof(float)));
+	CUCH(cudaMalloc(&tmp_icov, 2 * point_dim * point_dim * sizeof(float)));
 	CUCH(cudaMalloc(&cu_update_, cluster_count_ * sizeof(uint8_t)));
 
 	CUCH(cudaMalloc(&cu_read_icov, sizeof(float*)));
@@ -138,8 +140,8 @@ bool gmhc::hole(size_t idx)
 		sizeof(neighbour_t) * neigh_number_, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 	if (cluster_data_[idx].size >= maha_threshold_)
-		CUCH(cudaMemcpy(cu_icov_ + idx * point_dim * point_dim, cu_icov_ + end_idx * point_dim * point_dim,
-			sizeof(float) * point_dim * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+		CUCH(cudaMemcpy(cu_icov_ + idx * icov_size, cu_icov_ + end_idx * icov_size,
+			sizeof(float) * icov_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 	return true;
 }
@@ -194,7 +196,7 @@ void gmhc::move_clusters(size_t i, size_t j, bool maha)
 
 void gmhc::compute_icov(size_t pos)
 {
-	float* icov = cu_icov_ + pos * point_dim * point_dim;
+	float* icov = tmp_icov + point_dim * point_dim;
 
 	assign_constant_storage(cu_centroids_ + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
 	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info{ 6, 1024, 100 });
@@ -228,6 +230,8 @@ void gmhc::compute_icov(size_t pos)
 
 	if (info != 0)
 		run_set_default_inverse(icov, point_dim * point_dim);
+
+	run_store_icovariance(cu_icov_ + pos * icov_size, icov, point_dim);
 
 	if (vld_)
 	{

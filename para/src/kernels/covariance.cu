@@ -86,16 +86,31 @@ __global__ void covariance(const float* __restrict__ points, size_t dim, size_t 
 			atomicAdd(cov_matrix + i, tmp_cov[i]);
 }
 
-__global__ void finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
+__global__ void finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, asgn_t dim, float* __restrict__ out_cov_matrix)
 {
-	size_t cov_size = ((N + 1) * N) / 2;
+	size_t cov_size = ((dim + 1) * dim) / 2;
 
 	for (size_t idx = threadIdx.x; idx < cov_size; idx+= blockDim.x)
 	{
-		auto coords = compute_coordinates(N, idx);
+		auto coords = compute_coordinates(dim, idx);
 		auto tmp = in_cov_matrix[idx] / divisor;
-		out_cov_matrix[coords.x + coords.y * N] = tmp;
-		out_cov_matrix[coords.x * N + coords.y] = tmp;
+		out_cov_matrix[coords.x + coords.y * dim] = tmp;
+		out_cov_matrix[coords.x * dim + coords.y] = tmp;
+	}
+}
+
+__global__ void store_icov(float* __restrict__ dest, const float* __restrict__ src, asgn_t dim)
+{
+	size_t cov_size = ((dim + 1) * dim) / 2;
+
+	for (size_t idx = threadIdx.x; idx < cov_size; idx += blockDim.x)
+	{
+		auto coords = compute_coordinates(dim, idx);
+		
+		if (coords.x == coords.y)
+			dest[idx] = src[coords.x + coords.y * dim];
+		else
+			dest[idx] = 2 * src[coords.x + coords.y * dim];
 	}
 }
 
@@ -108,8 +123,12 @@ void run_covariance(const input_t in, const asgn_t* assignments, float* out, asg
 	covariance << <info.grid_dim, info.block_dim, shared_chunks* cov_size * sizeof(float) >> > (in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);
 }
 
-void run_finish_covariance(const float* __restrict__ in_cov_matrix, size_t divisor, size_t N, float* __restrict__ out_cov_matrix)
+void run_finish_covariance(const float* in_cov_matrix, size_t divisor, asgn_t dim, float* out_cov_matrix)
 {
-	finish_covariance<<<1, ((N + 1) * N) / 2>>>(in_cov_matrix, divisor, N, out_cov_matrix);
+	finish_covariance<<<1, ((dim + 1) * dim) / 2>>>(in_cov_matrix, divisor, dim, out_cov_matrix);
 }
 
+void run_store_icovariance(float* dest, const float* src, asgn_t dim)
+{
+	store_icov<<<1, ((dim + 1) * dim) / 2 >>>(dest, src, dim);
+}

@@ -41,6 +41,8 @@ class gmhc : public hierarchical_clustering<float>
     size_t cluster_count_;
     asgn_t id_;
 
+    size_t icov_size;
+
     cluster_data_t* cluster_data_;
     
     size_t maha_threshold_;

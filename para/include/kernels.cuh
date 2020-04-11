@@ -39,7 +39,8 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, size_t chunk_size, kerne
 void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, size_t cluster_size, kernel_info info);
 
 void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
-void run_finish_covariance(const float* in_cov_matrix, size_t divisor, size_t N, float* out_cov_matrix);
+void run_finish_covariance(const float* in_cov_matrix, size_t divisor, clustering::asgn_t dim, float* out_cov_matrix);
+void run_store_icovariance(float* dest, const float* src, clustering::asgn_t dim);
 
 void run_set_default_inverse(float* icov_matrix, size_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, size_t N);

@@ -9,12 +9,13 @@ __inline__ __device__ float maha_dist(const float* point, const float* matrix, s
 {
 	float tmp_point = 0;
 
-	for (size_t i = lane_id; i < size * size; i += warpSize)
-	{
-		size_t mat_x = i / size;
-		size_t mat_y = i % size;
+	auto icov_size = (size + 1) * size / 2;
 
-		tmp_point += matrix[mat_x * size + mat_y] * point[mat_y] * point[mat_x];
+	for (size_t i = lane_id; i < icov_size; i += warpSize)
+	{
+		auto coords = compute_coordinates(size, i);
+
+		tmp_point = fmaf(matrix[i], point[coords.x] * point[coords.y], tmp_point);
 	}
 
 	reduce_sum_warp(&tmp_point, 1);
@@ -54,7 +55,10 @@ __inline__ __device__ void point_neighbours_mat_warp
 		dist += maha_dist(curr_centroid + warp_id * dim, this_icov, dim, lane_id);
 
 	if (eucl || idx >= big_begin)
-		dist += maha_dist(curr_centroid + warp_id * dim, inverses + idx * dim * dim, dim, lane_id);
+	{
+		auto icov_size = (dim + 1) * dim / 2;
+		dist += maha_dist(curr_centroid + warp_id * dim, inverses + idx * icov_size, dim, lane_id);
+	}
 
 	if (lane_id == 0)
 		add_neighbour<N>(neighbours, neighbour_t{ dist / 2, idx });
@@ -94,11 +98,18 @@ __inline__ __device__ void point_neighbours_mat
 	}
 	else
 	{
-		for (size_t i = threadIdx.x; i < dim + dim * dim; i += blockDim.x)
-			if (i < dim)
-				shared_mem[i] = centroids[x * dim + i];
-			else
-				shared_mem[i] = inverses[x * dim * dim + i - dim];
+		{
+			auto icov_size = (dim + 1) * dim / 2;
+
+			for (size_t i = threadIdx.x; i < dim + icov_size; i += blockDim.x)
+				if (i < dim)
+					shared_mem[i] = centroids[x * dim + i];
+				else
+				{
+					shared_mem[i] = inverses[x * icov_size + i - dim];
+				}
+		}
+		
 
 		__syncthreads();
 
