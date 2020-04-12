@@ -1,9 +1,11 @@
 #include "common_kernels.cuh"
 
-__device__ float euclidean_norm(const float* l_point, const float* r_point, size_t dim)
+using namespace clustering;
+
+__device__ float euclidean_norm(const float* __restrict__ l_point, const float* __restrict__ r_point, csize_t dim)
 {
 	float tmp_sum = 0;
-	for (size_t i = 0; i < dim; ++i)
+	for (csize_t i = 0; i < dim; ++i)
 	{
 		auto tmp = l_point[i] - r_point[i];
 		tmp_sum += tmp * tmp;
@@ -11,14 +13,14 @@ __device__ float euclidean_norm(const float* l_point, const float* r_point, size
 	return sqrtf(tmp_sum);
 }
 
-__device__ void reduce_sum_warp(float* point, size_t dim)
+__device__ void reduce_sum_warp(float* __restrict__ point, csize_t dim)
 {
 	for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
-		for (size_t i = 0; i < dim; ++i)
+		for (csize_t i = 0; i < dim; ++i)
 			point[i] += __shfl_down_sync(0xFFFFFFFF, point[i], offset);
 }
 
-__device__ void reduce_sum_block(float* point, size_t dim, float* shared_mem)
+__device__ void reduce_sum_block(float* __restrict__ point, csize_t dim, float* __restrict__ shared_mem)
 {
 	reduce_sum_warp(point, dim);
 
@@ -38,9 +40,9 @@ __device__ void reduce_sum_block(float* point, size_t dim, float* shared_mem)
 	reduce_sum_warp(point, dim);
 }
 
-__device__ size2 compute_coordinates(size_t count_in_line, size_t plain_index)
+__device__ csize2 compute_coordinates(csize_t count_in_line, csize_t plain_index)
 {
-	size_t y = 0;
+	csize_t y = 0;
 	while (plain_index >= count_in_line)
 	{
 		y++;

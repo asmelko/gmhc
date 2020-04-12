@@ -6,27 +6,27 @@
 struct chunk_t
 {
 	float min_dist;
-	clustering::asgn_t min_i, min_j;
+	clustering::csize_t min_i, min_j;
 };
 
 struct neighbour_t
 {
 	float distance;
-	clustering::asgn_t idx;
+	clustering::csize_t idx;
 };
 
 struct input_t
 {
 	float* data;
-	size_t count;
-	size_t dim;
+	clustering::csize_t count;
+	clustering::csize_t dim;
 };
 
 using flag_t = std::uint8_t;
 
 struct update_data_t
 {
-	clustering::asgn_t new_idx;
+	clustering::csize_t new_idx;
 	clustering::pasgn_t move_a;
 	clustering::pasgn_t move_b;
 	
@@ -35,23 +35,23 @@ struct update_data_t
 
 struct cluster_bound_t
 {
-	clustering::asgn_t eucl_size;
-	clustering::asgn_t maha_begin;
-	clustering::asgn_t maha_size;
+	clustering::csize_t eucl_size;
+	clustering::csize_t maha_begin;
+	clustering::csize_t maha_size;
 };
 
 struct centroid_data_t
 {
 	float* centroids;
 	float* inverses;
-	clustering::asgn_t dim;
+	clustering::csize_t dim;
 };
 
 struct kernel_info
 {
 	unsigned int grid_dim;
 	unsigned int block_dim;
-	size_t shared_size;
+	clustering::csize_t shared_size;
 };
 
 #endif

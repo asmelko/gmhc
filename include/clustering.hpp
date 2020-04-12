@@ -8,16 +8,18 @@
 
 namespace clustering {
 
+using csize_t = uint32_t;
+
 template <typename T>
 class clustering_base
 {
 protected:
 	const T* points;
-	size_t points_size;
-	size_t point_dim;
+	csize_t points_size;
+	csize_t point_dim;
 
 public:
-	virtual void initialize(const T* data_points, size_t data_points_size, size_t data_point_dim)
+	virtual void initialize(const T* data_points, csize_t data_points_size, csize_t data_point_dim)
 	{
 		this->points = data_points;
 		this->points_size = data_points_size;
@@ -27,7 +29,7 @@ public:
 	virtual ~clustering_base() = default;
 };
 
-using asgn_t = uint32_t;
+using asgn_t = csize_t;
 using pasgn_t = std::pair<asgn_t, asgn_t>;
 
 template <typename T>

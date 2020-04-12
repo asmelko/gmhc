@@ -6,7 +6,7 @@
 
 using namespace clustering;
 
-void validator::initialize(const float* data_points, size_t data_points_size, size_t data_point_dim, size_t maha_threshold)
+void validator::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t maha_threshold)
 {
 	points_ = data_points;
 	point_count_ = data_points_size;
@@ -17,14 +17,14 @@ void validator::initialize(const float* data_points, size_t data_points_size, si
 	id_ = (asgn_t)point_count_;
 	cluster_count_ = point_count_;
 
-	for (size_t i = 0; i < point_count_; i++)
+	for (csize_t i = 0; i < point_count_; i++)
 	{
 		point_asgns_.push_back((asgn_t)i);
 
 		cluster c;
 		c.id = (asgn_t)i;
 
-		for (size_t j = 0; j < point_dim_; j++)
+		for (csize_t j = 0; j < point_dim_; j++)
 			c.centroid.push_back(data_points[i * point_dim_ + j]);
 
 		clusters_.emplace_back(std::move(c));
@@ -33,10 +33,10 @@ void validator::initialize(const float* data_points, size_t data_points_size, si
 	iteration_ = 0;
 }
 
-float eucl_dist(const float* lhs, const float* rhs, size_t size)
+float eucl_dist(const float* lhs, const float* rhs, csize_t size)
 {
 	float tmp_dist = 0;
-	for (size_t k = 0; k < size; k++)
+	for (csize_t k = 0; k < size; k++)
 	{
 		auto tmp = (lhs[k] - rhs[k]);
 		tmp_dist += tmp * tmp;
@@ -44,35 +44,35 @@ float eucl_dist(const float* lhs, const float* rhs, size_t size)
 	return std::sqrt(tmp_dist);
 }
 
-std::vector<float> mat_vec(const float* mat, const float* vec, size_t size)
+std::vector<float> mat_vec(const float* mat, const float* vec, csize_t size)
 {
 	std::vector<float> res;
-	for (size_t i = 0; i < size; i++)
+	for (csize_t i = 0; i < size; i++)
 	{
 		res.push_back(0);
-		for (size_t j = 0; j < size; j++)
+		for (csize_t j = 0; j < size; j++)
 			res.back() += mat[i * size + j] * vec[j];
 	}
 	return res;
 }
 
-float dot(const float* lhs, const float* rhs, size_t size)
+float dot(const float* lhs, const float* rhs, csize_t size)
 {
 	float res = 0;
-	for (size_t i = 0; i < size; i++)
+	for (csize_t i = 0; i < size; i++)
 		res += lhs[i] * rhs[i];
 	return res;
 }
 
-std::vector<float> minus(const float* lhs, const float* rhs, size_t size)
+std::vector<float> minus(const float* lhs, const float* rhs, csize_t size)
 {
 	std::vector<float> res;
-	for (size_t i = 0; i < size; i++)
+	for (csize_t i = 0; i < size; i++)
 		res.emplace_back(lhs[i] - rhs[i]);
 	return res;
 }
 
-float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_v, const float* rhs_m, size_t size)
+float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_v, const float* rhs_m, csize_t size)
 {
 	float dist = 0;
 	if (lhs_m)
@@ -96,10 +96,10 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 	return dist / 2;
 }
 
-size_t update_asgns(asgn_t* asgns, size_t count, pasgn_t old_pair, asgn_t id)
+csize_t update_asgns(asgn_t* asgns, csize_t count, pasgn_t old_pair, asgn_t id)
 {
-	size_t tmp_count = 0;
-	for (size_t i = 0; i < count; i++)
+	csize_t tmp_count = 0;
+	for (csize_t i = 0; i < count; i++)
 	{
 		if (asgns[i] == old_pair.first || asgns[i] == old_pair.second)
 		{
@@ -110,41 +110,41 @@ size_t update_asgns(asgn_t* asgns, size_t count, pasgn_t old_pair, asgn_t id)
 	return tmp_count;
 }
 
-std::vector<float> compute_centroid(const float* points, size_t dim, size_t size, const asgn_t* assignments, asgn_t cid)
+std::vector<float> compute_centroid(const float* points, csize_t dim, csize_t size, const asgn_t* assignments, asgn_t cid)
 {
-	size_t count = 0;
+	csize_t count = 0;
 	std::vector<float> tmp_sum;
 	tmp_sum.resize(dim);
 
-	for (size_t i = 0; i < dim; i++)
+	for (csize_t i = 0; i < dim; i++)
 		tmp_sum[i] = 0;
 
-	for (size_t i = 0; i < size; i++)
+	for (csize_t i = 0; i < size; i++)
 	{
 		if (assignments[i] == cid)
 		{
-			for (size_t j = 0; j < dim; j++)
+			for (csize_t j = 0; j < dim; j++)
 				tmp_sum[j] += points[i * dim + j];
 			count++;
 		}
 	}
 
-	for (size_t i = 0; i < dim; i++)
+	for (csize_t i = 0; i < dim; i++)
 		tmp_sum[i] /= count;
 
 	return tmp_sum;
 }
 
-std::vector<float> compute_covariance(const float* points, size_t dim, size_t size, const asgn_t* assignments, const float* centroid, asgn_t cid)
+std::vector<float> compute_covariance(const float* points, csize_t dim, csize_t size, const asgn_t* assignments, const float* centroid, asgn_t cid)
 {
 	std::vector<float> cov;
 
-	for (size_t i = 0; i < dim; ++i)
-		for (size_t j = i; j < dim; ++j)
+	for (csize_t i = 0; i < dim; ++i)
+		for (csize_t j = i; j < dim; ++j)
 		{
 			float res = 0;
-			size_t count = 0;
-			for (size_t k = 0; k < size; ++k)
+			csize_t count = 0;
+			for (csize_t k = 0; k < size; ++k)
 			{
 				if (assignments[k] != cid) continue;
 
@@ -158,23 +158,23 @@ std::vector<float> compute_covariance(const float* points, size_t dim, size_t si
 	return cov;
 }
 
-void print_pairs(size_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
+void print_pairs(csize_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
 {
 	std::cerr << "Iteration " << iteration << ": pairs do not match: "
 		<< lhs.first << ", " << lhs.second << " =/= "
 		<< rhs.first << ", " << rhs.second << std::endl;
 }
 
-void print_arrays(size_t iteration, const std::string& msg, size_t size, const float* lhs, const float* rhs)
+void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const float* lhs, const float* rhs)
 {
 	std::cerr << "Iteration " << iteration << ": " << msg << std::endl;
 
-	for (size_t j = 0; j < size; j++)
+	for (csize_t j = 0; j < size; j++)
 		std::cerr << lhs[j] << " ";
 
 	std::cerr << std::endl;
 
-	for (size_t j = 0; j < size; j++)
+	for (csize_t j = 0; j < size; j++)
 		std::cerr << rhs[j] << " ";
 
 	std::cerr << std::endl;
@@ -210,7 +210,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 		return false;
 	}
 
-	for (size_t i = 0; i < point_dim_; i++)
+	for (csize_t i = 0; i < point_dim_; i++)
 		clusters_[new_clust].centroid[i] = centroid_v[i];
 
 	if (cluster_count >= maha_threshold_)
@@ -222,8 +222,8 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 			return false;
 		}
 
-		size_t cov_size = (point_dim_ + 1) * point_dim_ / 2;
-		for (size_t i = 0; i < cov_size; i++)
+		csize_t cov_size = (point_dim_ + 1) * point_dim_ / 2;
+		for (csize_t i = 0; i < cov_size; i++)
 			cov_v[i] /= cluster_count;
 
 		auto this_cov = compute_covariance(points_, point_dim_, point_count_, point_asgns_.data(), clusters_[new_clust].centroid.data(), clusters_[new_clust].id);
@@ -247,16 +247,16 @@ bool validator::has_error() const
 	return error_;
 }
 
-std::tuple<pasgn_t, size_t, float, size_t> validator::iterate(const pasgn_t& expected)
+std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& expected)
 {
 	pasgn_t min_pair;
-	std::pair<size_t, size_t> min_idx, expected_idx;
+	std::pair<csize_t, csize_t> min_idx, expected_idx;
 	float min_dist = FLT_MAX;
 	float expected_dist = FLT_MAX;
 
-	for (size_t i = 0; i < cluster_count_; i++)
+	for (csize_t i = 0; i < cluster_count_; i++)
 	{
-		for (size_t j = i + 1; j < cluster_count_; j++)
+		for (csize_t j = i + 1; j < cluster_count_; j++)
 		{
 			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
 
@@ -285,14 +285,14 @@ std::tuple<pasgn_t, size_t, float, size_t> validator::iterate(const pasgn_t& exp
 		min_idx = expected_idx;
 	}
 
-	size_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
+	csize_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
 
 	cluster c;
 	c.id = id_;
 	c.centroid = compute_centroid(points_, point_dim_, point_count_, point_asgns_.data(), id_);
 
 	if (icov_v.size())
-		for (size_t i = 0; i < point_dim_ * point_dim_; i++)
+		for (csize_t i = 0; i < point_dim_ * point_dim_; i++)
 			c.icov.push_back(icov_v[i]);
 
 	if (min_idx.second != clusters_.size() - 1)
@@ -314,10 +314,10 @@ bool validator::float_diff(float a, float b, float d)
 	return float_diff(&a, &b, 1, d);
 }
 
-bool validator::float_diff(const float* a, const float* b, size_t size, float d)
+bool validator::float_diff(const float* a, const float* b, csize_t size, float d)
 {
 	float fr = 0;
-	for (size_t i = 0; i < size; i++)
+	for (csize_t i = 0; i < size; i++)
 	{
 		auto diff = std::abs(a[i] - b[i]);
 		auto tmp = (diff / a[i] + diff / b[i]) / 2;

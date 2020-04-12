@@ -19,8 +19,8 @@ TEST(kernel, covariance_small)
 	float centroid[3] = { -1.29547f, 8.00796f, -7.49481f };
 	kernel_info kernel{ 1, 32, 32 };
 
-	cu_in.count = data.points;
-	cu_in.dim = data.dim;
+	cu_in.count = (csize_t)data.points;
+	cu_in.dim = (csize_t)data.dim;
 
 	CUCH(cudaSetDevice(0));
 
@@ -67,8 +67,8 @@ TEST(kernel, covariance_big)
 	float* host_res = new float[cov_size];
 	kernel_info kernel{ 1, 32, 1 };
 
-	cu_in.count = data.points;
-	cu_in.dim = data.dim;
+	cu_in.count = (csize_t)data.points;
+	cu_in.dim = (csize_t)data.dim;
 
 	auto centroid = serial_centroid(data, assignments.data(), 0);
 
@@ -86,7 +86,7 @@ TEST(kernel, covariance_big)
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 
-	assign_constant_storage(centroid.data(), data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+	assign_constant_storage(centroid.data(), (csize_t)data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 	auto end = std::chrono::system_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

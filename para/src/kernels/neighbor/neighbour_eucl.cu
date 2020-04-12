@@ -5,20 +5,21 @@
 
 using namespace clustering;
 
-template <size_t N>
-__device__ void point_neighbour(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* neighbours_a, float* shared_mem, size_t idx, bool from_start)
+template <csize_t N>
+__device__ void point_neighbour(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, neighbour_t* __restrict__ neighbours_a, 
+	float* __restrict__ shared_mem, csize_t idx, bool from_start)
 {
 	neighbour_t local_neighbours[N];
 
-	for (size_t i = 0; i < N; ++i)
+	for (csize_t i = 0; i < N; ++i)
 		local_neighbours[i].distance = FLT_MAX;
 
-	for (size_t i = threadIdx.x; i < dim; i += blockDim.x)
+	for (csize_t i = threadIdx.x; i < dim; i += blockDim.x)
 		shared_mem[i] = centroids[idx * dim + i];
 
 	__syncthreads();
 
-	asgn_t y = threadIdx.x + blockIdx.x * blockDim.x;
+	csize_t y = threadIdx.x + blockIdx.x * blockDim.x;
 
 	if (from_start)
 		for (; y < idx; y += blockDim.x * gridDim.x)
@@ -43,23 +44,23 @@ __device__ void point_neighbour(const float* centroids, size_t dim, size_t centr
 		memcpy(neighbours_a + (gridDim.x * idx + blockIdx.x) * N, local_neighbours, N * sizeof(neighbour_t));
 }
 
-template <size_t N>
-__global__ void neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* neighbours_a)
+template <csize_t N>
+__global__ void neighbours(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, neighbour_t* __restrict__ neighbours_a)
 {
 	extern __shared__ float shared_mem[];
 
-	for (asgn_t x = 0; x < centroid_count; ++x)
+	for (csize_t x = 0; x < centroid_count; ++x)
 	{
 		point_neighbour<N>(centroids, dim, centroid_count, neighbours_a, shared_mem, x, false);
 	}
 }
 
-template <size_t N>
-__global__ void neighbours_u(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* neighbours_a, uint8_t* updated, size_t new_idx)
+template <csize_t N>
+__global__ void neighbours_u(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, neighbour_t* __restrict__ neighbours_a, flag_t* __restrict__ updated, csize_t new_idx)
 {
 	extern __shared__ float shared_mem[];
 
-	for (asgn_t x = 0; x < centroid_count; ++x)
+	for (csize_t x = 0; x < centroid_count; ++x)
 		if (updated[x])
 			point_neighbour<N>(centroids, dim, centroid_count, neighbours_a, shared_mem, x, x == new_idx);
 }

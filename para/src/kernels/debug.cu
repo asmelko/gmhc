@@ -55,23 +55,23 @@ void cuBLAS_check(cublasStatus_t code, const char* file, int line)
 	}
 }
 
-__global__ void print_a(asgn_t* assignments, size_t point_size)
+__global__ void print_a(asgn_t* assignments, csize_t point_size)
 {
-	for (size_t i = 0; i < point_size; i++)
+	for (csize_t i = 0; i < point_size; i++)
 		printf("%d: %d\n", (int)i, (int)assignments[i]);
 }
 
-void run_print_assg(asgn_t* assignments, size_t point_size)
+void run_print_assg(asgn_t* assignments, csize_t point_size)
 {
 	print_a << <1, 1 >> > (assignments, point_size);
 }
 
-__global__ void print_centroid(const float* centroid, size_t dim, size_t count)
+__global__ void print_centroid(const float* centroid, csize_t dim, csize_t count)
 {
-	for (size_t i = 0; i < count; i++)
+	for (csize_t i = 0; i < count; i++)
 	{
 		printf("%d. ", (int)i);
-		for (size_t j = 0; j < dim; j++)
+		for (csize_t j = 0; j < dim; j++)
 		{
 			printf("%f ", centroid[i * dim + j]);
 		}
@@ -79,15 +79,15 @@ __global__ void print_centroid(const float* centroid, size_t dim, size_t count)
 	}
 }
 
-void run_print_centroid(const float* centroid, size_t dim, size_t count)
+void run_print_centroid(const float* centroid, csize_t dim, csize_t count)
 {
 	print_centroid << <1, 1 >> > (centroid, dim, count);
 }
 
 
-__device__ void print_point(const float* data, size_t x, size_t dim)
+__device__ void print_point(const float* data, csize_t x, csize_t dim)
 {
-	for (size_t i = 0; i < dim; i++)
+	for (csize_t i = 0; i < dim; i++)
 	{
 		printf("%f ", data[x * dim + i]);
 	}
@@ -101,37 +101,37 @@ __device__ void print_min(const chunk_t* output)
 
 
 
-__global__ void print_up(uint8_t* updated, size_t count)
+__global__ void print_up(uint8_t* updated, csize_t count)
 {
-	for (size_t i = 0; i < count; i++)
+	for (csize_t i = 0; i < count; i++)
 	{
 		printf("%d. %d\n", (int)i, updated[i]);
 	}
 }
 
-void run_print_up(uint8_t* updated, size_t count)
+void run_print_up(uint8_t* updated, csize_t count)
 {
 	print_up << <1, 1 >> > (updated, count);
 }
 
-__global__ void print_ne(neighbour_t* neighbours, size_t nei_number, size_t count)
+__global__ void print_ne(neighbour_t* neighbours, csize_t nei_number, csize_t count)
 {
-	for (size_t i = 0; i < count; i++)
+	for (csize_t i = 0; i < count; i++)
 	{
-		for (size_t j = 0; j < nei_number; j++)
+		for (csize_t j = 0; j < nei_number; j++)
 		{
 			printf("%d. %f %d\n", (int)i, neighbours[i * nei_number + j].distance, (int)neighbours[i * nei_number + j].idx);
 		}
 	}
 }
 
-void print_nei(neighbour_t* neighbours, size_t nei_number, size_t count)
+void print_nei(neighbour_t* neighbours, csize_t nei_number, csize_t count)
 {
 	print_ne << <1, 1 >> > (neighbours, nei_number, count);
 }
 
 
-__global__ void simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
+__global__ void simple_min(const float* clusters, csize_t dim, csize_t count, chunk_t* out)
 {
 	__shared__ chunk_t shared_mem[32];
 
@@ -140,7 +140,7 @@ __global__ void simple_min(const float* clusters, size_t dim, size_t count, chun
 	chunk_t tmp;
 	tmp.min_dist = FLT_MAX;
 
-	for (size_t idx = threadIdx.x; idx < new_count; idx += blockDim.x)
+	for (csize_t idx = threadIdx.x; idx < new_count; idx += blockDim.x)
 	{
 		auto coords = compute_coordinates(count, idx);
 
@@ -163,7 +163,7 @@ __global__ void simple_min(const float* clusters, size_t dim, size_t count, chun
 		*out = tmp;
 }
 
-chunk_t run_simple_min(const float* clusters, size_t dim, size_t count, chunk_t* out)
+chunk_t run_simple_min(const float* clusters, csize_t dim, csize_t count, chunk_t* out)
 {
 	simple_min << <1, 1024 >> > (clusters, dim, count, out);
 

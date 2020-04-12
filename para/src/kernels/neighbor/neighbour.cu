@@ -6,18 +6,19 @@
 
 using namespace clustering;
 
-template <size_t N>
-__inline__ __device__ void point_reduce(const neighbour_t* neighbours, size_t to_reduce, neighbour_t* reduced, size_t idx)
+template <csize_t N>
+__inline__ __device__ void point_reduce
+(const neighbour_t* __restrict__ neighbours, csize_t to_reduce, neighbour_t* __restrict__ reduced, csize_t idx)
 {
-	size_t block = idx / warpSize;
+	csize_t block = idx / warpSize;
 	neighbour_t local[N];
 
-	size_t nei = idx % warpSize;
+	csize_t nei = idx % warpSize;
 
 	if (nei < to_reduce)
 		memcpy(local, neighbours + (block * to_reduce + nei) * N, sizeof(neighbour_t) * N);
 	else
-		for (size_t i = 0; i < N; i++)
+		for (csize_t i = 0; i < N; i++)
 			local[i].distance = FLT_MAX;
 
 
@@ -39,20 +40,20 @@ __inline__ __device__ void point_reduce(const neighbour_t* neighbours, size_t to
 }
 
 
-template <size_t N>
-__global__ void reduce(const neighbour_t* neighbours, size_t to_reduce, size_t count, neighbour_t* reduced)
+template <csize_t N>
+__global__ void reduce(const neighbour_t* __restrict__ neighbours, csize_t to_reduce, csize_t count, neighbour_t* __restrict__  reduced)
 {
-	for (size_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
+	for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
 	{
 		point_reduce<N>(neighbours, to_reduce, reduced, idx);
 	}
 }
 
-template <size_t N>
-__global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, uint8_t* __restrict__ updated, 
-	asgn_t small_size, asgn_t big_begin, asgn_t big_size, pasgn_t move_a, pasgn_t move_b, asgn_t new_idx)
+template <csize_t N>
+__global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, flag_t* __restrict__ updated, 
+	csize_t small_size, csize_t big_begin, csize_t big_size, pasgn_t move_a, pasgn_t move_b, csize_t new_idx)
 {
-	for (asgn_t idx = threadIdx.x + blockDim.x * blockIdx.x;
+	for (csize_t idx = threadIdx.x + blockDim.x * blockIdx.x;
 		idx < small_size + big_size;
 		idx += blockDim.x * gridDim.x)
 	{
@@ -68,9 +69,9 @@ __global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, uint8
 		neighbour_t tmp_nei[N];
 		memcpy(tmp_nei, neighbours_a + idx * N, sizeof(neighbour_t) * N);
 
-		size_t last_empty = 0;
+		csize_t last_empty = 0;
 
-		for (size_t i = 0; i < N; i++)
+		for (csize_t i = 0; i < N; i++)
 		{
 			if (tmp_nei[i].distance == FLT_MAX)
 				break;
@@ -88,7 +89,7 @@ __global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, uint8
 			}
 		}
 
-		for (size_t i = last_empty; i < N; i++)
+		for (csize_t i = last_empty; i < N; i++)
 			tmp_nei[i].distance = FLT_MAX;
 
 		updated[idx] = tmp_nei[0].distance == FLT_MAX ? 1 : 0;
@@ -97,11 +98,11 @@ __global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, uint8
 	}
 }
 
-template <size_t N>
-__global__ void reduce_u(const neighbour_t* neighbours, neighbour_t* reduced, uint8_t* updated,
-	size_t to_reduce, asgn_t small_count, asgn_t big_begin, asgn_t big_count)
+template <csize_t N>
+__global__ void reduce_u(const neighbour_t* __restrict__ neighbours, neighbour_t* __restrict__ reduced, flag_t* __restrict__ updated,
+	csize_t to_reduce, csize_t small_count, csize_t big_begin, csize_t big_count)
 {
-	asgn_t idx = threadIdx.x + blockIdx.x * blockDim.x;
+	csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
 	for (; idx < small_count * warpSize; idx += blockDim.x * gridDim.x)
 	{
 		if (updated[idx / warpSize])
@@ -117,14 +118,14 @@ __global__ void reduce_u(const neighbour_t* neighbours, neighbour_t* reduced, ui
 	}
 }
 
-template <size_t N>
-__global__ void min(const neighbour_t* neighbours, asgn_t small_count, asgn_t big_begin, asgn_t big_count, chunk_t* result)
+template <csize_t N>
+__global__ void min(const neighbour_t* __restrict__ neighbours, csize_t small_count, csize_t big_begin, csize_t big_count, chunk_t* __restrict__ result)
 {
 	static __shared__ chunk_t shared_mem[32];
 
 	chunk_t tmp;
 	tmp.min_dist = FLT_MAX;
-	for (size_t idx = threadIdx.x; idx < small_count + big_count; idx += blockDim.x)
+	for (csize_t idx = threadIdx.x; idx < small_count + big_count; idx += blockDim.x)
 	{
 		if (idx >= small_count)
 			idx += big_begin - small_count;
@@ -146,12 +147,12 @@ __global__ void min(const neighbour_t* neighbours, asgn_t small_count, asgn_t bi
 #include "neighbour_eucl.cu"
 #include "neighbour_maha.cu"
 
-template <size_t N>
+template <csize_t N>
 void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, 
 	cluster_bound_t sizes, update_data_t upd_data, kernel_info info)
 {
-	size_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
-	size_t shared_mat = (data.dim + 33) * data.dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	csize_t shared_mat = (data.dim + 33) * data.dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
 
 	update_neighbours<N><<<info.grid_dim, info.block_dim >>>
 		(act_neighbours, upd_data.to_update, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.move_a, upd_data.move_b, upd_data.new_idx);
@@ -168,15 +169,15 @@ void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, ne
 		(tmp_neighbours, act_neighbours, upd_data.to_update, info.grid_dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size);
 }
 
-template <size_t N>
-void run_neighbours(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, kernel_info info)
+template <csize_t N>
+void run_neighbours(const float* centroids, csize_t dim, csize_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, kernel_info info)
 {
-	size_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
+	csize_t shared = dim * sizeof(float) + 32 * sizeof(neighbour_t) * N;
 	neighbours<N> << <info.grid_dim, info.block_dim, shared >> > (centroids, dim, centroid_count, tmp_neighbours);
 	reduce<N> << <info.grid_dim, info.block_dim >> > (tmp_neighbours, info.grid_dim, centroid_count, act_neighbours);
 }
 
-template <size_t N>
+template <csize_t N>
 chunk_t run_neighbours_min(const neighbour_t* neighbours, cluster_bound_t sizes, chunk_t* result)
 {
 	min<N><<<1, 1024>>>(neighbours, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, result);
@@ -193,7 +194,7 @@ chunk_t run_neighbours_min(const neighbour_t* neighbours, cluster_bound_t sizes,
 }
 
 #define INIT_TEMPLATES(N) \
-template void run_neighbours<N>(const float* centroids, size_t dim, size_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, kernel_info info);\
+template void run_neighbours<N>(const float* centroids, csize_t dim, csize_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, kernel_info info);\
 template chunk_t run_neighbours_min<N>(const neighbour_t* neighbours, cluster_bound_t sizes, chunk_t* result);\
 template void run_update_neighbours<N>(centroid_data_t data, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_bound_t sizes, update_data_t upd_data, kernel_info info);
 

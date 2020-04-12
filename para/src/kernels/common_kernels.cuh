@@ -5,15 +5,15 @@
 
 #include <kernels.cuh>
 
-__device__ float euclidean_norm(const float* l_point, const float* r_point, size_t dim);
+__device__ float euclidean_norm(const float* __restrict__ l_point, const float* __restrict__ r_point, clustering::csize_t dim);
 
-__device__ void reduce_sum_warp(float* point, size_t dim);
-__device__ void reduce_sum_block(float* point, size_t dim, float* shared_mem);
+__device__ void reduce_sum_warp(float* __restrict__ point, clustering::csize_t dim);
+__device__ void reduce_sum_block(float* __restrict__ point, clustering::csize_t dim, float* __restrict__ shared_mem);
 
 __device__ chunk_t reduce_min_warp(chunk_t data);
 __device__ chunk_t reduce_min_block(chunk_t data, chunk_t* shared_mem);
 
 
-__device__ size2 compute_coordinates(size_t count_in_line, size_t plain_index);
+__device__ csize2 compute_coordinates(clustering::csize_t count_in_line, clustering::csize_t plain_index);
 
 #endif

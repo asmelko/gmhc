@@ -18,8 +18,8 @@ TEST(kernel, centroid_small)
 	float host_res[4];
 	kernel_info kernel{ 50, 512};
 
-	cu_in.count = data.points;
-	cu_in.dim = data.dim;
+	cu_in.count = (csize_t)data.points;
+	cu_in.dim = (csize_t)data.dim;
 
 	CUCH(cudaSetDevice(0));
 
@@ -56,8 +56,8 @@ TEST(kernel, centroid_big)
 	float* host_res = new float[data.dim + 1];
 	kernel_info kernel{ 10,  256 };
 
-	cu_in.count = data.points;
-	cu_in.dim = data.dim;
+	cu_in.count = (csize_t)data.points;
+	cu_in.dim = (csize_t)data.dim;
 
 	auto start = std::chrono::system_clock::now();
 
@@ -79,7 +79,7 @@ TEST(kernel, centroid_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_centroid(cu_in, cu_asgn, cu_out, 0, data.points, kernel);
+	run_centroid(cu_in, cu_asgn, cu_out, 0, (csize_t)data.points, kernel);
 
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());

@@ -15,8 +15,8 @@ TEST(para, small)
 	clustering::gmhc para;
 	clustering::validator vld;
 
-	vld.initialize(data.data.data(), data.points, data.dim, 5);
-	para.initialize(data.data.data(), data.points, data.dim, 5, &vld);
+	vld.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, 5);
+	para.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, 5, &vld);
 
 	auto res = para.run();
 
@@ -37,8 +37,8 @@ TEST(para, big)
 
 	auto thresh = 20;
 
-	vld.initialize(data.data.data(), data.points, data.dim, thresh);
-	para.initialize(data.data.data(), data.points, data.dim, thresh, &vld);
+	vld.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh);
+	para.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, &vld);
 
 	auto res = para.run();
 

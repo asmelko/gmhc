@@ -5,7 +5,7 @@
 
 #include <clustering.hpp>
 #include <validator.hpp>
-#include <common_structures.hpp>
+#include <structures.hpp>
 
 namespace clustering
 {
@@ -13,7 +13,7 @@ namespace clustering
 struct cluster_data_t
 {
     asgn_t id;
-    size_t size;
+    csize_t size;
 };
 
 class gmhc : public hierarchical_clustering<float>
@@ -27,7 +27,7 @@ class gmhc : public hierarchical_clustering<float>
     chunk_t* cu_min_;
     uint8_t* cu_update_;
 
-    static constexpr size_t neigh_number_ = 2;
+    static constexpr csize_t neigh_number_ = 2;
 
     kernel_info starting_info_;
 
@@ -38,14 +38,14 @@ class gmhc : public hierarchical_clustering<float>
     int* cu_info;
     int* cu_pivot;
 
-    size_t cluster_count_;
+    csize_t cluster_count_;
     asgn_t id_;
 
-    size_t icov_size;
+    csize_t icov_size;
 
     cluster_data_t* cluster_data_;
     
-    size_t maha_threshold_;
+    csize_t maha_threshold_;
 
     cluster_bound_t bounds_;
     centroid_data_t compute_data_;
@@ -56,21 +56,21 @@ class gmhc : public hierarchical_clustering<float>
     validator* vld_;
 
 public:
-    void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim, size_t mahalanobis_threshold, validator* vld = nullptr);
+    void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, validator* vld = nullptr);
 
     virtual std::vector<pasgn_t> run() override;
 
     virtual void free() override;
 
 protected:
-    virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
+    virtual void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim) override;
 
 
 private:
     void update_iteration(const cluster_data_t* merged);
-    void move_clusters(size_t i, size_t j, bool maha);
-    bool hole(size_t idx);
-    void compute_icov(size_t pos);
+    void move_clusters(csize_t i, csize_t j, bool maha);
+    bool hole(csize_t idx);
+    void compute_icov(csize_t pos);
 
     void verify(pasgn_t id_pair, float dist);
 };

@@ -14,7 +14,7 @@ int main(int argc, char** argv)
 
 	clustering::gmhc gmhclust;
 
-	gmhclust.initialize(data.data.data(), data.points, data.dim, 20);
+	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, 20);
 
 	auto start = std::chrono::system_clock::now();
 	gmhclust.run();

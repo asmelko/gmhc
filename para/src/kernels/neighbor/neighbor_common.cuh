@@ -6,11 +6,11 @@
 
 #include "../common_kernels.cuh"
 
-template <size_t N>
-__device__ void add_neighbour(neighbour_t* neighbours, neighbour_t neighbour)
+template <clustering::csize_t N>
+__device__ void add_neighbour(neighbour_t* __restrict__ neighbours, neighbour_t neighbour)
 {
 	neighbour_t prev_min;
-	size_t i = 0;
+	clustering::csize_t i = 0;
 	for (; i < N; ++i)
 	{
 		if (neighbours[i].distance > neighbour.distance)
@@ -32,12 +32,13 @@ __device__ void add_neighbour(neighbour_t* neighbours, neighbour_t neighbour)
 	}
 }
 
-template <size_t N>
-__device__ void merge_neighbours(const neighbour_t* l_neighbours, const neighbour_t* r_neighbours, neighbour_t* res)
+template <clustering::csize_t N>
+__device__ void merge_neighbours
+(const neighbour_t* __restrict__ l_neighbours, const neighbour_t* __restrict__ r_neighbours, neighbour_t* __restrict__ res)
 {
-	size_t l_idx = 0, r_idx = 0;
+	clustering::csize_t l_idx = 0, r_idx = 0;
 
-	for (size_t i = 0; i < N; ++i)
+	for (clustering::csize_t i = 0; i < N; ++i)
 	{
 		if (l_neighbours[l_idx].distance < r_neighbours[r_idx].distance)
 			res[i] = l_neighbours[l_idx++];
@@ -47,13 +48,13 @@ __device__ void merge_neighbours(const neighbour_t* l_neighbours, const neighbou
 }
 
 
-template <size_t N>
-__device__ void reduce_min_warp(neighbour_t* neighbours)
+template <clustering::csize_t N>
+__device__ void reduce_min_warp(neighbour_t* __restrict__ neighbours)
 {
 	for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
 	{
 		neighbour_t tmp[N];
-		for (size_t i = 0; i < N; ++i)
+		for (clustering::csize_t i = 0; i < N; ++i)
 		{
 			tmp[i].distance = __shfl_down_sync(0xFFFFFFFF, neighbours[i].distance, offset);
 			tmp[i].idx = __shfl_down_sync(0xFFFFFFFF, neighbours[i].idx, offset);
@@ -65,8 +66,8 @@ __device__ void reduce_min_warp(neighbour_t* neighbours)
 	}
 }
 
-template <size_t N>
-__device__ void reduce_min_block(neighbour_t* neighbours, neighbour_t* shared_mem, bool reduce_warp = true)
+template <clustering::csize_t N>
+__device__ void reduce_min_block(neighbour_t* __restrict__ neighbours, neighbour_t* __restrict__ shared_mem, bool reduce_warp = true)
 {
 	if (reduce_warp)
 		reduce_min_warp<N>(neighbours);
@@ -82,7 +83,7 @@ __device__ void reduce_min_block(neighbour_t* neighbours, neighbour_t* shared_me
 	if (threadIdx.x < blockDim.x / warpSize)
 		memcpy(neighbours, shared_mem + threadIdx.x * N, sizeof(neighbour_t) * N);
 	else
-		for (size_t i = 0; i < N; i++)
+		for (clustering::csize_t i = 0; i < N; i++)
 			neighbours[i].distance = FLT_MAX;
 
 	reduce_min_warp<N>(neighbours);

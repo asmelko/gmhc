@@ -5,7 +5,7 @@
 
 using namespace clustering;
 
-void gmhc::initialize(const float* data_points, size_t data_points_size, size_t data_point_dim)
+void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim)
 {
 	hierarchical_clustering::initialize(data_points, data_points_size, data_point_dim);
 
@@ -56,7 +56,7 @@ void gmhc::initialize(const float* data_points, size_t data_points_size, size_t 
 	vld_ = nullptr;
 }
 
-void gmhc::initialize(const float* data_points, size_t data_points_size, size_t data_point_dim, size_t mahalanobis_threshold, validator* vld)
+void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, validator* vld)
 {
 	initialize(data_points, data_points_size, data_point_dim);
 	maha_threshold_ = mahalanobis_threshold;
@@ -121,9 +121,9 @@ void gmhc::update_iteration(const cluster_data_t* merged)
 	}
 }
 
-bool gmhc::hole(size_t idx)
+bool gmhc::hole(csize_t idx)
 {
-	size_t end_idx;
+	csize_t end_idx;
 	if (idx < bounds_.maha_begin)
 		end_idx = --bounds_.eucl_size;
 	else
@@ -147,7 +147,7 @@ bool gmhc::hole(size_t idx)
 	return true;
 }
 
-void gmhc::move_clusters(size_t i, size_t j, bool maha)
+void gmhc::move_clusters(csize_t i, csize_t j, bool maha)
 {
 	std::vector<pasgn_t> ret;
 	if (j < bounds_.maha_begin && !maha) //c+c=c
@@ -195,7 +195,7 @@ void gmhc::move_clusters(size_t i, size_t j, bool maha)
 	}
 }		
 
-void gmhc::compute_icov(size_t pos)
+void gmhc::compute_icov(csize_t pos)
 {
 	float* icov = tmp_icov + point_dim * point_dim;
 
