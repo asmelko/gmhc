@@ -1,8 +1,8 @@
+#include "gmhc_test.hpp"
 #include "neighbour_test.hpp"
 #include "covariance_test.hpp"
 #include "centroid_test.hpp"
 #include "min_test.hpp"
-#include "gmhc_test.hpp"
 
 int main(int argc, char** argv)
 {

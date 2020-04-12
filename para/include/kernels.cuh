@@ -60,7 +60,8 @@ void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, ne
 void print_nei(neighbour_t* neighbours, clustering::csize_t nei_number, clustering::csize_t count);
 void run_print_assg(clustering::asgn_t* assignments, clustering::csize_t point_size);
 void run_print_centroid(const float* centroid, clustering::csize_t dim, clustering::csize_t count);
-void run_print_up(uint8_t* updated, clustering::csize_t count);
+void run_print_up(clustering::csize_t* updated, clustering::csize_t* eucl_count, clustering::csize_t maha_begin, clustering::csize_t* maha_count);
+
 
 chunk_t run_simple_min(const float* clusters, clustering::csize_t dim, clustering::csize_t count, chunk_t* out);
 

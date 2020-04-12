@@ -156,7 +156,8 @@ __inline__ __device__ void point_neighbours_mat
 
 template <csize_t N>
 __global__ void neighbours_mat_u
-(const float* __restrict__ centroids, const float* __restrict__ inverses, neighbour_t* __restrict__ neighbours, flag_t* __restrict__ updated,
+(const float* __restrict__ centroids, const float* __restrict__ inverses, neighbour_t* __restrict__ neighbours, 
+	csize_t* __restrict__ updated, const csize_t* __restrict__ upd_count,
 	csize_t dim, csize_t small_count, csize_t big_begin, csize_t big_count, csize_t new_idx)
 {
 	extern __shared__ float shared_mem[];
@@ -166,11 +167,11 @@ __global__ void neighbours_mat_u
 		point_neighbours_mat<N>(centroids, inverses, neighbours, shared_mem, dim, small_count, big_begin, big_count, new_idx, true);
 	}
 
-	for (csize_t x = big_begin; x < big_begin + big_count; ++x)
+	auto count = *upd_count - big_begin;
+
+	for (csize_t i = 0; i < count; ++i)
 	{
-		if (updated[x])
-		{
-			point_neighbours_mat<N>(centroids, inverses, neighbours, shared_mem, dim, small_count, big_begin, big_count, x, x == new_idx);
-		}
+		auto x = updated[i + big_begin];
+		point_neighbours_mat<N>(centroids, inverses, neighbours, shared_mem, dim, small_count, big_begin, big_count, x, x == new_idx);
 	}
 }

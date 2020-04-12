@@ -22,15 +22,15 @@ struct input_t
 	clustering::csize_t dim;
 };
 
-using flag_t = std::uint8_t;
-
 struct update_data_t
 {
 	clustering::csize_t new_idx;
 	clustering::pasgn_t move_a;
 	clustering::pasgn_t move_b;
 	
-	flag_t* to_update;
+	clustering::csize_t* to_update;
+	clustering::csize_t* eucl_update_size;
+	clustering::csize_t* maha_update_size;
 };
 
 struct cluster_bound_t

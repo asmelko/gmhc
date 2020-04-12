@@ -101,17 +101,19 @@ __device__ void print_min(const chunk_t* output)
 
 
 
-__global__ void print_up(uint8_t* updated, csize_t count)
+__global__ void print_up(csize_t* updated, csize_t* eucl_count, csize_t maha_begin, csize_t* maha_count)
 {
-	for (csize_t i = 0; i < count; i++)
-	{
-		printf("%d. %d\n", (int)i, updated[i]);
-	}
+	printf("update:\n");
+	for (csize_t i = 0; i < *eucl_count; i++)
+		printf("eucl %d\n", updated[i]);
+
+	for (csize_t i = maha_begin; i < *maha_count; i++)
+		printf("maha %d\n", updated[i]);
 }
 
-void run_print_up(uint8_t* updated, csize_t count)
+void run_print_up(csize_t* updated, csize_t* eucl_count, csize_t maha_begin, csize_t* maha_count)
 {
-	print_up << <1, 1 >> > (updated, count);
+	print_up << <1, 1 >> > (updated, eucl_count, maha_begin, maha_count);
 }
 
 __global__ void print_ne(neighbour_t* neighbours, csize_t nei_number, csize_t count)
