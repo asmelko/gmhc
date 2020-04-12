@@ -1,6 +1,7 @@
 #include <gmhc.hpp>
 #include <kernels.cuh>
 #include <cassert>
+#include <iostream>
 
 using namespace clustering;
 

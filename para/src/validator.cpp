@@ -2,6 +2,7 @@
 #include <algorithm>
 #include "../tests/serial_impl.hpp"
 #include <iostream>
+#include <cfloat>
 
 using namespace clustering;
 

@@ -1,6 +1,7 @@
 #include "serial_impl.hpp"
 
 #include <cmath>
+#include <cfloat>
 
 using namespace clustering;
 

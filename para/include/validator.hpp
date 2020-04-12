@@ -2,6 +2,7 @@
 #define VALIDATOR_HPP
 
 #include <clustering.hpp>
+#include <tuple>
 
 namespace clustering
 {

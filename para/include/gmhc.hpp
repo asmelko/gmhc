@@ -68,7 +68,7 @@ protected:
 
 private:
     void update_iteration(const cluster_data_t* merged);
-    void gmhc::move_clusters(size_t i, size_t j, bool maha);
+    void move_clusters(size_t i, size_t j, bool maha);
     bool hole(size_t idx);
     void compute_icov(size_t pos);
 

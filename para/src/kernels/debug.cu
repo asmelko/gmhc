@@ -2,6 +2,7 @@
 
 #include <device_launch_parameters.h>
 #include <iostream>
+#include <cfloat>
 
 #include "common_kernels.cuh"
 

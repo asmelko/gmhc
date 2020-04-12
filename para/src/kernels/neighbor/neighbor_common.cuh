@@ -2,6 +2,7 @@
 #define NEIGHBOR_COMMON_CUH
 
 #include <device_launch_parameters.h>
+#include <cfloat>
 
 #include "../common_kernels.cuh"
 
