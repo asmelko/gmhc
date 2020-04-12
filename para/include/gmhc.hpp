@@ -56,6 +56,9 @@ class gmhc : public hierarchical_clustering<float>
 
     cublasHandle_t handle_;
 
+    static constexpr csize_t stream_count_ = 3;
+    cudaStream_t streams_[stream_count_];
+
     validator* vld_;
 
 public:

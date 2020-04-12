@@ -57,6 +57,9 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 		cluster_data_[i].size = 1;
 	}
 
+	for (size_t i = 0; i < stream_count_; i++)
+		CUCH(cudaStreamCreate(streams_ + i));
+
 	BUCH(cublasCreate(&handle_));
 	vld_ = nullptr;
 }
@@ -99,7 +102,7 @@ std::vector<pasgn_t> gmhc::run()
 		if (vld_)
 			verify(ret.back(), min.min_dist);
 
-		run_update_neighbours<neigh_number_>(compute_data_, tmp_neigh, cu_neighs_, bounds_, upd_data_, starting_info_);
+		run_update_neighbours<neigh_number_>(compute_data_, tmp_neigh, cu_neighs_, bounds_, upd_data_, starting_info_, streams_);
 	}
 
 	return ret;
@@ -117,13 +120,11 @@ void gmhc::update_iteration(const cluster_data_t* merged)
 	run_merge_clusters(cu_point_asgns_, points_size, merged[0].id, merged[1].id, id_, kernel_info(6, 1024));
 
 	//compute new centroid
-	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, cu_centroids_ + new_idx * point_dim, id_, cluster_data_[new_idx].size, starting_info_);
+	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_,
+		cu_centroids_ + new_idx * point_dim, id_, cluster_data_[new_idx].size, kernel_info(6, 1024));
 
 	if (cluster_data_[new_idx].size >= maha_threshold_)
-	{
-		CUCH(cudaDeviceSynchronize());
 		compute_icov(new_idx);
-	}
 }
 
 bool gmhc::hole(csize_t idx)
@@ -137,17 +138,17 @@ bool gmhc::hole(csize_t idx)
 	if (idx == end_idx)
 		return false;
 
-	CUCH(cudaMemcpy(cu_centroids_ + idx * point_dim, cu_centroids_ + end_idx * point_dim,
-		sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+	CUCH(cudaMemcpyAsync(cu_centroids_ + idx * point_dim, cu_centroids_ + end_idx * point_dim,
+		sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice, streams_[0]));
 
 	cluster_data_[idx] = cluster_data_[end_idx];
 
-	CUCH(cudaMemcpy(cu_neighs_ + idx * neigh_number_, cu_neighs_ + end_idx * neigh_number_,
-		sizeof(neighbour_t) * neigh_number_, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+	CUCH(cudaMemcpyAsync(cu_neighs_ + idx * neigh_number_, cu_neighs_ + end_idx * neigh_number_,
+		sizeof(neighbour_t) * neigh_number_, cudaMemcpyKind::cudaMemcpyDeviceToDevice, streams_[1]));
 
 	if (cluster_data_[idx].size >= maha_threshold_)
-		CUCH(cudaMemcpy(cu_icov_ + idx * icov_size, cu_icov_ + end_idx * icov_size,
-			sizeof(float) * icov_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+		CUCH(cudaMemcpyAsync(cu_icov_ + idx * icov_size, cu_icov_ + end_idx * icov_size,
+			sizeof(float) * icov_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice, streams_[2]));
 
 	return true;
 }
@@ -204,22 +205,29 @@ void gmhc::compute_icov(csize_t pos)
 {
 	float* icov = tmp_icov + point_dim * point_dim;
 
+	CUCH(cudaStreamSynchronize(0));
+
 	assign_constant_storage(cu_centroids_ + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
+
 	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info(6, 1024, 100));
+
+	CUCH(cudaStreamSynchronize(0));
+
+	CUCH(cudaMemcpyAsync(cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice, streams_[0]));
 
 	run_finish_covariance(icov, cluster_data_[pos].size, point_dim, tmp_icov);
 
-	CUCH(cudaDeviceSynchronize());
-
 	if (vld_)
 	{
+		CUCH(cudaDeviceSynchronize());
 		vld_->cov_v.resize((point_dim + 1) * point_dim / 2);
 		CUCH(cudaMemcpy(vld_->cov_v.data(), icov, ((point_dim + 1) * point_dim / 2) * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 	}
 
-
+	CUCH(cudaStreamSynchronize(0));
 	CUCH(cudaMemcpy(cu_read_icov, &tmp_icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
-	CUCH(cudaMemcpy(cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+	CUCH(cudaStreamSynchronize(streams_[0]));
 
 	if (point_dim <= 16)
 		BUCH(cublasSmatinvBatched(handle_, (int)point_dim, cu_read_icov, (int)point_dim, cu_write_icov, (int)point_dim, cu_info, 1));

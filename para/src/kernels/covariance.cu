@@ -123,12 +123,12 @@ void run_covariance(const input_t in, const asgn_t* assignments, float* out, asg
 	covariance << <info.grid_dim, info.block_dim, shared_chunks* cov_size * sizeof(float) >> > (in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);
 }
 
-void run_finish_covariance(const float* in_cov_matrix, csize_t divisor, asgn_t dim, float* out_cov_matrix)
+void run_finish_covariance(const float* in_cov_matrix, csize_t divisor, asgn_t dim, float* out_cov_matrix, cudaStream_t stream)
 {
 	finish_covariance<<<1, ((dim + 1) * dim) / 2>>>(in_cov_matrix, divisor, dim, out_cov_matrix);
 }
 
-void run_store_icovariance(float* dest, const float* src, asgn_t dim)
+void run_store_icovariance(float* dest, const float* src, asgn_t dim, cudaStream_t stream)
 {
 	store_icov<<<1, ((dim + 1) * dim) / 2 >>>(dest, src, dim);
 }

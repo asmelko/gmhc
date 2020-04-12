@@ -52,9 +52,11 @@ struct kernel_info
 	unsigned int grid_dim;
 	unsigned int block_dim;
 	clustering::csize_t shared_size;
+	cudaStream_t stream;
 
-	kernel_info(unsigned int grid_dim, unsigned int block_dim, clustering::csize_t shared_size = 0)
-		: grid_dim(grid_dim), block_dim(block_dim), shared_size(shared_size) {}
+	kernel_info(unsigned int grid_dim, unsigned int block_dim, 
+		clustering::csize_t shared_size = 0, cudaStream_t stream = (cudaStream_t)0)
+		: grid_dim(grid_dim), block_dim(block_dim), shared_size(shared_size), stream(stream) {}
 
 	kernel_info() = default;
 };

@@ -39,8 +39,8 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chun
 void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, clustering::csize_t cluster_size, kernel_info info);
 
 void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
-void run_finish_covariance(const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
-void run_store_icovariance(float* dest, const float* src, clustering::csize_t dim);
+void run_finish_covariance(const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix, cudaStream_t stream = (cudaStream_t)0);
+void run_store_icovariance(float* dest, const float* src, clustering::csize_t dim,cudaStream_t stream = (cudaStream_t)0);
 
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
@@ -54,7 +54,7 @@ template <clustering::csize_t N>
 chunk_t run_neighbours_min(const neighbour_t* neighbours, cluster_bound_t sizes, chunk_t* result);
 
 template <clustering::csize_t N>
-void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_bound_t sizes, update_data_t upd_data, kernel_info info);
+void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_bound_t sizes, update_data_t upd_data, kernel_info info, cudaStream_t* streams);
 
 
 void print_nei(neighbour_t* neighbours, clustering::csize_t nei_number, clustering::csize_t count);
