@@ -52,6 +52,11 @@ struct kernel_info
 	unsigned int grid_dim;
 	unsigned int block_dim;
 	clustering::csize_t shared_size;
+
+	kernel_info(unsigned int grid_dim, unsigned int block_dim, clustering::csize_t shared_size = 0)
+		: grid_dim(grid_dim), block_dim(block_dim), shared_size(shared_size) {}
+
+	kernel_info() = default;
 };
 
 #endif

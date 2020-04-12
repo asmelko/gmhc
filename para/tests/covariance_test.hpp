@@ -19,7 +19,7 @@ TEST(kernel, covariance_small)
 	asgn_t* cu_asgn;
 	float host_res[6];
 	float centroid[3] = { -1.29547f, 8.00796f, -7.49481f };
-	kernel_info kernel{ 1, 32, 32 };
+	kernel_info kernel(1, 32, 32);
 
 	cu_in.count = (csize_t)data.points;
 	cu_in.dim = (csize_t)data.dim;
@@ -67,7 +67,7 @@ TEST(kernel, covariance_big)
 	float* cu_out;
 	asgn_t* cu_asgn;
 	float* host_res = new float[cov_size];
-	kernel_info kernel{ 1, 32, 1 };
+	kernel_info kernel(1, 32, 1);
 
 	cu_in.count = (csize_t)data.points;
 	cu_in.dim = (csize_t)data.dim;

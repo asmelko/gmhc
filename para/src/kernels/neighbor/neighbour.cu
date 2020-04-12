@@ -167,6 +167,9 @@ void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, ne
 
 	reduce_u<N><<<info.grid_dim, info.block_dim>>>
 		(tmp_neighbours, act_neighbours, upd_data.to_update, info.grid_dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size);
+		
+	CUCH(cudaGetLastError());
+	CUCH(cudaDeviceSynchronize());
 }
 
 template <csize_t N>

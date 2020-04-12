@@ -31,7 +31,7 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 
 	run_set_default_asgn(cu_point_asgns_, data_points_size);
 
-	starting_info_ = kernel_info{ 5,  512 };
+	starting_info_ = kernel_info(80, 512);
 	CUCH(cudaMalloc(&tmp_neigh, sizeof(neighbour_t) * neigh_number_ * points_size * starting_info_.grid_dim));
 
 	CUCH(cudaMalloc(&tmp_icov, 2 * point_dim * point_dim * sizeof(float)));
@@ -109,7 +109,7 @@ void gmhc::update_iteration(const cluster_data_t* merged)
 	cluster_data_[new_idx].size = merged[0].size + merged[1].size;
 
 	//updating point asgns
-	run_merge_clusters(cu_point_asgns_, points_size, merged[0].id, merged[1].id, id_, kernel_info{ 6, 1024 });
+	run_merge_clusters(cu_point_asgns_, points_size, merged[0].id, merged[1].id, id_, kernel_info(80, 1024));
 
 	//compute new centroid
 	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, cu_centroids_ + new_idx * point_dim, id_, cluster_data_[new_idx].size, starting_info_);
@@ -200,7 +200,7 @@ void gmhc::compute_icov(csize_t pos)
 	float* icov = tmp_icov + point_dim * point_dim;
 
 	assign_constant_storage(cu_centroids_ + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info{ 6, 1024, 100 });
+	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info(80, 1024, 100));
 
 	run_finish_covariance(icov, cluster_data_[pos].size, point_dim, tmp_icov);
 

@@ -18,7 +18,7 @@ TEST(kernel, centroid_small)
 	float* cu_out;
 	asgn_t* cu_asgn;
 	float host_res[4];
-	kernel_info kernel{ 50, 512};
+	kernel_info kernel(50, 512);
 
 	cu_in.count = (csize_t)data.points;
 	cu_in.dim = (csize_t)data.dim;
@@ -56,7 +56,7 @@ TEST(kernel, centroid_big)
 	float* cu_out;
 	asgn_t* cu_asgn;
 	float* host_res = new float[data.dim + 1];
-	kernel_info kernel{ 10,  256 };
+	kernel_info kernel(10,  256 );
 
 	cu_in.count = (csize_t)data.points;
 	cu_in.dim = (csize_t)data.dim;
