@@ -45,6 +45,9 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	CUCH(cudaMalloc(&cu_info, sizeof(int)));
 	CUCH(cudaMalloc(&cu_pivot, sizeof(int) * data_point_dim));
 
+	CUCH(cudaMalloc(&cu_asgn_idxs_, sizeof(csize_t) * data_points_size));
+	CUCH(cudaMalloc(&cu_idxs_size_, sizeof(csize_t)));
+
 	cluster_data_ = new cluster_data_t[cluster_count_];
 	compute_data_ = centroid_data_t{ cu_centroids_, cu_icov_, (asgn_t)point_dim };
 	upd_data_.to_update = cu_update_;
@@ -114,10 +117,10 @@ void gmhc::update_iteration(const cluster_data_t* merged)
 	cluster_data_[new_idx].size = merged[0].size + merged[1].size;
 
 	//updating point asgns
-	run_merge_clusters(cu_point_asgns_, points_size, merged[0].id, merged[1].id, id_, kernel_info(6, 1024));
+	run_merge_clusters(cu_point_asgns_, cu_asgn_idxs_, cu_idxs_size_, points_size, merged[0].id, merged[1].id, id_, kernel_info(6, 1024));
 
 	//compute new centroid
-	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, cu_centroids_ + new_idx * point_dim, id_, cluster_data_[new_idx].size, starting_info_);
+	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_asgn_idxs_, cluster_data_[new_idx].size, cu_centroids_ + new_idx * point_dim, kernel_info(6, 1024));
 
 	if (cluster_data_[new_idx].size >= maha_threshold_)
 	{

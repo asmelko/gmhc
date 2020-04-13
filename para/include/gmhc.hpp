@@ -30,6 +30,9 @@ class gmhc : public hierarchical_clustering<float>
     csize_t* cu_eucl_upd_size_;
     csize_t* cu_maha_upd_size_;
 
+    csize_t* cu_asgn_idxs_;
+    csize_t* cu_idxs_size_;
+
     static constexpr csize_t neigh_number_ = 2;
 
     kernel_info starting_info_;

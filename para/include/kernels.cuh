@@ -36,7 +36,10 @@ chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float* const* in
 void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
 chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chunk_size, kernel_info info);
 
-void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, clustering::csize_t cluster_size, kernel_info info);
+void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t* assignment_idxs, clustering::csize_t* idxs_size,
+	clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
+
+void run_centroid(const input_t in, const clustering::asgn_t* assignment_idxs, clustering::csize_t cluster_size, float* out, kernel_info info);
 
 void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
 void run_finish_covariance(const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
@@ -44,8 +47,6 @@ void run_store_icovariance(float* dest, const float* src, clustering::csize_t di
 
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
-
-void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
 template <clustering::csize_t N>
 void run_neighbours(const float* centroids, clustering::csize_t dim, clustering::csize_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, kernel_info info);
