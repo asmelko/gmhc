@@ -41,7 +41,7 @@ void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t* as
 
 void run_centroid(const input_t in, const clustering::asgn_t* assignment_idxs, clustering::csize_t cluster_size, float* out, kernel_info info);
 
-void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
+void run_covariance(const input_t in, float* out, const clustering::csize_t* assignment_idxs, clustering::csize_t idx_count, kernel_info info);
 void run_finish_covariance(const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
 void run_store_icovariance(float* dest, const float* src, clustering::csize_t dim);
 

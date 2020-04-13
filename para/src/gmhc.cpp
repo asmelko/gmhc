@@ -208,7 +208,7 @@ void gmhc::compute_icov(csize_t pos)
 	float* icov = tmp_icov + point_dim * point_dim;
 
 	assign_constant_storage(cu_centroids_ + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info(6, 1024, 100));
+	run_covariance(input_t{ cu_points_, points_size, point_dim }, icov, cu_asgn_idxs_, cluster_data_[pos].size, kernel_info(6, 1024, 48));
 
 	run_finish_covariance(icov, cluster_data_[pos].size, point_dim, tmp_icov);
 

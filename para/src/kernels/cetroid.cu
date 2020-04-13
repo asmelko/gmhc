@@ -32,17 +32,6 @@ __global__ void centroid(const float* __restrict__ points, csize_t dim, csize_t 
 
 void run_centroid(const input_t in, const asgn_t* assignment_idxs, csize_t cluster_size, float* out, kernel_info info)
 {
-	constexpr unsigned int warpSize = 32;
 	CUCH(cudaMemset(out, 0, sizeof(float) * in.dim));
-
-	auto warps = (cluster_size + warpSize - 1) / warpSize;
-	if (warps < info.grid_dim)
-	{
-		info.grid_dim = warps;
-		info.block_dim = warpSize;
-	}
-	else
-		info.block_dim = std::min(warpSize * warps, info.block_dim);
-
 	centroid<<<info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float))>>>(in.data, in.dim, in.count, assignment_idxs, cluster_size, out);
 }
