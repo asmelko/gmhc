@@ -18,7 +18,7 @@ TEST(para, small)
 	validator vld;
 
 	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5);
-	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, &vld);
+	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, nullptr, &vld);
 
 	auto res = para.run();
 
@@ -40,7 +40,7 @@ TEST(para, big)
 	auto thresh = 20;
 
 	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh);
-	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, &vld);
+	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, nullptr, &vld);
 
 	auto res = para.run();
 

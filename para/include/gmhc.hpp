@@ -16,6 +16,18 @@ struct cluster_data_t
     csize_t size;
 };
 
+struct apriori_context_t
+{
+    neighbour_t* cu_neighbours;
+    neighbour_t* cu_tmp_neighbours;
+    csize_t* cu_updates;
+    float* cu_centroids;
+    float* cu_inverses;
+    cluster_data_t* clusters;
+
+    cluster_bound_t bounds;
+};
+
 class gmhc : public hierarchical_clustering<float>
 {
     float* cu_points_;
@@ -50,6 +62,10 @@ class gmhc : public hierarchical_clustering<float>
     
     csize_t maha_threshold_;
 
+    std::vector<apriori_context_t> apr_ctxs_;
+    apriori_context_t default_apr_;
+    csize_t apriori_count_;
+
     cluster_bound_t bounds_;
     centroid_data_t compute_data_;
     update_data_t upd_data_;
@@ -70,14 +86,16 @@ protected:
 
 
 private:
-    void update_iteration(const cluster_data_t* merged);
-    void move_clusters(csize_t i, csize_t j, bool maha);
-    bool hole(csize_t idx);
-    void compute_icov(csize_t pos);
+    void update_iteration(const cluster_data_t* merged, apriori_context_t& ctx);
+    void move_clusters(csize_t i, csize_t j, bool maha, apriori_context_t& ctx);
+    bool remove(csize_t idx, apriori_context_t& ctx);
+    void compute_icov(csize_t pos, apriori_context_t& ctx);
 
     void initialize_apriori(const asgn_t* apriori_assignments);
+    pasgn_t run(apriori_context_t& ctx);
+    void move_apriori();
 
-    void verify(pasgn_t id_pair, float dist);
+    void verify(pasgn_t id_pair, float dist, apriori_context_t& ctx);
 };
 
 }
