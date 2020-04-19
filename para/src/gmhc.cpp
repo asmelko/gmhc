@@ -402,7 +402,7 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments)
 		apr_ctxs_.emplace_back(ctx);
 	}
 
-	apriori_count_ = sizes.size();
+	apriori_count_ = (csize_t)sizes.size();
 }
 
 void gmhc::free() {}

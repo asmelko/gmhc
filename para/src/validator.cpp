@@ -3,10 +3,40 @@
 #include "../tests/serial_impl.hpp"
 #include <iostream>
 #include <cfloat>
+#include <map>
 
 using namespace clustering;
 
-void validator::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t maha_threshold)
+void validator::create_clusters(const asgn_t* apriori_assignments)
+{
+	std::map<asgn_t, std::vector<cluster>> clusters;
+
+	for (csize_t i = 0; i < point_count_; i++)
+	{
+		auto idx = apriori_assignments[i];
+
+		auto it = clusters.find(idx);
+
+		if (it != clusters.end())
+		{
+			cluster c;
+			c.id = i;
+
+			for (csize_t j = 0; j < point_dim_; j++)
+				c.centroid.push_back(points_[i * point_dim_ + j]);
+
+			it->second.emplace_back(std::move(c));
+		}
+	}
+
+	for (auto& cl : clusters)
+	{
+		clusters_.insert(clusters_.end(), std::make_move_iterator(cl.second.begin()), std::make_move_iterator(cl.second.end()));
+		apr_sizes_.push_back(cl.second.size());
+	}
+}
+
+void validator::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t maha_threshold, const asgn_t* apriori_assignments)
 {
 	points_ = data_points;
 	point_count_ = data_points_size;
@@ -17,19 +47,23 @@ void validator::initialize(const float* data_points, csize_t data_points_size, c
 	id_ = (asgn_t)point_count_;
 	cluster_count_ = point_count_;
 
-	for (csize_t i = 0; i < point_count_; i++)
-	{
-		point_asgns_.push_back((asgn_t)i);
+	if (apriori_assignments)
+		create_clusters(apriori_assignments);
+	else
+		for (csize_t i = 0; i < point_count_; i++)
+		{
+			point_asgns_.push_back((asgn_t)i);
 
-		cluster c;
-		c.id = (asgn_t)i;
+			cluster c;
+			c.id = (asgn_t)i;
 
-		for (csize_t j = 0; j < point_dim_; j++)
-			c.centroid.push_back(data_points[i * point_dim_ + j]);
+			for (csize_t j = 0; j < point_dim_; j++)
+				c.centroid.push_back(data_points[i * point_dim_ + j]);
 
-		clusters_.emplace_back(std::move(c));
-	}
+			clusters_.emplace_back(std::move(c));
+		}
 
+	apr_idx_ = 0;
 	iteration_ = 0;
 }
 
@@ -247,16 +281,25 @@ bool validator::has_error() const
 	return error_;
 }
 
-std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& expected)
+void validator::get_min(const pasgn_t& expected, 
+	pasgn_t& min_pair, std::pair<csize_t, csize_t>& min_idx, std::pair<csize_t, csize_t>& expected_idx, float& expected_dist, float& min_dist)
 {
-	pasgn_t min_pair;
-	std::pair<csize_t, csize_t> min_idx, expected_idx;
-	float min_dist = FLT_MAX;
-	float expected_dist = FLT_MAX;
+	csize_t from, to;
 
-	for (csize_t i = 0; i < cluster_count_; i++)
+	if (apr_idx_ == apr_sizes_.size())
 	{
-		for (csize_t j = i + 1; j < cluster_count_; j++)
+		from = 0;
+		to = cluster_count_;
+	}
+	else
+	{
+		from = apr_idx_;
+		to = apr_sizes_[apr_idx_] + apr_idx_;
+	}
+
+	for (csize_t i = from; i < to; i++)
+	{
+		for (csize_t j = i + 1; j < to; j++)
 		{
 			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
 
@@ -277,6 +320,16 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& e
 			}
 		}
 	}
+}
+
+std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& expected)
+{
+	pasgn_t min_pair;
+	std::pair<csize_t, csize_t> min_idx, expected_idx;
+	float min_dist = FLT_MAX;
+	float expected_dist = FLT_MAX;
+
+	get_min(expected, min_pair, min_idx, expected_idx, expected_dist, min_dist);
 
 	if (expected != min_pair && !float_diff(expected_dist, min_dist, 0.001f))
 	{
@@ -295,15 +348,19 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& e
 		for (csize_t i = 0; i < point_dim_ * point_dim_; i++)
 			c.icov.push_back(icov_v[i]);
 
-	if (min_idx.second != clusters_.size() - 1)
-		clusters_[min_idx.second] = std::move(clusters_.back());
-
-	clusters_.pop_back();
+	clusters_.erase(clusters_.begin() + min_idx.second);
 	clusters_[min_idx.first] = std::move(c);
 
 	++id_;
 	++iteration_;
 	--cluster_count_;
+
+	if (apr_sizes_.size())
+	{
+		--apr_sizes_[apr_idx_];
+		if (apr_sizes_[apr_idx_] == 1)
+			++apr_idx_;
+	}
 
 	return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
 }
