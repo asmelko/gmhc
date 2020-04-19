@@ -1,7 +1,9 @@
+#include "..\include\gmhc.hpp"
 #include <gmhc.hpp>
 #include <kernels.cuh>
 #include <cassert>
 #include <iostream>
+#include <map>
 
 using namespace clustering;
 
@@ -61,11 +63,14 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	vld_ = nullptr;
 }
 
-void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, validator* vld)
+void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments = nullptr, validator* vld)
 {
 	initialize(data_points, data_points_size, data_point_dim);
 	maha_threshold_ = mahalanobis_threshold;
 	vld_ = vld;
+
+	if (apriori_assignments)
+		initialize_apriori(apriori_assignments);
 }
 
 
@@ -243,6 +248,40 @@ void gmhc::compute_icov(csize_t pos)
 	{
 		vld_->icov_v.resize(point_dim * point_dim);
 		CUCH(cudaMemcpy(vld_->icov_v.data(), icov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	}
+}
+
+void gmhc::initialize_apriori(const asgn_t* apriori_assignments)
+{
+	std::map<asgn_t, csize_t> counts;
+	for (csize_t i = 0; i < points_size; ++i)
+	{
+		auto count = counts.find(apriori_assignments[i]);
+
+		if (count != counts.end())
+			count->second++;
+		else
+			counts.emplace(i, 1);
+	}
+
+	std::vector<csize_t> sizes;
+	std::map<asgn_t, csize_t> order;
+
+	csize_t i = 0;
+	csize_t tmp_sum = 0;
+	for (auto& count : counts)
+	{
+		order.emplace(count.first, i++);
+		sizes.push_back(tmp_sum);
+		tmp_sum += count.second;
+	}
+
+	for (size_t i = 0; i < points_size; ++i)
+	{
+		asgn_t apriori_asgn = apriori_assignments[i];
+		auto next = sizes[order[apriori_asgn]]++;
+		CUCH(cudaMemcpy(cu_centroids_ + next * point_dim, points + i * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		cluster_data_[next] = cluster_data_t{ i, 1 };
 	}
 }
 

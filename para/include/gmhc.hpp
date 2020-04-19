@@ -59,7 +59,7 @@ class gmhc : public hierarchical_clustering<float>
     validator* vld_;
 
 public:
-    void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, validator* vld = nullptr);
+    void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments = nullptr, validator* vld = nullptr);
 
     virtual std::vector<pasgn_t> run() override;
 
@@ -74,6 +74,8 @@ private:
     void move_clusters(csize_t i, csize_t j, bool maha);
     bool hole(csize_t idx);
     void compute_icov(csize_t pos);
+
+    void initialize_apriori(const asgn_t* apriori_assignments);
 
     void verify(pasgn_t id_pair, float dist);
 };
