@@ -225,6 +225,7 @@ std::vector<pasgn_t> gmhc::run()
 	else
 		run_neighbours<shared_apriori_data_t::neighbours_size>(last.cu_centroids, point_dim, last.bounds.eucl_size, last.cu_tmp_neighbours, last.cu_neighbours, last.starting_info);
 
+	//compute rest
 	while (last.cluster_count > 1)
 	{
 		auto tmp = last.iterate();
