@@ -9,6 +9,12 @@ struct chunk_t
 	clustering::csize_t min_i, min_j;
 };
 
+struct cluster_data_t
+{
+	clustering::asgn_t id;
+	clustering::csize_t size;
+};
+
 struct neighbour_t
 {
 	float distance;

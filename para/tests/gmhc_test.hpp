@@ -23,7 +23,7 @@ TEST(para, apriori_small)
 
 	std::vector<asgn_t> apriori_asgn;
 
-	for (size_t i = 0; i < data.points; i++)
+	for (csize_t i = 0; i < data.points; i++)
 		apriori_asgn.push_back(i / thresh);
 
 	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());
@@ -45,7 +45,7 @@ TEST(para, apriori_big)
 
 	std::vector<asgn_t> apriori_asgn;
 
-	for (size_t i = 0; i < data.points; i++)
+	for (csize_t i = 0; i < data.points; i++)
 		apriori_asgn.push_back(rand() % thresh);
 
 	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());

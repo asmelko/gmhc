@@ -34,7 +34,7 @@ void validator::create_clusters(const asgn_t* apriori_assignments)
 	for (auto& cl : clusters)
 	{
 		clusters_.insert(clusters_.end(), std::make_move_iterator(cl.second.begin()), std::make_move_iterator(cl.second.end()));
-		apr_sizes_.push_back(cl.second.size());
+		apr_sizes_.push_back((csize_t)cl.second.size());
 	}
 }
 
@@ -67,7 +67,7 @@ void validator::initialize(const float* data_points, csize_t data_points_size, c
 		point_asgns_.push_back((asgn_t)i);
 
 	apr_idx_ = 0;
-	iteration_ = 0;
+	iteration_ = 1;
 }
 
 float eucl_dist(const float* lhs, const float* rhs, csize_t size)
@@ -219,6 +219,9 @@ void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const
 
 bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
 {
+	printf("\r%d ", iteration_);
+	fflush(stderr);
+
 	auto [min_pair, new_clust, min_dist, cluster_count] = iterate(pair_v);
 
 	if (min_pair != pair_v)
