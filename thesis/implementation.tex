@@ -1,52 +1,30 @@
 \chapter{GPU implementation}
 
-This chapter guides the reader through the implementation of Mahalanobis based hierarchical clustering analysis. First, we describe the algorithm and high level look on implementation. Then, we thoroughly describe the most important functions.
+This chapter guides the reader through the implementation of Mahalanobis-based hierarchical clustering analysis. First, we describe the algorithm and high level look on implementation. Then, we thoroughly describe the most important functions.
 
-\section{CUDA}
+\section{The Algorithm}
 
-The problem this chapter aims to solve is implementing an aplication that is able to provide hierarchical clustering of very large datasets while retaining the reasonable computation time --- the time required to compute by a magnitude smaller datasets with current HCA algorithms.
-Trying to achive this performance, we used a combination of C++ programming language and \textbf{CUDA}\footnote{Compute Unified Device Architecture.} API.  
-
-CUDA is a parallel platform with API allowing a programmer to use GPU for general purpose programming. This API exposes computational power of hundreds (even thousands) cores of CUDA-enabled GPUs.
-
-
-\subsection{Terminology}
-
-The starting point for running any code on GPU using CUDA is a \textbf{kernel}. A~kernel is a function that is executed on GPU; we say it contains \emph{device code}. Complementary to a device code, a \emph{host code} is the phrase for code executed on CPU. Hence, a common CUDA application runs host code that determines which device code to run next. 
-
-Kernel is run $n$ times in parallel by $n$ threads each having its unique \emph{thread ID}. IDs of threads can be identified by \emph{one-dimensional}, \emph{two-dimensional} or \emph{three-dimensional} indices forming block of threads, called \textbf{thread block}. This property reflects shapes of common structures such as vectors and matrices resulting in natural computation.
-
-Since all block threads reside on the same processor and share common resources, the block size is limited\footnote{Currently up to 1024 threads.}. However, a kernel can be launched with multiple equally shaped blocks to increase the number of running threads. They can be organised into up to three-dimensional structure called \textbf{grid}. This naturally implies unique block ID. A grid can be of an arbitrary size; usually dictated by the computed data. It is a common practise that grid size surpasses the number of GPU processors.
-
-
-The device memory is hierarchicaly divided into parts each being accessible by a different set of threads:
+The first chapter introduced three views on implementation of hierarchical clustering. To decide which one to choose we need to take into account two major conditions. First, the algorithm shall not require quadratic \emph{space complexity} as it must be able to process rather large datasets. Second, the algorithm should exhibit some \emph{parallelism opportunities}; otherwise massive GPU parallel properties will be to no use.  We describe mentioned algorithms according to this conditions:
 \begin{description}
-	\item[Global memory] -- This memory is accessible by any thread. Any memory request is transfered via tranactions; hence, to avoid reduction of throughput, memory accesses should be coalesced. 
-	\item[Local memory] -- Each thread has exclusive access to its local memory. Do not mislead this with registers, local memory is a private global memory.
-	\item[Shared memory] -- Shared memory is assigned to a block, meaning that threads from the same block has access to the same shared memory. It is placed on-chip so it has much lower latency and higher bandwith than the global or local memory.
-	\item[Constant memory] -- Read only memory accesible by any thread. Due to its read-only property, it can be heavily cached. Together with global memory, it persists across different kernel launches.
+
+\item[HCA with dissimilarity matrix] satisfies the first condition if the dissimilarity matrix will not be held in the memory. The second condition is satisfied as each matrix field can be computed independently exposing great parallelism opportunity. 
+
+\item[HCA with the nearest neighbor array] is required sub-quadratic space complexity by definition. On the other hand, it provides less means of parallelism as the algorithm need not compute whole dissimilarity matrix as in the previous algorithm. However, large datasest sizes may compensate for this disadvantage. 
+
+\item[HCA with priority queues] is unusable as it does not satisfy the first condition. Moreover, operation over priority queues (insert, delete and min) are not of a parallel nature and may create bottleneck in the computation.
+
 \end{description}
 
-\begin{figure}\centering
-	\includegraphics[width=8cm]{img/grid}
-	\caption{Example of 2D grid of size (3,2) with 2D blocks of size (4,3).}
-	\label{fig02:grid}
-\end{figure}
+For this thesis we chose to implement HCA with the nearest neighbor array. It promises better time complexity than the HCA with dissimilarity matrix which can come to a great use when clustering big datasets. In addition, we utilized the advantages of priority queues by defining a constant that declares the number of closest neighbors assigned to each cluster.
 
-\subsection{GPU Architecture}
-
-To dive deeper into describing each parallel piece of code run on GPU, we describe CUDA-enabled GPU architecture to lay foundation for the further terminology.
-\begin{description}
-	\item[Core] is the smallest possible block in the architecture. It has pool of registers and executes single thread.
-	\item[Streaming Multiprocessor] is a collection of \emph{cores} organized in a grid-like pattern.
-\end{description}
+Additionally, we chose to implement the CMD variant of Mahalanobis distance to fully exhibit GPU parallel properties.
 
 \section{specs of machine}
 
 code was optimized for this machine
 
-\section{impl description}
+\section{impl description} 
 
 high level look
 
-describe each kernel
+describe each kernel 
