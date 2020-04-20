@@ -23,7 +23,10 @@ struct apriori_context_t
     csize_t* cu_updates;
     float* cu_centroids;
     float* cu_inverses;
+    float* cu_points;
+    asgn_t* cu_point_asgns;
     cluster_data_t* clusters;
+    csize_t point_size;
 
     cluster_bound_t bounds;
 };

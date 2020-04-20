@@ -61,6 +61,9 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	default_apr_.cu_updates = cu_update_;
 	default_apr_.clusters = cluster_data_;
 	default_apr_.bounds = bounds_;
+	default_apr_.cu_points = cu_points_;
+	default_apr_.cu_point_asgns = cu_point_asgns_;
+	default_apr_.point_size = points_size;
 	apriori_count_ = 0;
 
 	for (asgn_t i = 0; i < cluster_count_; ++i)
@@ -128,6 +131,7 @@ void gmhc::move_apriori()
 	apr_ctxs_[0].clusters = cluster_data_tmp;
 	apr_ctxs_[0].cu_centroids = cu_centroids_tmp;
 	apr_ctxs_[0].cu_inverses = cu_icov_tmp;
+	apr_ctxs_[0].point_size = points_size;
 }
 
 
@@ -224,10 +228,10 @@ void gmhc::update_iteration(const cluster_data_t* merged, apriori_context_t& ctx
 	ctx.clusters[new_idx].size = merged[0].size + merged[1].size;
 
 	//updating point asgns
-	run_merge_clusters(cu_point_asgns_, points_size, merged[0].id, merged[1].id, id_, kernel_info(6, 1024));
+	run_merge_clusters(ctx.cu_point_asgns, ctx.point_size, merged[0].id, merged[1].id, id_, kernel_info(6, 1024));
 
 	//compute new centroid
-	run_centroid(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, ctx.cu_centroids + new_idx * point_dim, id_, ctx.clusters[new_idx].size, starting_info_);
+	run_centroid(input_t{ ctx.cu_points, ctx.point_size, point_dim }, ctx.cu_point_asgns, ctx.cu_centroids + new_idx * point_dim, id_, ctx.clusters[new_idx].size, starting_info_);
 
 	if (ctx.clusters[new_idx].size >= maha_threshold_)
 	{
@@ -315,7 +319,7 @@ void gmhc::compute_icov(csize_t pos, apriori_context_t& ctx)
 	float* icov = tmp_icov + point_dim * point_dim;
 
 	assign_constant_storage(ctx.cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-	run_covariance(input_t{ cu_points_, points_size, point_dim }, cu_point_asgns_, icov, id_, kernel_info(6, 1024, 100));
+	run_covariance(input_t{ ctx.cu_points, ctx.point_size, point_dim }, ctx.cu_point_asgns, icov, id_, kernel_info(6, 1024, 100));
 
 	run_finish_covariance(icov, ctx.clusters[pos].size, point_dim, tmp_icov);
 
@@ -387,9 +391,11 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments)
 		asgn_t apriori_asgn = apriori_assignments[i];
 		auto next = indices[order[apriori_asgn]]++;
 		CUCH(cudaMemcpy(cu_centroids_ + next * point_dim, points + i * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice));
+		CUCH(cudaMemcpy(cu_point_asgns_ + next, &i, sizeof(asgn_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		cluster_data_[next] = cluster_data_t{ i, 1 };
 	}
 
+	CUCH(cudaMemcpy(cu_points_, cu_centroids_, points_size * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 	for (size_t i = 0; i < sizes.size(); ++i)
 	{
@@ -406,6 +412,9 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments)
 		ctx.cu_tmp_neighbours = tmp_neigh + offset * neigh_number_ * starting_info_.grid_dim;
 		ctx.cu_updates = cu_update_ + offset;
 		ctx.clusters = cluster_data_ + offset;
+		ctx.cu_points = cu_points_ + offset * point_dim;
+		ctx.cu_point_asgns = cu_point_asgns_ + offset;
+		ctx.point_size = ctx.bounds.eucl_size;
 
 		apr_ctxs_.emplace_back(ctx);
 	}
