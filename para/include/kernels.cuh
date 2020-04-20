@@ -44,6 +44,8 @@ void run_store_icovariance(float* dest, const float* src, clustering::csize_t di
 
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
+void run_set_default_neigh(neighbour_t* neighbours, clustering::csize_t count, kernel_info info);
+
 
 void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 

@@ -80,7 +80,11 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	vld_ = vld;
 
 	if (apriori_assignments)
+	{
 		initialize_apriori(apriori_assignments);
+		bounds_.eucl_size = 0;
+		bounds_.maha_size = 0;
+	}
 }
 
 void gmhc::move_apriori()
@@ -114,13 +118,16 @@ void gmhc::move_apriori()
 		}
 
 		CUCH(cudaMemcpy(cu_centroids_tmp + to * point_dim, ctx.cu_centroids + from * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-		memcpy(cluster_data_tmp + to, cluster_data_ + from, sizeof(cluster_data_t));
+		memcpy(cluster_data_tmp + to, ctx.clusters + from, sizeof(cluster_data_t));
 		if (ctx.bounds.maha_size)
 			CUCH(cudaMemcpy(cu_icov_tmp + to * icov_size, ctx.cu_inverses + from * icov_size, icov_size * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 	}
 	cu_centroids_ = cu_centroids_tmp;
 	cluster_data_ = cluster_data_tmp;
 	cu_icov_ = cu_icov_tmp;
+	apr_ctxs_[0].clusters = cluster_data_tmp;
+	apr_ctxs_[0].cu_centroids = cu_centroids_tmp;
+	apr_ctxs_[0].cu_inverses = cu_icov_tmp;
 }
 
 
@@ -166,7 +173,8 @@ std::vector<pasgn_t> gmhc::run()
 	else
 		final_ctx = default_apr_;
 
-	run_neighbours<neigh_number_>(final_ctx.cu_centroids, point_dim, final_ctx.bounds.eucl_size, final_ctx.cu_tmp_neighbours, final_ctx.cu_neighbours, starting_info_);
+	run_set_default_neigh(final_ctx.cu_neighbours, cluster_count_ * neigh_number_, starting_info_);
+	run_update_neighbours<neigh_number_>(compute_data_, final_ctx.cu_tmp_neighbours, final_ctx.cu_neighbours, final_ctx.bounds, upd_data_, starting_info_);
 
 	while (final_ctx.bounds.eucl_size + final_ctx.bounds.maha_size > 1)
 	{
@@ -358,7 +366,7 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments)
 		if (count != counts.end())
 			count->second++;
 		else
-			counts.emplace(i, 1);
+			counts.emplace(apriori_assignments[i], 1);
 	}
 
 	std::vector<csize_t> indices, sizes;

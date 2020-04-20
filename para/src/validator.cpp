@@ -17,16 +17,18 @@ void validator::create_clusters(const asgn_t* apriori_assignments)
 
 		auto it = clusters.find(idx);
 
-		if (it != clusters.end())
-		{
-			cluster c;
-			c.id = i;
+		if (it == clusters.end())
+			clusters.emplace(idx, std::vector<cluster>());
 
-			for (csize_t j = 0; j < point_dim_; j++)
-				c.centroid.push_back(points_[i * point_dim_ + j]);
+		it = clusters.find(idx);
 
-			it->second.emplace_back(std::move(c));
-		}
+		cluster c;
+		c.id = i;
+
+		for (csize_t j = 0; j < point_dim_; j++)
+			c.centroid.push_back(points_[i * point_dim_ + j]);
+
+		it->second.emplace_back(std::move(c));
 	}
 
 	for (auto& cl : clusters)
@@ -52,8 +54,6 @@ void validator::initialize(const float* data_points, csize_t data_points_size, c
 	else
 		for (csize_t i = 0; i < point_count_; i++)
 		{
-			point_asgns_.push_back((asgn_t)i);
-
 			cluster c;
 			c.id = (asgn_t)i;
 
@@ -62,6 +62,9 @@ void validator::initialize(const float* data_points, csize_t data_points_size, c
 
 			clusters_.emplace_back(std::move(c));
 		}
+
+	for (csize_t i = 0; i < point_count_; i++)
+		point_asgns_.push_back((asgn_t)i);
 
 	apr_idx_ = 0;
 	iteration_ = 0;
@@ -286,6 +289,9 @@ void validator::get_min(const pasgn_t& expected,
 {
 	csize_t from, to;
 
+	while (apr_idx_ != apr_sizes_.size() && apr_sizes_[apr_idx_] == 1)
+		++apr_idx_;
+
 	if (apr_idx_ == apr_sizes_.size())
 	{
 		from = 0;
@@ -355,12 +361,8 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& e
 	++iteration_;
 	--cluster_count_;
 
-	if (apr_sizes_.size())
-	{
+	if (apr_idx_ != apr_sizes_.size())
 		--apr_sizes_[apr_idx_];
-		if (apr_sizes_[apr_idx_] == 1)
-			++apr_idx_;
-	}
 
 	return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
 }
@@ -377,7 +379,11 @@ bool validator::float_diff(const float* a, const float* b, csize_t size, float d
 	for (csize_t i = 0; i < size; i++)
 	{
 		auto diff = std::abs(a[i] - b[i]);
-		auto tmp = (diff / a[i] + diff / b[i]) / 2;
+		float tmp;
+		if (a[i] == 0 || b[i] == 0)
+			tmp = diff;
+		else
+			tmp = (diff / a[i] + diff / b[i]) / 2;
 
 		if (tmp >= d * 4)
 			return true;

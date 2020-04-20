@@ -2,12 +2,59 @@
 #include <reader.hpp>
 
 #include <chrono>
+#include <cstdlib>
 
 #include "serial_impl.hpp"
 
 #include <gmhc.hpp>
 
 using namespace clustering;
+
+TEST(para, apriori_small)
+{
+	std::string input = "2 20 0 0 -1 0 1 0 0 1 0 -1 0 100 -1 100 1 100 0 99 0 101 0 250 -1 250 1 250 0 249 0 251 200 50 200 49 200 51 199 50 201 50";
+
+	auto data = reader::read_data_from_string<float>(input);
+
+	gmhc para;
+	validator vld;
+
+	auto thresh = 5;
+
+	std::vector<asgn_t> apriori_asgn;
+
+	for (size_t i = 0; i < data.points; i++)
+		apriori_asgn.push_back(i / thresh);
+
+	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());
+	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
+
+	auto res = para.run();
+
+	ASSERT_FALSE(vld.has_error());
+}
+
+TEST(para, apriori_big)
+{
+	auto data = reader::read_data_from_file<float>("big");
+
+	gmhc para;
+	validator vld;
+
+	auto thresh = 20;
+
+	std::vector<asgn_t> apriori_asgn;
+
+	for (size_t i = 0; i < data.points; i++)
+		apriori_asgn.push_back(rand() % thresh);
+
+	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());
+	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
+
+	auto res = para.run();
+
+	ASSERT_FALSE(vld.has_error());
+}
 
 TEST(para, small)
 {
@@ -28,7 +75,6 @@ TEST(para, small)
 
 	EXPECT_EQ(res, expected);
 }
-
 
 TEST(para, big)
 {
