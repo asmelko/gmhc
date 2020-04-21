@@ -203,7 +203,7 @@ To make use of this mahalanobis distance variants in MHCA implementations, we re
 
 In early stages of MHCA it is sub-optimal to use full \emph{generalized distance}. It is due to the fact that clusters with one to few points does not form computable ellipsoids; in other words, Mahalanobis distance equation would produce distorted results. 
 
-To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
+To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold --- \emph{Mahalanobis threshold}. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
 
 \begin{defn}
 	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$ and a variant of mahalanobis distance $d$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:

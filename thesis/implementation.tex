@@ -19,6 +19,25 @@ For this thesis we chose to implement HCA with the nearest neighbor array. It pr
 
 Additionally, we chose to implement the CMD variant of Mahalanobis distance to fully exhibit GPU parallel properties.
 
+\subsection{Apriori clusters}
+
+When cluster sizes reach the Mahalanobis threshold, a MHCA algorithm starts to form elliptic shaped clusters. However, until then, simple euclidean distance is used. This an important stage of the algorithm as an improper initial clustering can decrease the overall clustering result. Hence, a simple hierarchical euclidean clustering can be unsatisfactory.
+
+To solve this problem, we implemented additional feature to the algorithm called \emph{apriori clusters} (see def. \ref{def02:apriori}). The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- the algorithm that would be capable of creating better initial clusters that a MHCA algorithm. 
+
+With this, a MHCA algorithm is guided by the apriori clusters to create plenty of small clusters that just reached the Mahalanobis threshold; these clusters can now fully exhibit the MHCA properties. Overall, we suppose that we can lessen the probability of an error during the early stage of the algorithm.
+
+\begin{defn}
+	Suppose a dataset $\mathcal{D}$, a HCA algorithm $\mathcal{A}$ and a partitioning of  $\mathcal{D}$ into non-empty subsets $a_1,\dots,a_k$. If following conditions hold:
+	\begin{enumerate}
+		\item $\mathcal{A}$ performs clustering of each subset separately. Meaning that clusters from different subsets can not be merged.
+		\item When each subset is clustered into the only cluster, $\mathcal{A}$ clusters the resulting clusters as if they were in one subset.
+	\end{enumerate}
+	then we call the subsets $a_1,\dots,a_k$ \emph{apriori clusters} of $\mathcal{A}$.
+	
+	\label{def02:apriori}
+\end{defn}
+
 \section{specs of machine}
 
 code was optimized for this machine
