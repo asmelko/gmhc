@@ -21,9 +21,9 @@ Additionally, we chose to implement the CMD variant of Mahalanobis distance to f
 
 \subsection{Apriori clusters}
 
-When cluster sizes reach the Mahalanobis threshold, a MHCA algorithm starts to form elliptic shaped clusters. However, until then, simple euclidean distance is used. This an important stage of the algorithm as an improper initial clustering can decrease the overall clustering result. Hence, a simple hierarchical euclidean clustering can be unsatisfactory.
+When cluster sizes reach the Mahalanobis threshold, a MHCA algorithm starts to form elliptic shaped clusters. However, until then, simple euclidean distance is used. This is an important stage of the algorithm as an improper initial clustering can decrease the overall clustering result. Hence, a simple hierarchical euclidean clustering can be unsatisfactory.
 
-To solve this problem, we implemented additional feature to the algorithm called \emph{apriori clusters} (see def. \ref{def02:apriori}). The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- the algorithm that would be capable of creating better initial clusters that a MHCA algorithm. 
+To solve this problem, we implemented additional feature to the algorithm called \emph{apriori clusters} (see def. \ref{def03:apriori}). The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- the algorithm that would be capable of creating better initial clusters that a MHCA algorithm. 
 
 With this, a MHCA algorithm is guided by the apriori clusters to create plenty of small clusters that just reached the Mahalanobis threshold; these clusters can now fully exhibit the MHCA properties. Overall, we suppose that we can lessen the probability of an error during the early stage of the algorithm.
 
@@ -34,16 +34,121 @@ With this, a MHCA algorithm is guided by the apriori clusters to create plenty o
 		\item When each subset is clustered into the only cluster, $\mathcal{A}$ clusters the resulting clusters as if they were in one subset.
 	\end{enumerate}
 	then we call the subsets $a_1,\dots,a_k$ \emph{apriori clusters} of $\mathcal{A}$.
-	
-	\label{def02:apriori}
+	\label{def03:apriori}
 \end{defn}
 
-\section{specs of machine}
+\section{The algorithm implementation}
 
-code was optimized for this machine
+The above mentioned algorithm is implemented in the main class of the program --- \texttt{gmhc}\footnote{An abrevation for GPU Mahalanobis-based hierarchical clustering.}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
 
-\section{impl description} 
+\subsection{Class \texttt{hierarchical\_clustering}}
+This template provides key data fields and methods for a hierarchical clustering algorithm (see list. \ref{lst03:hc}): 
 
-high level look
+\begin{description}
+	\item[\texttt{initialize()}] sets the fields of the class. A templated field \texttt{points} is an array of dataset objects --- points. They are expected to be of a floating-point numeric type. Fields \texttt{point\_dim} and \texttt{points\_size} state a point dimensionality and a total number of points in the array. Hence, each \texttt{point\_dim} consecutive array elements represent one point and the total array size being $\texttt{point\_dim}*\texttt{points\_size}$ elements.
+	
+	\item[\texttt{run()}] initiates the clustering. It returns a vector of \texttt{pasgn\_t} structures --- pairs that contain \emph{assignments} --- the IDs of merged clusters. Each point from the input array is assigned an unique consecutive ID starting from $0$. When two clusters are merged, the new cluster is assigned the next available unique ID. The process of merging is then stored in the returning vector. Hence, the vector completely describes the whole clustering process.
+	
+	\item[\texttt{free()}] deallocates all acquired resources.
+\end{description}
 
-describe each kernel 
+\begin{lstlisting}[caption={A summary of \texttt{hierarchical\_clustering} header file.},label={lst03:hc}]
+using csize_t = uint32_t;
+using asgn_t = csize_t;
+using pasgn_t = std::pair<asgn_t, asgn_t>;
+
+template <typename T>
+class hierarchical_clustering
+{
+protected:
+	const T* points;
+	csize_t points_size;
+	csize_t point_dim;
+public:
+	virtual void initialize(...);
+	virtual std::vector<pasgn_t> run() = 0;
+	virtual void free() = 0;
+};
+\end{lstlisting}
+
+\subsection{Class \texttt{gmhc}}
+
+This class is the main entrypoint of the whole MHCA algorithm. It inherits from \texttt{hierarchical\_clustering<float>} template specialization, which means that the algorithm expects dataset objects to be single-precision points of a specified dimension. The class communicates
+with a GPU; hence, it holds structures used by the device.
+
+It contains an array of \texttt{clustering\_context\_t} objects. Each of them holds the context of a specific part of the dataset and is able to perform a clustering on it.
+
+\subsubsection{Initialization}
+
+Initialization happens in the \texttt{initialize} method. Due to the initialization of device and host structures, this stage must be treated with importance.
+The class overloads \texttt{initialize} method so that it sets three additional fields:
+\begin{itemize}
+	\item \texttt{mahalanobis\_threshold} indicates the threshold in the \emph{Altered general distance} (see def. \ref{def01:alt}).
+	
+	\item\texttt{apriori\_assignments}  is an array of assignments that splits \texttt{points} into \emph{apriori clusters}. This is an optional field of the \texttt{initialize} method.
+	
+	\item \texttt{validator} is an optional field used for testing purposes.
+\end{itemize}
+
+Next follows the main responsibility of the \texttt{initialize} method --- device and host data allocation and initialization. Device data fields are prefixed with \texttt{cu\_}\footnote{Abbreviation for CUDA.} and are run within kernels. Host data control a flow of run kernels. They are mainly arrays that are organized in such a way that they can be cut into sub-arrays each managing context of one apriori cluster. They will be further described in the following sections.
+
+\subsubsection{Clustering}
+The clustering algorithm resides in the method \texttt{run}. This method utilizes the array of \texttt{clustering\_context\_t} objects. If \texttt{apriori\_assignments} are present, each element of the array contains context of a corresponding apriori cluster and holds methods for its further clustering. 
+
+In addition to that, the method uses one special clustering context called the \emph{final context}. If apriori clusters are present (and the above mentioned array is not empty), it is unset and serves as a context that will host all the apriori cluster results for the final clustering. If there are no apriori clusers, the final context is set and contains the whole dataset.
+
+We divide the whole clustering algorithm into a top level \emph{apriori clustering} and a low level \emph{context clustering}.
+
+\begin{description}
+	\item[Apriori clustering] handles a separate clustering of apriori clusters, merging their results into one clustering context and performing the final clustering (see alg. \ref{alg03:apriori}).
+	
+	The algorithm iterates over each apriori clusters from the context array. It perfroms its clustering and the result is inserted into the final context. Either when all apriori clusters are merged or when there are none at all, the final context with the remaining clusters is clustered and the list of assignment pairs is returned.
+	
+	Before any context begins the clustering, its closest neighbor array has to be initialized. It is done by the kernel \texttt{run\_neighbors}.
+	
+	
+	\begin{algorithm}
+		\caption{Apriori clustering}
+		\label{alg03:apriori}
+		\begin{algorithmic}[1]
+			\Procedure{apriori}{$\mathcal{C}, ctx_f$}
+			\ForAll{$ctx \in \mathcal{C}\cup ctx_f$} \Comment{iterate over apriori clusters and the final context}
+			\State initialize the closest neighbor array of $ctx$ \Comment{kernel \texttt{run\_neighbors}}
+			\While{$ctx$ has not the only cluster}
+			\State iterate clustering of $cxt$ for the closest pair $(i,j)$
+			\State store $(i,j)$ into the returning list
+			\EndWhile
+			\State $ctx_f \gets ctx_f \cup ctx$ \Comment{assign merged cluster into the final context}
+			\EndFor
+			\State \textbf{return} list of merged clusters
+			\EndProcedure
+		\end{algorithmic}
+	\end{algorithm}
+
+	\item[Context clustering] is
+	
+	\begin{algorithm}
+	\caption{Context clustering}
+	\label{alg03:context}
+	\begin{algorithmic}[1]
+		\Procedure{apriori}{$\mathcal{C}, ctx_f$}
+		\ForAll{$ctx \in \mathcal{C}\cup ctx_f$} \Comment{iterate over apriori clusters and the final context}
+		\State initialize the closest neighbor array of $ctx$ \Comment{kernel \texttt{run\_neighbors}}
+		\While{$ctx$ has not the only cluster}
+		\State iterate clustering of $cxt$ for the closest pair $(i,j)$
+		\State store $(i,j)$ into the returning list
+		\EndWhile
+		\State $ctx_f \gets ctx_f \cup ctx$ \Comment{assign merged cluster into the final context}
+		\EndFor
+		\State \textbf{return} list of merged clusters
+		\EndProcedure
+	\end{algorithmic}
+\end{algorithm}
+
+\end{description}
+
+
+
+
+
+ 
