@@ -40,3 +40,5 @@ The building block of the CUDA-enabled GPU hardware architecture is multi-thread
 \end{figure}
 
 To achieve this grade of parallelism, a GPU employs \textbf{SIMT\footnote{Single-Instruction Multiple-Threads.} architecture}. A multiprocessor partitions assigned block to chunks of 32 threads called \textbf{warps}. Each warp thread is executed concurrently. During the execution, threads start with the the same program address but have own registers and instruction pointers so they can branch independently. However, a warp executes one common instruction at the time. Hence, to achieve the greatest performance all warp threads must agree on the program path.
+
+Moreover, as warp threads execute concurrently, warp offers \textbf{shuffle instructions}. All threads in warp are able to distribute their data to another thread within just one instruction. This comes to a great use for synchronization but can also be used to achieve a high throughput reduction operation as well.

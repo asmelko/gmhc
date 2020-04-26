@@ -121,14 +121,14 @@ All but the status array are device arrays. The \emph{indexing structure} indica
 \end{defn}
 
 \subsection{Clustering}
-The clustering algorithm resides in the method \texttt{run}. This method utilizes the array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} (see def. \ref{def03:context}). If \texttt{apriori\_assignments} are present, each element of the array is the clustering context of a corresponding apriori cluster and holds methods for its further clustering. 
+The clustering algorithm resides in the method \texttt{run}. This method utilizes the array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} (see def. \ref{def03:context}). If \texttt{apriori\_assignments} are present, each element of the array serves as the clustering context for a corresponding apriori cluster and holds methods for its further clustering. Hence, it will be further called the \emph{context array}. 
 
 \begin{defn}
-	Suppose a dataset $\mathcal{D}$ and its subset $\mathcal{D}'$. We define the \emph{clustering context} of $\mathcal{D}'$ as a tuple $(\mathcal{P},\mathcal{A},\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$ where each array contains data of points and clusters created within $\mathcal{D}'$.
+	Suppose a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-based array tuple $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$ with its indexing structure $\mathcal{Q}$. We define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'},\mathcal{A'},\mathcal{C'},\mathcal{I'},\mathcal{N'},\mathcal{S'},\mathcal{Q}')$. In the tuple, each array is a subset of the corresponding array of $\mathcal{D}$ and the following condition holds; a sub-array contains data of points and clusters created within $\mathcal{D}'$. $\mathcal{Q}'$ describes the order of the sub-arrays.
 	\label{def03:context}
 \end{defn}
 
-In addition to that, the method uses one special clustering context called the \emph{final context}. If apriori clusters are present (and the above mentioned array is not empty), it is unset and serves as a context that will host all the apriori cluster results for the final clustering. If there are no apriori clusers, the final context is set and contains the whole dataset.
+In addition to that, the method uses one special clustering context called the \emph{final context}. If apriori clusters are present (and the clustering context array is non-empty), it is unset and serves as a context that will host all the apriori cluster results for the final clustering. If there are no apriori clusers, the final context is set and contains the whole dataset.
 
 We divide the whole clustering algorithm into a top level \emph{apriori clustering} and a low level \emph{context clustering}.
 
@@ -137,18 +137,18 @@ We divide the whole clustering algorithm into a top level \emph{apriori clusteri
 	
 	The algorithm iterates over each apriori clusters from the context array. It perfroms its clustering using context clustering method and the result is inserted into the final context. Either when all apriori clusters are merged or when there are none at all, the final context with the remaining clusters is clustered and the list of assignment pairs is returned.
 	
-	Before any context begins the clustering, its closest neighbor array has to be initialized. It is done by the kernel \texttt{run\_neighbors}.
+	Before any context begins the clustering, its closest neighbor array has to be initialized. It is done by the kernel set \texttt{neighbors}.
 	
 	
 	\begin{algorithm}
 		\caption{Apriori clustering}
 		\label{alg03:apriori}
 		\begin{algorithmic}[1]
-			\Procedure{apriori}{$\mathcal{C}, ctx_f$}
-			\ForAll{$ctx \in \mathcal{C}\cup ctx_f$} \Comment{iterate over apriori clusters and the final context}
-			\State initialize the closest neighbor array of $ctx$ \Comment{kernel \texttt{run\_neighbors}}
+			\Procedure{apriori}{context array $\mathcal{T}$, the final context $ctx_f$}
+			\ForAll{$ctx \in \mathcal{T}\cup ctx_f$} \Comment{iterate over apriori clusters and the final context}
+			\State initialize the closest neighbor array of $ctx$ 
 			\While{$ctx$ has not the only cluster}
-			\State iterate clustering of $cxt$ for the closest pair $(i,j)$  \Comment{\emph{context clustering}}
+			\State perform context clustering of $cxt$ for the closest pair $(i,j)$ 
 			\State store $(i,j)$ into the returning list
 			\EndWhile
 			\State $ctx_f \gets ctx_f \cup ctx$ \Comment{assign merged cluster into the final context}
@@ -158,25 +158,28 @@ We divide the whole clustering algorithm into a top level \emph{apriori clusteri
 		\end{algorithmic}
 	\end{algorithm}
 
-	\item[Context clustering] performs one iteration of clustering within the specified context. First, it goes through the neighbor array of the context and finds the closest pair of clusters (kernel \texttt{neighbor\_min}). The clusters are then merged into the new one; data structures are updated to conform this action. 
+	\item[Context clustering] performs one iteration of clustering within the specified context --- a merge of two closest clusters (see alg. \ref{alg03:context}). First, it goes through the neighbor array of the context and finds the closest pair of clusters (kernel \texttt{neighbor\_min}). At that moment, there are the two clusters to be removed and one new cluster to be created. Hence, cluster-based arrays of the context need to be updated accordingly.
 	
-	Remainder of the algorithm handles consequences of the new cluster. First, assignments of \texttt{points} array are recomputed (kernel \texttt{merge\_clusters}). Then the centroid of the new cluster is computed and stored (\texttt{centroid} kernel). Last, if the new cluster reaches Mahalanobis threshold, its inverse covariance matrix is computed (kernel set \texttt{compute\_icov}). 
+	The remainder of the algorithm computes data of the new cluster. First, $\mathcal{A}$ is recomputed to correctly show that points of the former two clusters now belong to the new one (kernel \texttt{merge\_clusters}). Then the centroid of the new cluster is computed and stored into $\mathcal{C}$ (kernel \texttt{centroid}) and status array is updated as well. Last, if the new cluster reaches Mahalanobis threshold, its inverse covariance matrix is computed and stored into $\mathcal{I}$ (kernels \texttt{compute\_icov}). 
 	
-	The final statement of the method updates the closest neighbor array according to the one created and two deleted clusters (\texttt{update\_neighbors} kernel). It sustains the consistency when the method is visited again.  
+	The final statement of the method checks the whole $\mathcal{N}$  according to the one created and two deleted clusters and updates is when needed (kernels \texttt{update\_neighbors}).
 	
 	\begin{algorithm}
 	\caption{Context clustering}
 	\label{alg03:context}
 	\begin{algorithmic}[1]
-		\Procedure{context}{}
-		\State retrieve the clostest pair $(i,j)$ from the neighbor array
-		\State merge clusters $(i,j)$ into the new cluster $c$
-		\State update assignments of points into clusters
-		\State compute the centroid of $c$
+		\Procedure{context}{$\mathcal{A},\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S},\mathcal{Q}$}
+		\State retrieve the clostest pair $(i,j)$ from $\mathcal{N}$
+		\State initialize an unique $id$ of the new cluster $c$
+		\State update $\mathcal{Q}$ and retrieve index $idx$ for $c$
+		\State reorder data in $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$
+		\State update $\mathcal{A}$
+		\State $\mathcal{C}_{idx} \gets$ compute the centroid of $c$
+		\State $\mathcal{S}_{idx} \gets \{|c|, id\}$
 		\If{$|c| \ge \texttt{mahalanobis\_threshold}$}
-		\State compute the inverse covariance matrix of $c$
+		\State $\mathcal{I}_{idx} \gets$ compute the inverse covariance matrix of $c$
 		\EndIf
-		\State update the closest neighbor array
+		\State update $\mathcal{N}$
 		\State \textbf{return} $(i,j)$
 		\EndProcedure
 	\end{algorithmic}
@@ -185,7 +188,221 @@ We divide the whole clustering algorithm into a top level \emph{apriori clusteri
 \end{description}
 
 
+\subsection{Data order}
+
+This section will describe the actual process of reorganizing the cluster-related arrays provided that cluster pair $(i,j)$ is to be merged.
+
+This is achieved with a help of a \texttt{cluster\_bound\_t} structure --- an implementation of the indexing structure $\mathcal{Q}$. It is a rather simple structure that describes how the cluster-based arrays organize their data. The structure distinguishes two parts of the arrays. The first part contains data about clusters whose size have not reached Mahalanobis threshold while the second part stores data of Mahalanobis-sized clusters. Hence, it contains a pair of indices indicating beginnings of the two parts and another pair desribing the size of the parts. We will respectively call them \emph{Euclidean} and \emph{Mahalanobis array parts}. Note, the structure is uniform for each cluster-based array; meaning that a different array data about the same cluster resides on the same index.
+
+When a cluster pair $(i,j)$ is to be merged, the indexing structure first recognizes the part of an array where the indices $i$, $j$ belong. Hence, it identifies the places of arrays that are no longer valid. It gets rid of the places in the two particular ways:
+\begin{itemize}
+	\item Assign the invalid place as the place for the new cluster.
+	\item Moves the end data of the corresponding part to the invalid place.
+\end{itemize}
+The reason why we organize the data in such way is to maintain continuously distributed data (see fig. \ref{fig03:data_order}). This data distribution serves a great help for running device kernels.
+
+\begin{figure}\centering
+	\includegraphics[width=\textwidth]{img/data}
+	\caption{An example of the data distribution in a cluster-related array. Two clusters of non-Mahalanobis size with their indices $i$, $j$ are being merged into a Mahalanobis-sized cluster on index $k$.}
+	\label{fig03:data_order}
+\end{figure}
+
+\begin{rem}
+	Naturally, there are other ways to maintain continuously distributed data within arrays. We can move the data in such a way that the new cluster will always reside in the begin of the corresponding part of an array. This approach could decrease the complexity of several kernels. On the other hand, this requires at most linear time to move the data instead of a constant time.
+\end{rem}
+
+\subsection{Kernels}
+
+The last part of the algorithm implementation are \emph{kernels}. This section will describe each of them, thier input and functionality.
+
+\subsubsection{Kernel \texttt{merge\_clusters}}
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		\textbf{Input arrays} & \textbf{Output arrays} & \textbf{Complexity} \\ \midrule
+		    $\mathcal{A}$     &     $\mathcal{A}$      &       $O(n)$        \\ \bottomrule
+		    \multicolumn{3}{l}{\footnotesize Note: $n$ Number of points in a clustering context.}
+	\end{tabular}
+\end{table}
+
+As an input, the kernel takes an assignment array $\mathcal{A}$, a pair of old cluster IDs (of merged clusters) and a new ID (of a new cluster). It goes through the array in the \emph{grid-stride loop} (see def. \ref{def03:grid-stride}) and replaces any of the old IDs with the new ID.
+
+\begin{defn}
+	A \emph{grid-stride loop} iterates over all threads in the grid until the desired number of iterations is hit. This kind of loop contrasts with the premise that a kernel grid has enough threads for the computation and does not have to iterate over the same threads multiple times (which is not always the case). 
+	\label{def03:grid-stride}
+\end{defn}
+
+\subsubsection{Kernel \texttt{centroid}}
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		\textbf{Input arrays} & \textbf{Output arrays} & \textbf{Complexity} \\ \midrule
+		    $\mathcal{P}$     &                        &                     \\
+		    $\mathcal{A}$     & \pulrad{$\mathcal{C}$} &   \pulrad{$O(n)$}   \\ \bottomrule 
+	\end{tabular}
+\end{table}
+
+This kernel computes the centroid of a cluster with a specified $id$. According to the $id$, the kernel filters $\mathcal{P}$ using $\mathcal{A}$ to find the involved points.
+
+Each thread maintains its local array that stores the sum of the points that belong to the cluster. 
+
+First, a grid-stride loop is performed over $\mathcal{P}$. If a point belongs to the cluster (determined using $\mathcal{A}$ and $id$), the thread aggregates it in the sum array. 
+
+After the loop ends, \emph{shared memory} and \emph{warp shuffle instructions} are utilized to reduce the sum arrays of all block threads into one (next on, we will call this \emph{block reduction}).
+
+Each block reduced array is then divided by the cluster size and stored into $\mathcal{C}$ using \emph{atomic add instruction}. 
+
+\subsubsection{Kernels in \texttt{compute\_icov}}
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		\textbf{Input arrays} & \textbf{Output arrays} & \textbf{Complexity} \\ \midrule
+		    $\mathcal{P}$     &                        &                     \\
+		    $\mathcal{A}$     &     $\mathcal{I}$      &       $O(n)$        \\
+		    $\mathcal{C}$     &                        &                     \\ \bottomrule
+	\end{tabular}
+\end{table}
+
+To compute inverse covariance matrix of a cluster with an $id$, multiple kernels are run from the host method \texttt{compute\_icov}. 
+
+First, the covariance matrix of the cluster has to be computed via kernels \texttt{covariance} and \texttt{finish\_covariance}. 
+
+Then, \emph{CUBLAS}\footnote{CUDA implementation of BLAS library.} library is used to invert the covariance matrix. If the matrix can not be inverted (due to the singular property) the inverse is set to the identity. 
+
+Last, a special transformation is performed on the inverse covariance matrix and the result is stored to $\mathcal{I}$ via \texttt{store\_icovariance} kernel.
+
+\paragraph{Kernel \texttt{covariance}}
+It computes the upper triangular covariance matrix of the cluster multiplied by the cluster size. 
+
+To achieve a linear complexity in the number of points, we use the centroid $C$ of the cluster (it is already computed by the previous kernel). Before the kernel starts, $C$ is copied to the \emph{constant memory} so all threads can use it.
+
+At the kernel start, each thread uniformly selects a part of the \emph{shared memory} as its intermediate upper-triangulate covariance matrix; more threads can share the same part, so atomic access is necessary.
+
+Then, a grid-stride loop over $\mathcal{P}$ with an $id$ filtering follows. If a point belongs to the cluster, a thread subtracts it by $C$; we will denote the subtraction result with $S$. After that, each element $i$ of $S$ is separately multiplied with the element $j \ge i$ and atomically added to the corresponding place of the intermediate covariance matrix of the thread. The equation \ref{eq03:cov} describes the process. There, $\textbf{X}$ denotes discrete random variable of the x-coordinate of cluster points, $C_x$ denotes the x-coordinate of $C$ and $\mathbf{S_x}$ denotes discrete random variable $\mathbf{X}-C_x$.
+
+\begin{equation}
+\begin{split}
+n\cov(\mathbf{X},\mathbf{Y}) &= n\mathbf{E}[(\mathbf{X}-\mathbf{E}(\mathbf{X}))(\mathbf{Y}-\mathbf{E}(\mathbf{Y}))] = n\mathbf{E}[(\mathbf{X}-C_x)(\mathbf{Y}-C_y)] \\ &= n\mathbf{E}[(\mathbf{S_x})(\mathbf{S_y})] = n\frac{1}{n}\sum_{i=1}^{n}{\mathbf{S}_{\mathbf{x}}^{i}\mathbf{S}_{\mathbf{y}}^{i}} = \sum_{i=1}^{n}{\mathbf{S}_{\mathbf{x}}^{i}\mathbf{S}_{\mathbf{y}}^{i}}
+\end{split}
+\label{eq03:cov}
+\end{equation}
+
+After the loop, a \emph{block sum reduction} is performed and the resulting covariances are stored to a \emph{global memory} via \emph{atomic add instruction}.
+
+\paragraph{Kernel \texttt{finish\_covariance}}
+Immediately next follows this kernel. It takes the result of the previous kernel as an input, it divides the matrix by cluster size and transforms it to a square matrix for the inversion operation.
+
+We could incorporate the division operation into the previous kernel. However, it would be needed to be done by each thread performing the atomic operation. Here, each element is divided just once.
+
+\paragraph{Kernel \texttt{store\_icovariance}}
+After the inversion done by CUBLAS subroutine, this kernel performs the following actions with its result:
+\begin{enumerate}
+	\item Transforms the matrix to the upper triangulate variant.
+	\item Multiplies the non-diagonal elements of the matrix by a factor $2$.
+	\item Stores the transformed matrix into $\mathcal{I}$.
+\end{enumerate}
+
+The first step is performed to get rid of redundant information and to save space as the $\mathcal{I}$ array has the worst space complexity among the cluster-based arrays.
+
+The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in equation \ref{eq03:form}.
+
+\begin{equation}
+\T{\mathbf{x}}\mathbf{M}\mathbf{x} = \sum_{i=1}^{n}\sum_{j=1}^{n}{m_{ij}x_ix_j} = \sum_{i=1}^{n}{m_{ii}x_i^2} + \sum_{i=1}^{n}\sum_{j>i}^{n}{2m_{ij}x_ix_j}
+\label{eq03:form}
+\end{equation}
 
 
+\begin{rem}
+The overall time complexity of the \texttt{compute\_icov} function is $O(n)$ as for each kernel it needs to iterate over all points in a clustering context. We omitted complexity of computing a point covariance ($O(dim^2)$) and matrix inversion ($O(dim^3)$) as the size of the point dimension is negligible compared to the size of the clustering context.
+\end{rem}
 
- 
+\subsubsection{Kernel \texttt{neighbor\_min}}
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		\textbf{Input arrays} & \textbf{Output arrays} & \textbf{Complexity} \\ \midrule
+		    $\mathcal{N}$     &                        &       $O(c)$        \\ \bottomrule
+	    	\multicolumn{3}{l}{\footnotesize Note: $c$ Number of clusters in a clustering context.}
+	\end{tabular}
+\end{table}
+
+This kernel finds the closest neighbor among all the neighbors in the neighbor array $\mathcal{N}$.
+
+The loop over $\mathcal{N}$ is performed block-stride as the grid must consist of just one block. That is because there is no grid synchronization in CUDA; meaning that threads can be synchronized only within the same block. In this task, we need to synchronize all involved threads.
+
+Each thread iterates through the loop and stores its local closest neighbors (their distances and indices).
+
+After the loop ends, the block threads perform reduction operation achieving globally closest neighbors.
+
+\subsubsection{Kernels \texttt{update\_neighbors}}
+
+\begin{table}[h]
+	\centering
+	\begin{tabular}{ccc}
+		\toprule
+		\textbf{Input arrays} & \textbf{Output arrays} & \textbf{Complexity} \\ \midrule
+		$\mathcal{C}$     &                        &                     \\
+		$\mathcal{I}$     &     $\mathcal{N}$      &       $O(c^2)$        \\
+		$\mathcal{N}$     &                        &                     \\ \bottomrule
+	\end{tabular}
+\end{table}
+
+The kernels \texttt{update\_neighbors} is a set of four kernels where each of them takes an important part in updating the neighbor array $\mathcal{N}$.
+
+First, the invalidated places have to be recognized by kernel \texttt{update}. Next, two kernels \texttt{neighbor\_u} and \texttt{neighbor\_mat\_u} are run to update the array --- the first one updates Euclidean part while the second kernel updates Mahalanobis part. Last, a reduction kernel \texttt{reduce\_u} is called that takes care of an intermediate results of the previous two kernels.
+
+In the apriori clustering, another kernel set is mentioned ---  \texttt{neighbors}. It is used for the initialization of $\mathcal{N}$; hence, it is a modification of the currently described kernels. There, the \texttt{update} kernel is ignored as all elements of the array have to be updated. The notation of kernel names suggests that kernels suffixed with \texttt{\_u} has a suffix-less variant that processes all elements.
+
+\paragraph{Kernel \texttt{update}}
+This kernel checks validity of neighbors of each cluster via a grid-stride loop using the indexing structure. The check comprises these steps:
+\begin{itemize}
+	\item If the neighbor index belongs to a cluster that was merged, remove the neighbor.
+	\item If the neighbor index belongs to a cluster that was moved during an array reorder, change the index accordingly.
+\end{itemize} 
+When no neighbors are present, the particular cluster is marked for \emph{the update}. The index of the cluster is stored in the \emph{update array} $\mathcal{U}$. It is divided into two parts --- same as for the other cluster-related arrays. 
+
+$\mathcal{U}$ to contain continuous indices of update-ready clusters, threads synchronize over the \emph{global memory} variable indicating the next available location of $\mathcal{U}$. The variable is manipuled by threads using \emph{atomic add instruction}.
+
+\paragraph{Kernel \texttt{neighbor\_u}}
+
+This kernel takes care of updating clusters whose size have not reached Mahalanobis threshold (we call them \emph{Euclidean clusters} for simplicity). For that reason, the kernel takes $\mathcal{C}$ as an input to compute distances (and find the closest neighbors) and $\mathcal{U}$ to target clusters for the computation.
+
+The first loop is not run in parallel, rather it is fully performed by all threads as it loops through $\mathcal{U}$. When cluster $c$ is selected to update, all threads contribute to the computation of its closest neighbors.
+
+Next, a grid-stride loop over other Euclidean clusters follows. Each thread takes care of one cluster at a time, computes its distance with $c$ and updates its local closest neighbors of $c$.
+
+Then, a block reduction follows. The block-local closest neighbors of $c$ are created. As there is no block synchronization, each block store its result in the intermediate neighbor array $\mathcal{N}'$ ready for a further reduction.
+
+When all clusters from $\mathcal{U}$ are visited, the kernel ends.
+
+\begin{rem}
+	As the Altered general distance function is symmetric, there is no need to compute distance between all clusters and $c$ --- a cluster whose neighbours need to be updated. We only need to compute distances of clusters with their indices greater than the index of $c$. If we follow this invariant throughout the algorithm, we can safely ignore the clusters of lower index in the computation as during \emph{theirs} computation the cluster $c$ was already involved. This does not hold for newly created clusters. They need to be masured against all the remaining clusters to hold the invariant.
+\end{rem}
+
+\paragraph{Kernel \texttt{neighbor\_mat\_u}} The kernel shows similarities with the previous kernel. The main distinction is that it updates Mahalanobis-sized kernels (\emph{Mahalanobis kernels}, for simplicity) instead of non-Mahalanobis-sized ones. We created the separate kernel hoping to utilize the GPU more and to achive a better performance.
+
+In addition to $\mathcal{C}$, the kernel takes $\mathcal{I}$ as an input as well. The access to the inverse covariance matrices is vital as they are involved in a distance computation of Mahalanobis clusters. 
+
+Same as in the previous kernel, the first loop is preformed by all threads, then followed by a grid-stride loop. 
+
+However, one \emph{warp} takes care of one cluster at a time in the grid-stride loop. Warp threads cooperate together in the matrix-vector multiplications of the distance function as clusters that reached Mahalanobis threshold are now involved. The previous kernel need not to perform such a task for computing the distance. Hence, only one thread is assigned the job in that kernel
+
+Last, the kernel performs the same reduction as in the previous kernel and stores the results into $\mathcal{N}'$.
+
+\begin{rem}
+	The invariant of distance computation holds in this kernel as well. However, when a Mahalanobis cluster $c$ needs to be updated, distances between $c$ and \emph{all} Euclidean clusters must be also computed regardless the index. This is a tradeoff for having Euclidean and Mahalanobis clusters divided from themselves. However, Euclidean clusters tend to merge themselves and disappear in the early stages of the algorithm.
+\end{rem}
+
+\paragraph{Kernel \texttt{reduce\_u}} This is a helper kernel reducing intermediate results of updated clusters in $\mathcal{N}'$ into the neighbor array $\mathcal{N}$. For each updated cluster, there is as much closest neighbor entries as there were blocks in a grid of previous kernels. As this may be a big nuber, one \emph{warp} cooperates in the reduction of the entries of one updated cluster.
+
+\begin{rem}
+	The time complexity of the \texttt{update\_neighbors} kernels is $O(c^2)$, where $c$ denotes the number of clusters in a clustering context. This is due to the kernel pair that computes the closest neighbors. In the worst case, neighbors of each cluster need to be recomputed resulting in the mentioned time complexity. However, this is rarely the case. More often, the number of update-neaded clusters resides in a yet unpredictable but reasonable scope. Hence, when we denote the nuber of clusters needed to be updated as $u$, we can start reasoning about the more precise time complexity $O(uc)$.
+\end{rem}
