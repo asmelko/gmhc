@@ -60,6 +60,12 @@
 %%% An environment for typesetting of program code and input/output
 %%% of programs. (Requires the fancyvrb package -- fancy verbatim.)
 
+\lstset{
+	basicstyle=\ttfamily,
+	columns=fullflexible,
+	captionpos=b,
+}
+
 \DefineVerbatimEnvironment{code}{Verbatim}{fontsize=\small, frame=single}
 
 %%% The field of all real and natural numbers
@@ -71,6 +77,7 @@
 \DeclareMathOperator{\E}{\textsf{E}\,}
 \DeclareMathOperator{\var}{\textrm{var}}
 \DeclareMathOperator{\sd}{\textrm{sd}}
+\DeclareMathOperator{\cov}{cov}
 
 %%% Transposition of a vector/matrix
 \newcommand{\T}[1]{#1^\top}

@@ -154,17 +154,12 @@ The significant part of this clustering variation is the measure of cluster diss
 \end{defn}
 
 
-With \emph{Mahalanobis distance}, we are able to compute a point-cluster proximity. To fully incorporate the distance in a hierarchical algorithm, we need to find a method how to measure cluster-cluster distance. We achieve it with the \emph{Generalized distance} (see def. \ref{def01:gene}).
+With \emph{Mahalanobis distance}, we are able to compute a point-cluster proximity. To fully incorporate the distance in a hierarchical algorithm, we need to find a method how to measure cluster-cluster proximity. There are two options how to achieve this. 
 
-\begin{defn}
-	Suppose we have a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$. We define the \emph{generalized distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average of the mahalanobis distances between $c$ and $\mathcal{C}'$ and between $c'$ and $\mathcal{C}$ (see \ref{eq01:gene}).
-	\begin{equation}\label{eq01:gene}
-	d_G(\mathcal{C},\mathcal{C}') = \frac{d_M(c,\mathcal{C}')+d_M(c',\mathcal{C})}{2}
-	\end{equation}
-	\label{def01:gene}
-\end{defn}
+First, we can choose a path of the single and complete linkage criterion; hence, all points in cluster contribute to the measure. We achieve this with \emph{Full Mahalanobis distance} (FMD) (see def. \ref{def01:fmd}).
+The second option is similar to the centroid linkage as only the centroid of a cluster occurs in the computing. We define this as a \emph{Centroid Mahalanobis distance} (CMD) (see def. \ref{def01:cmd}).      
 
-To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongide rather than in a prolongation of one another \cite{dagnelie1991using} (see \ref{fig01:ellipses}). Only when the cluster objects are uncorrelated, this measure of dissimilarity is equal to the variant of euclidean distance with centroid linkage.
+To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongside rather than in a prolongation of one another \cite{dagnelie1991using} (see fig. \ref{fig01:ellipses}). Only when the cluster objects are uncorrelated, this measure of dissimilarity is equal to the euclidean distance with an according linkage.
 
 \begin{figure}\centering
 	\includegraphics[width=10cm]{img/ellipses}
@@ -172,20 +167,52 @@ To easily imagine the measure, suppose we have two elliptic clusters. The algori
 	\label{fig01:ellipses}
 \end{figure}
 
+\begin{defn}
+	Suppose we have clusters $\mathcal{C}$ and $\mathcal{C}'$. We define the \emph{Full Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average of the mahalanobis distances between all objects $o \in \mathcal{C}$ and $\mathcal{C}'$ (see \ref{eq01:fmd}).
+	\begin{equation}\label{eq01:fmd}
+	d_{FM}(\mathcal{C},\mathcal{C}') =\frac{1}{|\mathcal{C}|}\sum_{o\in\mathcal{C}}{d_M(o,\mathcal{C}')}
+	\end{equation}
+	\label{def01:fmd}
+\end{defn}
+
+\begin{defn}
+	Suppose we have a clusters $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$. We define the \emph{Centroid Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as the mahalanobis distance between $c$ and $\mathcal{C}'$ (see \ref{eq01:cmd}).
+	\begin{equation}\label{eq01:cmd}
+	d_{CM}(\mathcal{C},\mathcal{C}')=d_M(c,\mathcal{C}')
+	\end{equation}
+	\label{def01:cmd}
+\end{defn}
+
+
+The pros and cons between FMD and CMD are trivial. Due to the full point contribution, FMC can produce more precise measure than its counterpart. On the other hand, CMD compensates is with the much needed time complexity. The current thesis will analyze the impact of both the methods in the following chapters.
+
+\vspace{0.5cm}
+
+To make use of this mahalanobis distance variants in MHCA implementations, we require distance funtion to be \emph{symmetric}. By its nature mahalanobis distance is not a symmetric funtion. However, we easily achieve this attribute with the \emph{Generalized distance} (see def. \ref{def01:gene}).
+
+\begin{defn}
+	Suppose we have clusters $\mathcal{C}$, $\mathcal{C}'$ and a variant of mahalanobis distance~$d$ (either FMD or CMD). We define the \emph{Generalized distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average distance between $\mathcal{C}$, $\mathcal{C}'$ and $\mathcal{C}'$, $\mathcal{C}$ (see \ref{eq01:gene}).
+	\begin{equation}\label{eq01:gene}
+	d_G(\mathcal{C},\mathcal{C}') = \frac{d(\mathcal{C},\mathcal{C}')+d(\mathcal{C}',\mathcal{C})}{2}
+	\end{equation}
+	\label{def01:gene}
+\end{defn}  
+
+
 \subsection{Algorithm optimizations}
 
 In early stages of MHCA it is sub-optimal to use full \emph{generalized distance}. It is due to the fact that clusters with one to few points does not form computable ellipsoids; in other words, Mahalanobis distance equation would produce distorted results. 
 
-To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
+To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold --- \emph{Mahalanobis threshold}. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
 
 \begin{defn}
-	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:
+	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$ and a variant of mahalanobis distance $d$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:
 	\begin{equation}
 	d_A(\mathcal{C},\mathcal{C}')=
 	\begin{cases}
 	d_G(\mathcal{C}, \mathcal{C}'), & \text{if $|\mathcal{C}|\ge T_M$ and $|\mathcal{C}'|\ge T_M$},\\
-	\dfrac{d_M(c, \mathcal{C}')+||c-c'||_2}{2}, & \text{if $|\mathcal{C}| < T_M$ and $|\mathcal{C}'|\ge T_M$},\\
-	\dfrac{||c-c'||_2+d_M(c', \mathcal{C})}{2}, & \text{if $|\mathcal{C}|\ge T_M$ and $|\mathcal{C}'|< T_M$},\\
+	\dfrac{d(\mathcal{C}, \mathcal{C}')+||c-c'||_2}{2}, & \text{if $|\mathcal{C}| < T_M$ and $|\mathcal{C}'|\ge T_M$},\\
+	\dfrac{||c-c'||_2+d(\mathcal{C}', \mathcal{C})}{2}, & \text{if $|\mathcal{C}|\ge T_M$ and $|\mathcal{C}'|< T_M$},\\
 	||c-c'||_2, & \text{if $|\mathcal{C}|< T_M$ and $|\mathcal{C}'|< T_M$}.\\
 	\end{cases}
 	\label{eq01:alt}
@@ -289,7 +316,7 @@ Let us elaborate more about the space and time complexity of the hierarchical cl
 	 	\end{algorithmic}
 	 \end{algorithm}
  
- 	The priority labels of queued elements are the dissimilarity measures. 
+ 	The priority label of a queued element is the dissimilarity measure. 
  	
  	As operation for retrieving a minimum in a priority queue has $O(1)$ time complexity, the search step in line $4$ takes $O(k)$ time (bounded by $O(n)$ during the first iteration). Next in line $6$, we need one insert and two delete operations (corresponding to deleting two merged clusters and inserting one new). As these operations require $O(\log{n})$ time, we can update $n$ queues in $O(n\log{n})$ time.
  	
@@ -301,5 +328,18 @@ Let us elaborate more about the space and time complexity of the hierarchical cl
 
 \end{description}
 
+\begin{example}
 
+To fully show the algorithm complexity downside, we measured R language library function \texttt{hclust}; the frequenly used implementation of HCA. It computes centroid linkage with euclidean distance and uses dissimilarity matrix. 
 
+Fig. \ref{fig01:hclust} shows above stated polynomial time complexity of the implementation. Moreover, it halted at a dataset size of $47 000$ as the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
+
+In conclusion, we can see that the space complexity of HCA can be more restrictive in the means of overall algorithm usability than its time complexity. It can be easily solved by removing high space complexity structures (such as a dissimilarity matrix) for the price of lower speed while retaining the same asymptotic time complexity.
+
+\begin{figure}\centering
+	\includegraphics[width=10cm]{img/hclust}
+	\caption{Time complexity of \texttt{hclust} with respect to the size of a dataset.}
+	\label{fig01:hclust}
+\end{figure}
+
+\end{example}
