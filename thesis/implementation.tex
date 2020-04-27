@@ -23,11 +23,11 @@ Additionally, we chose to implement the CMD variant of Mahalanobis distance to f
 
 When cluster sizes reach the Mahalanobis threshold, a MHCA algorithm starts to form elliptic shaped clusters. However, until then, simple euclidean distance is used. This is an important stage of the algorithm as an improper initial clustering can decrease the overall clustering result. Hence, a simple hierarchical euclidean clustering can be unsatisfactory.
 
-To solve this problem, we implemented additional feature to the algorithm called \emph{apriori clusters} (see def. \ref{def03:apriori}). The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- the algorithm that would be capable of creating better initial clusters that a MHCA algorithm. 
+To solve this problem, we implemented additional feature \xxx{to} the algorithm called \emph{apriori clusters} (see def. \ref{def03:apriori}). The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- the algorithm that would be capable of creating better initial clusters that a MHCA algorithm. 
 
 With this, a MHCA algorithm is guided by the apriori clusters to create plenty of small clusters that just reached the Mahalanobis threshold; these clusters can now fully exhibit the MHCA properties. Overall, we suppose that we can lessen the probability of an error during the early stage of the algorithm.
 
-\begin{defn}
+\begin{defn}[???]
 	Suppose a dataset $\mathcal{D}$, a HCA algorithm $\mathcal{A}$ and a partitioning of  $\mathcal{D}$ into non-empty subsets $\mathcal{D}_1,\dots,\mathcal{D}_k$. If following conditions hold:
 	\begin{enumerate}
 		\item $\mathcal{A}$ performs clustering of each subset separately. Meaning that clusters from different subsets can not be merged.
@@ -40,6 +40,7 @@ With this, a MHCA algorithm is guided by the apriori clusters to create plenty o
 
 
 \section{Class \texttt{hierarchical\_clustering}}
+\todo{Taky mozna zlepsit nazev, co treba `Generic interface to clustering algorithms'?}
 The above mentioned algorithm is implemented in the main class of the program --- \texttt{gmhc}\footnote{An abrevation for GPU Mahalanobis-based hierarchical clustering.}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
 This template provides key data fields and methods for a hierarchical clustering algorithm (see list. \ref{lst03:hc}): 
 
@@ -71,6 +72,7 @@ public:
 \end{lstlisting}
 
 \section{Class \texttt{gmhc}}
+\todo{Nazev si zaslouzi zlepseni, co treba presnejsi `Mahalanobis clustering implementation'? V textu mas ref na nadpis.}
 
 This class is the main entrypoint of the whole MHCA algorithm. It inherits from \texttt{hierarchical\_clustering<float>} template specialization, which means that the algorithm expects dataset objects to be single-precision points of a specified dimension. The class communicates
 with a GPU; hence, it holds structures used by the device.
@@ -212,11 +214,13 @@ The reason why we organize the data in such way is to maintain continuously dist
 \end{rem}
 
 \subsection{Kernels}
+\todo{Tadyto je cely trochu dlouhy. Predevsim doporucuju: 1.~predelat na nejaky mensi podsekce nebo neco takovyho, viz komentar niz. Je zbytecny aby kernely byla podsekce kdyz to je naprosto centralni vec pro tu implementaci. 2.~ty mikrotabulky bud sloucit nebo predelat na obrazek (kazdej array je jeden `node' a kernely jsou sipky mezi nima). 3.~urcite pridat uvodni seznam s velmi kratkym popisem kernelu, kterej bude asi doplnovat ten obrazek.}
 
-The last part of the algorithm implementation are \emph{kernels}. This section will describe each of them, thier input and functionality.
+The \xxx{last part}\todo{very first!}\ of the algorithm implementation are \emph{kernels}\todo{btw tady je krasne obracenej word order}. This section will describe each of them, thier input and functionality.
 
 \subsubsection{Kernel \texttt{merge\_clusters}}
 
+\todo{kdyz fakt nutne potrebujes tabulku na misto kde ji definujes (nejspis nepotrebujes), tak to 1. nedelej 2. vynech table a dej rovnou tabular v prostredi begin/end center.}
 \begin{table}[h]
 	\centering
 	\begin{tabular}{ccc}
@@ -257,6 +261,7 @@ After the loop ends, \emph{shared memory} and \emph{warp shuffle instructions} a
 Each block reduced array is then divided by the cluster size and stored into $\mathcal{C}$ using \emph{atomic add instruction}. 
 
 \subsubsection{Kernels in \texttt{compute\_icov}}
+\todo{Tech kernelu tam je hrozne moc na paragraphy. Idealni by bylo tohle trochu liftnout aby to nebyl subsubsection ale jen subsection, a z tech jednotlivych kernelu nadelat subsubsectiony. 3xSub uz je vetsinou moc, ale asi to taky pude prezit.}
 
 \begin{table}[h]
 	\centering
@@ -277,7 +282,7 @@ Then, \emph{CUBLAS}\footnote{CUDA implementation of BLAS library.} library is us
 
 Last, a special transformation is performed on the inverse covariance matrix and the result is stored to $\mathcal{I}$ via \texttt{store\_icovariance} kernel.
 
-\paragraph{Kernel \texttt{covariance}}
+\paragraph{Kernel \texttt{covariance}}\todo{Mozna mnohem lepsi to nazvat proste `Covariance computation' at to je citelny, a jak se presne jmenuje a kde je napsat do textu.}
 It computes the upper triangular covariance matrix of the cluster multiplied by the cluster size. 
 
 To achieve a linear complexity in the number of points, we use the centroid $C$ of the cluster (it is already computed by the previous kernel). Before the kernel starts, $C$ is copied to the \emph{constant memory} so all threads can use it.
