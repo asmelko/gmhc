@@ -21,7 +21,7 @@ struct shared_apriori_data_t
     csize_t cluster_count;
     asgn_t id;
 
-    static constexpr csize_t neighbours_size = 2;
+    static constexpr csize_t neighbors_size = 2;
 
     cublasHandle_t cublas_handle;
 };
@@ -33,8 +33,8 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_icov_;
     asgn_t* cu_point_asgns_;
 
-    neighbour_t* cu_neighs_;
-    neighbour_t* tmp_neigh;
+    neighbor_t* cu_neighs_;
+    neighbor_t* cu_tmp_neighs_;
 
     csize_t* cu_update_;
     cluster_data_t* cluster_data_;
@@ -44,7 +44,7 @@ class gmhc : public hierarchical_clustering<float>
 
     shared_apriori_data_t common_;
 
-    std::vector<apriori_cluster_t> apr_ctxs_;
+    std::vector<clustering_context_t> apr_ctxs_;
     csize_t apriori_count_;
 
     cluster_data_t* apriori_cluster_data_;
@@ -59,7 +59,7 @@ public:
     virtual void free() override;
 
 private:
-    void set_apriori(apriori_cluster_t& cluster, csize_t offset, csize_t size, validator* vld);
+    void set_apriori(clustering_context_t& cluster, csize_t offset, csize_t size, validator* vld);
     void initialize_apriori(const asgn_t* apriori_assignments, validator* vld);
 
     void move_apriori(csize_t eucl_size, csize_t maha_size);

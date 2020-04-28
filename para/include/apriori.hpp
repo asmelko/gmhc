@@ -12,7 +12,7 @@ namespace clustering
 
 struct shared_apriori_data_t;
 
-struct apriori_cluster_t
+struct clustering_context_t
 {
     csize_t point_size;
     csize_t point_dim;
@@ -23,8 +23,8 @@ struct apriori_cluster_t
 
     kernel_info starting_info;
 
-    neighbour_t* cu_neighbours;
-    neighbour_t* cu_tmp_neighbours;
+    neighbor_t* cu_neighbors;
+    neighbor_t* cu_tmp_neighbors;
 
     float* cu_points;
     float* cu_centroids;
@@ -33,7 +33,7 @@ struct apriori_cluster_t
     asgn_t* cu_point_asgns;
 
     csize_t* cu_updates;
-    cluster_data_t* clusters;
+    cluster_data_t* cluster_data;
 
     cluster_bound_t bounds;
     centroid_data_t compute_data;
@@ -44,7 +44,7 @@ struct apriori_cluster_t
     validator* vld;
 
 public:
-    apriori_cluster_t(shared_apriori_data_t& shared_data);
+    clustering_context_t(shared_apriori_data_t& shared_data);
     void initialize();
 
     pasgn_t iterate();

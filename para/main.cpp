@@ -21,7 +21,7 @@ int main(int argc, char** argv)
 	{
 		auto apr_size = std::strtoul(argv[3], NULL, 10);
 
-		for (size_t i = 0; i < data.points; i++)
+		for (clustering::csize_t i = 0; i < data.points; i++)
 			apriori_assignments.push_back(i / apr_size);
 
 		apr_asgn = apriori_assignments.data();

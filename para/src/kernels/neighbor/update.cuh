@@ -6,7 +6,7 @@
 using namespace clustering;
 
 template <csize_t N>
-__global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, csize_t* __restrict__ updated,
+__global__ void update(neighbor_t* __restrict__  neighbors_a, csize_t* __restrict__ updated,
 	csize_t* __restrict__ small_work_idx, csize_t* __restrict__ big_work_idx,
 	csize_t small_size, csize_t big_begin, csize_t big_size, pasgn_t move_a, pasgn_t move_b, csize_t new_idx)
 {
@@ -25,8 +25,8 @@ __global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, csize
 			continue;
 		}
 
-		neighbour_t tmp_nei[N];
-		memcpy(tmp_nei, neighbours_a + idx * N, sizeof(neighbour_t) * N);
+		neighbor_t tmp_nei[N];
+		memcpy(tmp_nei, neighbors_a + idx * N, sizeof(neighbor_t) * N);
 
 		csize_t last_empty = 0;
 
@@ -58,7 +58,7 @@ __global__ void update_neighbours(neighbour_t* __restrict__  neighbours_a, csize
 			updated[store_idx] = idx;
 		}
 
-		memcpy(neighbours_a + idx * N, tmp_nei, sizeof(neighbour_t) * N);
+		memcpy(neighbors_a + idx * N, tmp_nei, sizeof(neighbor_t) * N);
 
 		if (idx >= small_size)
 			idx -= big_begin - small_size;

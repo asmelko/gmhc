@@ -1,5 +1,5 @@
 #include "gmhc_test.hpp"
-#include "neighbour_test.hpp"
+#include "neighbor_test.hpp"
 #include "covariance_test.hpp"
 #include "centroid_test.hpp"
 #include "min_test.hpp"

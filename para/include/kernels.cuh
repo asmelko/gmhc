@@ -44,22 +44,22 @@ void run_store_icovariance(float* dest, const float* src, clustering::csize_t di
 
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
-void run_set_default_neigh(neighbour_t* neighbours, clustering::csize_t count, kernel_info info);
+void run_set_default_neigh(neighbor_t* neighbors, clustering::csize_t count, kernel_info info);
 
 
 void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
 template <clustering::csize_t N>
-void run_neighbours(const float* centroids, clustering::csize_t dim, clustering::csize_t centroid_count, neighbour_t* tmp_neighbours, neighbour_t* neighbours, kernel_info info);
+void run_neighbors(const float* centroids, clustering::csize_t dim, clustering::csize_t centroid_count, neighbor_t* tmp_neighbors, neighbor_t* neighbors, kernel_info info);
 
 template <clustering::csize_t N>
-chunk_t run_neighbours_min(const neighbour_t* neighbours, cluster_bound_t sizes, chunk_t* result);
+chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result);
 
 template <clustering::csize_t N>
-void run_update_neighbours(centroid_data_t data, neighbour_t* tmp_neighbours, neighbour_t* act_neighbours, cluster_bound_t sizes, update_data_t upd_data, kernel_info info);
+void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, cluster_bound_t sizes, update_data_t upd_data, kernel_info info);
 
 
-void print_nei(neighbour_t* neighbours, clustering::csize_t nei_number, clustering::csize_t count);
+void print_nei(neighbor_t* neighbors, clustering::csize_t nei_number, clustering::csize_t count);
 void run_print_assg(clustering::asgn_t* assignments, clustering::csize_t point_size);
 void run_print_centroid(const float* centroid, clustering::csize_t dim, clustering::csize_t count);
 void run_print_up(clustering::csize_t* updated, clustering::csize_t* eucl_count, clustering::csize_t maha_begin, clustering::csize_t* maha_count);

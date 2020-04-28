@@ -15,7 +15,7 @@ struct cluster_data_t
 	clustering::csize_t size;
 };
 
-struct neighbour_t
+struct neighbor_t
 {
 	float distance;
 	clustering::csize_t idx;

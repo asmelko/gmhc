@@ -6,10 +6,10 @@
 
 using namespace clustering;
 
-apriori_cluster_t::apriori_cluster_t(shared_apriori_data_t& shared_data)
+clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
 	: shared(shared_data) {}
 
-void apriori_cluster_t::initialize()
+void clustering_context_t::initialize()
 {
 	bounds.eucl_size = point_size;
 	bounds.maha_begin = point_size;
@@ -24,14 +24,14 @@ void apriori_cluster_t::initialize()
 	update_data.to_update = cu_updates;
 }
 
-pasgn_t apriori_cluster_t::iterate()
+pasgn_t clustering_context_t::iterate()
 {
 	cluster_data_t data[2];
 
-	auto min = run_neighbours_min<shared_apriori_data_t::neighbours_size>(cu_neighbours, bounds, shared.cu_min);
+	auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, bounds, shared.cu_min);
 
-	data[0] = clusters[min.min_i];
-	data[1] = clusters[min.min_j];
+	data[0] = cluster_data[min.min_i];
+	data[1] = cluster_data[min.min_j];
 
 	move_clusters(min.min_i, min.min_j, data[0].size + data[1].size >= maha_threshold);
 
@@ -49,12 +49,12 @@ pasgn_t apriori_cluster_t::iterate()
 	if (vld)
 		verify(ret, min.min_dist);
 
-	run_update_neighbours<shared_apriori_data_t::neighbours_size>(compute_data, cu_tmp_neighbours, cu_neighbours, bounds, update_data, starting_info);
+	run_update_neighbors<shared_apriori_data_t::neighbors_size>(compute_data, cu_tmp_neighbors, cu_neighbors, bounds, update_data, starting_info);
 
 	return ret;
 }
 
-bool apriori_cluster_t::remove(csize_t idx)
+bool clustering_context_t::remove(csize_t idx)
 {
 	csize_t end_idx;
 	if (idx < bounds.maha_begin)
@@ -68,19 +68,19 @@ bool apriori_cluster_t::remove(csize_t idx)
 	CUCH(cudaMemcpy(cu_centroids + idx * point_dim, cu_centroids + end_idx * point_dim,
 		sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
-	clusters[idx] = clusters[end_idx];
+	cluster_data[idx] = cluster_data[end_idx];
 
-	CUCH(cudaMemcpy(cu_neighbours + idx * shared.neighbours_size, cu_neighbours + end_idx * shared.neighbours_size,
-		sizeof(neighbour_t) * shared.neighbours_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+	CUCH(cudaMemcpy(cu_neighbors + idx * shared.neighbors_size, cu_neighbors + end_idx * shared.neighbors_size,
+		sizeof(neighbor_t) * shared.neighbors_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
-	if (clusters[idx].size >= maha_threshold)
+	if (cluster_data[idx].size >= maha_threshold)
 		CUCH(cudaMemcpy(cu_inverses + idx * icov_size, cu_inverses + end_idx * icov_size,
 			sizeof(float) * icov_size, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
 	return true;
 }
 
-void apriori_cluster_t::move_clusters(csize_t i, csize_t j, bool maha)
+void clustering_context_t::move_clusters(csize_t i, csize_t j, bool maha)
 {
 	if (j < bounds.maha_begin && !maha) //c+c=c
 	{
@@ -127,36 +127,36 @@ void apriori_cluster_t::move_clusters(csize_t i, csize_t j, bool maha)
 	}
 }
 
-void apriori_cluster_t::update_iteration(const cluster_data_t* merged)
+void clustering_context_t::update_iteration(const cluster_data_t* merged)
 {
 	auto new_idx = update_data.new_idx;
 
 	//update cluster data
-	clusters[new_idx].id = shared.id;
-	clusters[new_idx].size = merged[0].size + merged[1].size;
+	cluster_data[new_idx].id = shared.id;
+	cluster_data[new_idx].size = merged[0].size + merged[1].size;
 
 	//updating point asgns
 	run_merge_clusters(cu_point_asgns, point_size, merged[0].id, merged[1].id, shared.id, kernel_info(6, 1024));
 
 	//compute new centroid
-	run_centroid(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, cu_centroids + new_idx * point_dim, shared.id, clusters[new_idx].size, kernel_info(6, 1024));
+	run_centroid(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, cu_centroids + new_idx * point_dim, shared.id, cluster_data[new_idx].size, kernel_info(6, 1024));
 
 	//compute new inverse of covariance matrix
-	if (clusters[new_idx].size >= maha_threshold)
+	if (cluster_data[new_idx].size >= maha_threshold)
 	{
 		CUCH(cudaDeviceSynchronize());
 		compute_icov(new_idx);
 	}
 }
 
-void apriori_cluster_t::compute_icov(csize_t pos)
+void clustering_context_t::compute_icov(csize_t pos)
 {
 	float* icov = shared.cu_tmp_icov + point_dim * point_dim;
 
 	//compute covariance
 	assign_constant_storage(cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
 	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, kernel_info(6, 1024, 100));
-	run_finish_covariance(icov, clusters[pos].size, point_dim, shared.cu_tmp_icov);
+	run_finish_covariance(icov, cluster_data[pos].size, point_dim, shared.cu_tmp_icov);
 
 	CUCH(cudaDeviceSynchronize());
 
@@ -199,7 +199,7 @@ void apriori_cluster_t::compute_icov(csize_t pos)
 	}
 }
 
-void apriori_cluster_t::verify(pasgn_t id_pair, float dist)
+void clustering_context_t::verify(pasgn_t id_pair, float dist)
 {
 	//copy centroid
 	std::vector<float> tmp_centr;

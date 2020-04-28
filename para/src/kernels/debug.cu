@@ -116,20 +116,20 @@ void run_print_up(csize_t* updated, csize_t* eucl_count, csize_t maha_begin, csi
 	print_up << <1, 1 >> > (updated, eucl_count, maha_begin, maha_count);
 }
 
-__global__ void print_ne(neighbour_t* neighbours, csize_t nei_number, csize_t count)
+__global__ void print_ne(neighbor_t* neighbors, csize_t nei_number, csize_t count)
 {
 	for (csize_t i = 0; i < count; i++)
 	{
 		for (csize_t j = 0; j < nei_number; j++)
 		{
-			printf("%d. %f %d\n", (int)i, neighbours[i * nei_number + j].distance, (int)neighbours[i * nei_number + j].idx);
+			printf("%d. %f %d\n", (int)i, neighbors[i * nei_number + j].distance, (int)neighbors[i * nei_number + j].idx);
 		}
 	}
 }
 
-void print_nei(neighbour_t* neighbours, csize_t nei_number, csize_t count)
+void print_nei(neighbor_t* neighbors, csize_t nei_number, csize_t count)
 {
-	print_ne << <1, 1 >> > (neighbours, nei_number, count);
+	print_ne << <1, 1 >> > (neighbors, nei_number, count);
 }
 
 
