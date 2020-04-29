@@ -1,5 +1,3 @@
-#include "..\include\gmhc.hpp"
-#include "..\include\gmhc.hpp"
 #include <gmhc.hpp>
 #include <kernels.cuh>
 #include <cassert>

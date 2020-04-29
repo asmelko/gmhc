@@ -7,8 +7,11 @@
 int main(int argc, char** argv)
 {
 	if (argc != 3 && argc != 4)
+	{
 		std::cout << "bad input" << std::endl <<
-		"usage: mhclust file_name maha_threshold [apriori_size]" << std::endl;
+			"usage: mhclust file_name maha_threshold [apriori_size]" << std::endl;
+		return 1;
+	}
 
 	auto data = clustering::reader::read_data_from_file<float>(argv[1]);
 
@@ -38,4 +41,5 @@ int main(int argc, char** argv)
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << argv[1] << " time: " << elapsed_seconds.count() << std::endl;
 
+	return 0;
 }
