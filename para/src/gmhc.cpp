@@ -186,9 +186,9 @@ void gmhc::move_apriori(csize_t eucl_size, csize_t maha_size)
 	apr_ctxs_.front().bounds.maha_size = maha_size;
 }
 
-std::vector<pasgn_t> gmhc::run()
+std::vector<gmhc::res_t> gmhc::run()
 {
-	std::vector<pasgn_t> ret;
+	std::vector<res_t> ret;
 	clustering_context_t& last = apr_ctxs_.front();
 
 	//compute apriori

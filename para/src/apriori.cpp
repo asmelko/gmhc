@@ -24,7 +24,7 @@ void clustering_context_t::initialize()
 	update_data.to_update = cu_updates;
 }
 
-pasgn_t clustering_context_t::iterate()
+gmhc::res_t clustering_context_t::iterate()
 {
 	cluster_data_t data[2];
 
@@ -51,7 +51,7 @@ pasgn_t clustering_context_t::iterate()
 
 	run_update_neighbors<shared_apriori_data_t::neighbors_size>(compute_data, cu_tmp_neighbors, cu_neighbors, bounds, update_data, starting_info);
 
-	return ret;
+	return std::make_pair(ret, min.min_dist);
 }
 
 bool clustering_context_t::remove(csize_t idx)

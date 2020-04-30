@@ -13,7 +13,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	auto data = clustering::reader::read_data_from_file<float>(argv[1]);
+	auto data = clustering::reader::read_data_from_binary_file<float>(argv[1]);
 
 	std::vector<clustering::asgn_t> apriori_assignments;
 	clustering::asgn_t* apr_asgn = nullptr;
@@ -35,11 +35,16 @@ int main(int argc, char** argv)
 	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
 
 	auto start = std::chrono::system_clock::now();
-	gmhclust.run();
+	auto res = gmhclust.run();
 	auto end = std::chrono::system_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::cout << argv[1] << " time: " << elapsed_seconds.count() << std::endl;
+	std::cerr << argv[1] << " time: " << elapsed_seconds.count() << std::endl;
+
+	for (auto& e : res)
+		std::cout << e.first.first << " "
+		<< e.first.second << " "
+		<< e.second << " ";
 
 	return 0;
 }

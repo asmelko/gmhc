@@ -47,7 +47,7 @@ public:
     clustering_context_t(shared_apriori_data_t& shared_data);
     void initialize();
 
-    pasgn_t iterate();
+    pasgnd_t<float> iterate();
 private:
     bool remove(csize_t idx);
     void move_clusters(csize_t i, csize_t j, bool maha);

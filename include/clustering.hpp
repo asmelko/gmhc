@@ -11,6 +11,8 @@ namespace clustering {
 using csize_t = uint32_t;
 using asgn_t = csize_t;
 using pasgn_t = std::pair<asgn_t, asgn_t>;
+template <typename T>
+using pasgnd_t = std::pair<pasgn_t, T>;
 
 template <typename T>
 class hierarchical_clustering
@@ -28,7 +30,7 @@ public:
 		this->point_dim = data_point_dim;
 	}
 
-	virtual std::vector<pasgn_t> run() = 0;
+	virtual std::vector<pasgnd_t<T>> run() = 0;
 
 	virtual void free() = 0;
 };
