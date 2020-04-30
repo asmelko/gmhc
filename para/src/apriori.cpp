@@ -155,7 +155,7 @@ void clustering_context_t::compute_icov(csize_t pos)
 
 	//compute covariance
 	assign_constant_storage(cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, kernel_info(6, 1024, 100));
+	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, kernel_info(6, 1024));
 	run_finish_covariance(icov, cluster_data[pos].size, point_dim, shared.cu_tmp_icov);
 
 	CUCH(cudaDeviceSynchronize());
@@ -172,7 +172,7 @@ void clustering_context_t::compute_icov(csize_t pos)
 		CUCH(cudaMemcpy(shared.cu_read_icov, &shared.cu_tmp_icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		CUCH(cudaMemcpy(shared.cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-		if (point_dim <= 16)
+		if (point_dim <= 32)
 			BUCH(cublasSmatinvBatched(shared.cublas_handle, (int)point_dim, shared.cu_read_icov, (int)point_dim, shared.cu_write_icov, (int)point_dim, shared.cu_info, 1));
 		else
 		{

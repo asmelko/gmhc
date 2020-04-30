@@ -116,7 +116,8 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 	{
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(lhs_m, diff.data(), size);
-		dist += std::sqrt(dot(tmp.data(), diff.data(), size));
+		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
+		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
@@ -125,7 +126,8 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 	{
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(rhs_m, diff.data(), size);
-		dist += std::sqrt(dot(tmp.data(), diff.data(), size));
+		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
+		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
@@ -207,14 +209,7 @@ void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const
 	std::cerr << "Iteration " << iteration << ": " << msg << std::endl;
 
 	for (csize_t j = 0; j < size; j++)
-		std::cerr << lhs[j] << " ";
-
-	std::cerr << std::endl;
-
-	for (csize_t j = 0; j < size; j++)
-		std::cerr << rhs[j] << " ";
-
-	std::cerr << std::endl;
+		std::cerr << lhs[j] << " " << rhs[j] << std::endl;
 }
 
 bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
@@ -370,7 +365,6 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& e
 	return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
 }
 
-
 bool validator::float_diff(float a, float b, float d)
 {
 	return float_diff(&a, &b, 1, d);
@@ -388,8 +382,10 @@ bool validator::float_diff(const float* a, const float* b, csize_t size, float d
 		else
 			tmp = (diff / a[i] + diff / b[i]) / 2;
 
-		if (tmp >= d * 4)
-			return true;
+		fr += tmp;
 	}
-	return fr / size >= d;
+	if (fr / size >= d)
+		return true;
+	else
+		return false;
 }

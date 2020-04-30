@@ -117,7 +117,7 @@ __global__ void store_icov(float* __restrict__ dest, const float* __restrict__ s
 void run_covariance(const input_t in, const asgn_t* assignments, float* out, asgn_t centroid_id, kernel_info info)
 {
 	csize_t cov_size = ((in.dim + 1) * in.dim) / 2;
-	csize_t shared_chunks = info.shared_size;
+	csize_t shared_chunks = 10000 / cov_size;
 	
 	CUCH(cudaMemset(out, 0, cov_size * sizeof(float)));
 	covariance << <info.grid_dim, info.block_dim, shared_chunks* cov_size * sizeof(float) >> > (in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);

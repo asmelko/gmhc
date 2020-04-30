@@ -22,6 +22,12 @@ __inline__ __device__ float maha_dist(const float* __restrict__ point, const flo
 
 	if (lane_id == 0)
 	{
+		if (tmp_point < 0)
+		{
+			tmp_point = 0;
+			for (size_t i = 0; i < size; ++i)
+				tmp_point += point[i] * point[i];
+		}
 		return sqrtf(tmp_point);
 	}
 	return 0;
@@ -61,7 +67,9 @@ __inline__ __device__ void point_neighbors_mat_warp
 	}
 
 	if (lane_id == 0)
+	{
 		add_neighbor<N>(neighbors, neighbor_t{ dist / 2, idx });
+	}
 }
 
 template <csize_t N>
@@ -124,11 +132,13 @@ __inline__ __device__ void point_neighbors_mat
 		idx += (big_begin - small_count) * warpSize;
 
 		if (from_start)
+		{
 			for (; idx < x * warpSize; idx += blockDim.x * gridDim.x)
 			{
 				point_neighbors_mat_warp<N>
 					(centroids, inverses, local_neighbors, curr_centroid, this_centroid, this_icov, dim, big_begin, idx / warpSize);
 			}
+		}
 		else
 			idx += (x - big_begin) * warpSize;
 
