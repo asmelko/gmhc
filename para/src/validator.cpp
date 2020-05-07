@@ -339,9 +339,7 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<f
 	{
 		bool good = true;
 		if (expected.first.first != min_pair.first && expected.first.second != min_pair.second)
-		{
-			good = recompute(min_pair) < expected.second;
-		}
+			good = recompute(min_pair) >= expected.second;
 		else
 			good = !float_diff(expected_dist, min_dist, 0.001f);
 			

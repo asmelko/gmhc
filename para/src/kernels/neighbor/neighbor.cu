@@ -18,15 +18,12 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t s
 		if (idx >= small_count)
 			idx += big_begin - small_count;
 
-		if (tmp.min_dist > neighbors[idx*N].distance)
+		if (tmp.min_dist > neighbors[idx * N].distance)
 		{
 			tmp.min_dist = neighbors[idx * N].distance;
 			tmp.min_j = neighbors[idx * N].idx;
 			tmp.min_i = idx;
 		}
-
-		if (idx >= small_count)
-			idx -= big_begin - small_count;
 	}
 
 	tmp = reduce_min_block(tmp, shared_mem);
@@ -41,7 +38,7 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t s
 #include "neighbor_maha.cuh"
 
 template <csize_t N>
-void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, 
+void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors,
 	cluster_bound_t sizes, update_data_t upd_data, kernel_info info)
 {
 	csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbor_t) * N;
@@ -50,37 +47,24 @@ void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neigh
 	CUCH(cudaMemset(upd_data.eucl_update_size, 0, sizeof(csize_t)));
 	CUCH(cudaMemcpy(upd_data.maha_update_size, &sizes.maha_begin, sizeof(csize_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	update<N><<<info.grid_dim, info.block_dim >>>
+	update<N> << <info.grid_dim, info.block_dim >> >
 		(act_neighbors, upd_data.to_update, upd_data.eucl_update_size, upd_data.maha_update_size,
 			sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.move_a, upd_data.move_b, upd_data.new_idx);
 
 	if (sizes.eucl_size)
-	{
 		neighbors_u<N> << <info.grid_dim, info.block_dim, shared >> >
-			(data.centroids, act_neighbors, upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size, upd_data.new_idx);
-
-		neighbors<N> << <info.grid_dim, info.block_dim, shared >> >
-			(data.centroids, data.dim, sizes.eucl_size, tmp_neighbors);
-
-		cudaDeviceSynchronize();
-
-		run_compare_nei(act_neighbors, tmp_neighbors,
-			sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
-
-		cudaDeviceSynchronize();
-	}
+		(data.centroids, tmp_neighbors, act_neighbors, 
+			upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size, upd_data.new_idx);
 
 	if (sizes.maha_size)
-		neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>> 
-			(data.centroids, data.inverses, act_neighbors, upd_data.to_update, upd_data.maha_update_size,
-				data.dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
+		neighbors_mat_u<N> << <info.grid_dim, info.block_dim, shared_mat >> >
+		(data.centroids, data.inverses, tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.maha_update_size,
+			data.dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
 
-	//reduce<N> << <info.grid_dim, info.block_dim >> >(tmp_neighbors, info.grid_dim, sizes.eucl_size, act_neighbors);
+	reduce_u<N> << <info.grid_dim, info.block_dim >> >
+		(tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.eucl_update_size,
+			sizes.maha_begin, upd_data.maha_update_size, info.grid_dim);
 
-	//reduce_u<N><<<info.grid_dim, info.block_dim>>>
-	//	(tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.eucl_update_size, 
-	//		sizes.maha_begin, upd_data.maha_update_size, info.grid_dim);
-		
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());
 }
@@ -96,7 +80,7 @@ void run_neighbors(const float* centroids, csize_t dim, csize_t centroid_count, 
 template <csize_t N>
 chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result)
 {
-	neighbor_min<N><<<1, 1024>>>(neighbors, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, result);
+	neighbor_min<N> << <1, 1024 >> > (neighbors, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, result);
 
 	CUCH(cudaDeviceSynchronize());
 
