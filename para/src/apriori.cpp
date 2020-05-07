@@ -6,6 +6,8 @@
 
 using namespace clustering;
 
+#define KERNEL_INFO kernel_info(80, 1024)
+
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
 	: shared(shared_data) {}
 
@@ -136,10 +138,10 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
 	cluster_data[new_idx].size = merged[0].size + merged[1].size;
 
 	//updating point asgns
-	run_merge_clusters(cu_point_asgns, point_size, merged[0].id, merged[1].id, shared.id, kernel_info(6, 1024));
+	run_merge_clusters(cu_point_asgns, point_size, merged[0].id, merged[1].id, shared.id, KERNEL_INFO);
 
 	//compute new centroid
-	run_centroid(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, cu_centroids + new_idx * point_dim, shared.id, cluster_data[new_idx].size, kernel_info(6, 1024));
+	run_centroid(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, cu_centroids + new_idx * point_dim, shared.id, cluster_data[new_idx].size, KERNEL_INFO);
 
 	//compute new inverse of covariance matrix
 	if (cluster_data[new_idx].size >= maha_threshold)
@@ -155,7 +157,7 @@ void clustering_context_t::compute_icov(csize_t pos)
 
 	//compute covariance
 	assign_constant_storage(cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, kernel_info(6, 1024));
+	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, KERNEL_INFO);
 	run_finish_covariance(icov, cluster_data[pos].size, point_dim, shared.cu_tmp_icov);
 
 	CUCH(cudaDeviceSynchronize());
