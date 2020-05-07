@@ -206,7 +206,9 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
 	tmp_centr.resize(point_dim);
 	CUCH(cudaMemcpy(tmp_centr.data(), cu_centroids + update_data.new_idx * point_dim, sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-	vld->verify(id_pair, dist, tmp_centr.data());
+
+	vld->verify(id_pair, dist, tmp_centr.data(), 
+		std::bind(&clustering_context_t::recompute_dist, this, std::placeholders::_1));
 
 	if (vld->has_error())
 	{
@@ -214,4 +216,44 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
 		shared.cluster_count = 0;
 		cluster_count = 0;
 	}
+}
+
+float clustering_context_t::recompute_dist(pasgn_t expected_id)
+{
+	std::vector<csize_t> idxs;
+	for (csize_t i = 0; i < bounds.eucl_size; i++)
+	{
+		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
+			idxs.push_back(i);
+	}
+	for (csize_t i = bounds.maha_begin; i < bounds.maha_size; i++)
+	{
+		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
+			idxs.push_back(i);
+	}
+
+	csize_t i = idxs[0];
+	csize_t j = idxs[1];
+	if (idxs[0] > idxs[1])
+	{
+		i = idxs[1];
+		j = idxs[0];
+	}
+
+	float dist;
+	if (i < bounds.maha_begin && j < bounds.maha_begin)
+	{
+		dist = run_point_eucl(cu_centroids + point_dim * i, cu_centroids + point_dim * j, point_dim);
+	}
+	else
+	{
+		float* rhs_icov;
+		if (i < bounds.maha_begin)
+			rhs_icov = nullptr;
+		else
+			rhs_icov = cu_inverses + icov_size * i;
+
+		dist = run_point_maha(cu_centroids + point_dim * j, cu_centroids + point_dim * i, point_dim, cu_inverses + icov_size * j, rhs_icov);
+	}
+	return dist;
 }

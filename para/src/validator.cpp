@@ -212,12 +212,12 @@ void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const
 		std::cerr << lhs[j] << " " << rhs[j] << std::endl;
 }
 
-bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v)
+bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, recompute_f recompute)
 {
 	printf("\r%d ", iteration_);
 	fflush(stderr);
 
-	auto [min_pair, new_clust, min_dist, cluster_count] = iterate(pair_v);
+	auto [min_pair, new_clust, min_dist, cluster_count] = iterate(std::make_pair(pair_v, dist_v), recompute);
 
 	if (min_pair != pair_v)
 	{
@@ -326,20 +326,32 @@ void validator::get_min(const pasgn_t& expected,
 	}
 }
 
-std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgn_t& expected)
+std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<float>& expected, recompute_f recompute)
 {
 	pasgn_t min_pair;
 	std::pair<csize_t, csize_t> min_idx, expected_idx;
 	float min_dist = FLT_MAX;
 	float expected_dist = FLT_MAX;
 
-	get_min(expected, min_pair, min_idx, expected_idx, expected_dist, min_dist);
+	get_min(expected.first, min_pair, min_idx, expected_idx, expected_dist, min_dist);
 
-	if (expected != min_pair && !float_diff(expected_dist, min_dist, 0.001f))
+	if (expected.first != min_pair)//0.001f
 	{
-		std::cout << "cluster branching" << std::endl;
-		min_pair = expected;
-		min_idx = expected_idx;
+		bool good = true;
+		if (expected.first.first != min_pair.first && expected.first.second != min_pair.second)
+		{
+			good = recompute(min_pair) < expected.second;
+		}
+		else
+			good = !float_diff(expected_dist, min_dist, 0.001f);
+			
+		if (good)
+		{
+			std::cout << "cluster branching" << std::endl;
+			min_pair = expected.first;
+			min_dist = expected.second;
+			min_idx = expected_idx;
+		}
 	}
 
 	csize_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);

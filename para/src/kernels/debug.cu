@@ -178,3 +178,152 @@ chunk_t run_simple_min(const float* clusters, csize_t dim, csize_t count, chunk_
 
 	return res;
 }
+
+__global__ void point_eucl(const float* lhs_centroid, const float* rhs_centroid, csize_t dim, float* res)
+{
+	*res = euclidean_norm(lhs_centroid, rhs_centroid, dim);
+}
+
+#include "neighbor/neighbor_maha.cuh"
+
+__global__ void point_maha(const float* lhs_centroid, const float* rhs_centroid, csize_t dim,
+	const float* lhs_icov, const float* rhs_icov, float* ret)
+{
+	extern __shared__ float shared_mem[];
+
+	float dist = 0;
+
+	auto lane_id = threadIdx.x % warpSize;
+
+	if (!rhs_icov)
+		dist += euclidean_norm(lhs_centroid, rhs_centroid, dim);
+
+	for (csize_t i = lane_id; i < dim; i += warpSize)
+		shared_mem[i] = lhs_centroid[i] - rhs_centroid[i];
+
+	__syncwarp();
+
+	if (rhs_icov)
+		dist += maha_dist(shared_mem, rhs_icov, dim, lane_id);
+
+	dist += maha_dist(shared_mem, lhs_icov, dim, lane_id);
+
+	if (lane_id == 0)
+	{
+		*ret = dist;
+	}
+}
+
+float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, csize_t dim)
+{
+	float* cu_res;
+	CUCH(cudaMalloc(&cu_res, sizeof(float)));
+
+	point_eucl << <1, 1 >> > (lhs_centroid, rhs_centroid, dim, cu_res);
+
+	CUCH(cudaDeviceSynchronize());
+	float res;
+	CUCH(cudaMemcpy(&res, cu_res, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	CUCH(cudaFree(cu_res));
+
+	return res;
+}
+
+float run_point_maha(const float* lhs_centroid, const float* rhs_centroid, csize_t dim,
+	const float* lhs_icov, const float* rhs_icov)
+{
+	float* cu_res;
+	CUCH(cudaMalloc(&cu_res, sizeof(float)));
+	auto icov_size = (dim + 1) * dim / 2;
+
+	point_maha << <1, 32, icov_size*sizeof(float) >> > (lhs_centroid, rhs_centroid, dim, lhs_icov, rhs_icov,cu_res);
+
+	CUCH(cudaDeviceSynchronize());
+	float res;
+	CUCH(cudaMemcpy(&res, cu_res, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+	CUCH(cudaFree(cu_res));
+
+	return res;
+}
+
+__global__ void compare_nei_u(const neighbor_t* lhs, const neighbor_t* rhs, const csize_t* update,
+	const csize_t* small_size, const csize_t* big_size, csize_t big_begin, csize_t new_idx)
+{
+	printf("to update %d %d\n", *small_size, *big_size);
+	printf("small:\n");
+	for (size_t i = 0; i < *small_size; i++)
+	{
+		printf("%d ", update[i]);
+	}
+	printf("\nbig:\n");
+	for (size_t i = big_begin; i < *big_size; i++)
+	{
+		printf("%d ", update[i]);
+	}
+	printf("\n");
+	for (size_t i = 0; i < *small_size; i++)
+	{
+		printf("e %f %f ", lhs[update[i]].distance, rhs[update[i]].distance);
+
+		if (lhs[update[i]].distance != rhs[update[i]].distance)
+			printf("d");
+
+		if (update[i] == new_idx)
+			printf(" new");
+		printf("\n");
+	}
+
+	for (size_t i = big_begin; i < *big_size; i++)
+	{
+		printf("m %f %f ", lhs[update[i]].distance, rhs[update[i]].distance);
+		if (lhs[update[i]].distance != rhs[update[i]].distance)
+			printf("d");
+		if (update[i] == new_idx)
+			printf(" new");
+		printf("\n");
+	}
+}
+
+__global__ void compare_nei(const neighbor_t* lhs, const neighbor_t* rhs,
+	const csize_t small_size, csize_t big_begin, csize_t big_size, csize_t new_idx)
+{
+	printf("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n");
+	for (csize_t i = 0; i < small_size; i++)
+	{
+		printf("e %d: %f %d, %f %d ", i, lhs[i].distance, lhs[i].idx, rhs[i].distance, rhs[i].idx);
+
+		if (lhs[i].distance != rhs[i].distance)
+			printf("d");
+
+		if (i == new_idx)
+			printf(" new");
+		printf("\n");
+	}
+
+	for (csize_t i = big_begin; i < big_begin + big_size; i++)
+	{
+		printf("e %d: %f %d, %f %d ", i, lhs[i].distance, lhs[i].idx, rhs[i].distance, rhs[i].idx);
+
+		if (lhs[i].distance != rhs[i].distance)
+			printf("d");
+
+		if (lhs[i].distance > rhs[i].distance)
+			printf("xxxx");
+
+		if (i == new_idx)
+			printf(" new");
+		printf("\n");
+	}
+}
+
+void run_compare_nei_u(const neighbor_t* lhs, const neighbor_t* rhs, const csize_t* update,
+	const csize_t* small_size, const csize_t* big_size, csize_t big_begin, csize_t new_idx)
+{
+	compare_nei_u<<<1,1>>>(lhs, rhs, update, small_size, big_size, big_begin, new_idx);
+}
+
+void run_compare_nei(const neighbor_t* lhs, const neighbor_t* rhs,
+	const csize_t small_size, csize_t big_begin, csize_t big_size, csize_t new_idx)
+{
+	compare_nei << <1, 1 >> > (lhs, rhs, small_size, big_begin, big_size, new_idx);
+}

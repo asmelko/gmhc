@@ -2,16 +2,16 @@
   "configurations": [
     {
       "name": "WSL-Debug",
-      "generator": "Unix Makefiles",
+      "generator": "Ninja",
       "configurationType": "Debug",
       "buildRoot": "${projectDir}\\build\\${name}",
       "installRoot": "${projectDir}\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
-      "cmakeCommandArgs": "-DBUILD_GMHC_PARA=false",
+      "cmakeCommandArgs": "-DBUILD_GMHC_SERIAL=false -DCMAKE_CUDA_COMPILER=/usr/local/cuda/bin/nvcc",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_x64" ],
-      "wslPath": "${defaultWSLPath}",
+      "wslPath": "C:\\Users\\as890994\\AppData\\Local\\Microsoft\\WindowsApps\\ubuntu1804.exe",
       "addressSanitizerRuntimeFlags": "detect_leaks=1",
       "variables": [],
       "addressSanitizerEnabled": true

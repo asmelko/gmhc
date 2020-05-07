@@ -21,7 +21,7 @@ struct shared_apriori_data_t
     csize_t cluster_count;
     asgn_t id;
 
-    static constexpr csize_t neighbors_size = 2;
+    static constexpr csize_t neighbors_size = 1;
 
     cublasHandle_t cublas_handle;
 };

@@ -24,6 +24,9 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t s
 			tmp.min_j = neighbors[idx * N].idx;
 			tmp.min_i = idx;
 		}
+
+		if (idx >= small_count)
+			idx -= big_begin - small_count;
 	}
 
 	tmp = reduce_min_block(tmp, shared_mem);
@@ -52,17 +55,31 @@ void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neigh
 			sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.move_a, upd_data.move_b, upd_data.new_idx);
 
 	if (sizes.eucl_size)
-		neighbors_u<N><<<info.grid_dim, info.block_dim, shared>>>
-			(data.centroids, tmp_neighbors, upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size, upd_data.new_idx);
+	{
+		neighbors_u<N> << <info.grid_dim, info.block_dim, shared >> >
+			(data.centroids, act_neighbors, upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size, upd_data.new_idx);
+
+		neighbors<N> << <info.grid_dim, info.block_dim, shared >> >
+			(data.centroids, data.dim, sizes.eucl_size, tmp_neighbors);
+
+		cudaDeviceSynchronize();
+
+		run_compare_nei(act_neighbors, tmp_neighbors,
+			sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
+
+		cudaDeviceSynchronize();
+	}
 
 	if (sizes.maha_size)
 		neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>> 
-			(data.centroids, data.inverses, tmp_neighbors, upd_data.to_update, upd_data.maha_update_size,
+			(data.centroids, data.inverses, act_neighbors, upd_data.to_update, upd_data.maha_update_size,
 				data.dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
 
-	reduce_u<N><<<info.grid_dim, info.block_dim>>>
-		(tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.eucl_update_size, 
-			sizes.maha_begin, upd_data.maha_update_size, info.grid_dim);
+	//reduce<N> << <info.grid_dim, info.block_dim >> >(tmp_neighbors, info.grid_dim, sizes.eucl_size, act_neighbors);
+
+	//reduce_u<N><<<info.grid_dim, info.block_dim>>>
+	//	(tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.eucl_update_size, 
+	//		sizes.maha_begin, upd_data.maha_update_size, info.grid_dim);
 		
 	CUCH(cudaGetLastError());
 	CUCH(cudaDeviceSynchronize());

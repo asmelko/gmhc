@@ -63,7 +63,11 @@ void print_nei(neighbor_t* neighbors, clustering::csize_t nei_number, clustering
 void run_print_assg(clustering::asgn_t* assignments, clustering::csize_t point_size);
 void run_print_centroid(const float* centroid, clustering::csize_t dim, clustering::csize_t count);
 void run_print_up(clustering::csize_t* updated, clustering::csize_t* eucl_count, clustering::csize_t maha_begin, clustering::csize_t* maha_count);
-
+float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, clustering::csize_t dim);
+float run_point_maha(const float* lhs_centroid, const float* rhs_centroid, clustering::csize_t dim, const float* lhs_icov, const float* rhs_icov);
+void run_compare_nei_u(const neighbor_t* lhs, const neighbor_t* rhs, const clustering::csize_t* update, const clustering::csize_t* small_size, const clustering::csize_t* big_size, clustering::csize_t big_begin, clustering::csize_t new_idx);
+void run_compare_nei(const neighbor_t* lhs, const neighbor_t* rhs,
+	const clustering::csize_t small_size, clustering::csize_t big_begin, clustering::csize_t big_size, clustering::csize_t new_idx);
 
 chunk_t run_simple_min(const float* clusters, clustering::csize_t dim, clustering::csize_t count, chunk_t* out);
 

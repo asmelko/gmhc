@@ -55,6 +55,7 @@ private:
     void compute_icov(csize_t pos);
 
     void verify(pasgn_t id_pair, float dist);
+    float recompute_dist(pasgn_t expected_id);
 };
 
 }
