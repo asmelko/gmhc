@@ -45,7 +45,8 @@
 \usepackage{listings}
 \usepackage{algorithm}
 \usepackage{algpseudocode}
-\usepackage{natbib}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
+\usepackage[natbib,backend=bibtex]{biblatex}         % citation style AUTHOR (YEAR), or AUTHOR [NUMBER]
+\addbibresource{bibliography}
 \usepackage[nottoc]{tocbibind} % makes sure that bibliography and the lists
 			    % of figures/tables are included in the table
 			    % of contents
@@ -54,6 +55,9 @@
 \usepackage{paralist}       % improved enumerate and itemize
 \usepackage{xcolor}         % typesetting in color
 
+\usepackage[textsize=tiny, linecolor=red!50!black, backgroundcolor=yellow!30]{todonotes}
+\setlength{\marginparwidth}{6em}
+\setuptodonotes{fancyline}
 \newcommand{\xxx}[1]{\textcolor{red}{#1}}
 
 %%% Basic information on the thesis

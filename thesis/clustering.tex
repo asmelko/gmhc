@@ -2,17 +2,25 @@
 
 In the field of clustering analysis, there is no strict definition for cluster itself. That may be one reason why there is such a vast amount of clustering algorithms; many authors such as \citet{estivill2002so} discuss this topic.  However, the one think in common that we can find among all the algorithms is a work with a group of data objects.
 
-Suppose data $\mathcal{D}$ given as a $n$ $d$-dimensional vectors $(x_1,\dots,x_d) \subset \R_d$  -- objects; each element of a vector describes specific object property. Two objects are similar if values of their respective properties are alike. Then, clustering analysis can be defined as a form of grouping objects into subsets of $\mathbf{D}$ while maximizing inter-set object similarity and minimizing intra-set object similarity.
+
+According to a field of use, the data objects are represented variously (graphs, text sequences, etc.). The current thesis will work with a clustering of objects represented by a vector of real numbers.
+
+Suppose a dataset $\mathcal{D}$ given as a $n$ $d$-dimensional vectors $(x_1,\dots,x_d) \subset \R_d$  --- objects; each element of a vector describes specific object property. Two objects are similar if values of their respective properties are alike. Then, clustering analysis can be defined as a form of grouping objects into subsets of $\mathcal{D}$ while maximizing inter-set object similarity and minimizing intra-set object similarity.
 
 \section{Clustering models}
 
-Concrete variations of clustering analysis are defined by a clustering model. They are divided into several sections.
+Specific variation of clustering analysis is defined by a clustering model. For the purpose of the following chapters, we will describe the following two clustering models:
+\begin{itemize}
+	\item Centroid-based model
+	\item Hierarchical model
+\end{itemize}
+
 
 \subsection{Centroid-based model}
 
-\emph{Centroid-based clustering model} represents clusters only by a central vector --- \emph{centroid} (see def. \ref{def01:centr}) --- which is not necessarily a member of a working set. Many implementations of this model need the number of required centroids in advance. We define the following optimalization problem for this kinds of algorithms. 
+\emph{Centroid-based clustering model} represents clusters only by a central vector --- \emph{centroid} (see def. \ref{def01:centr}) --- which is not necessarily a member of a dataset. Many implementations of this model need the number of required centroids in advance. We define the following optimalization problem for this kinds of algorithms. 
 
-\begin{problem}
+\begin{problem}[Centroid-based clustering]
 	Having a distance function $d$, find $k$ centroids $C_1,\dots,C_k$ from the domain of the dataset $\mathcal{D}$ such that the sum \ref{eq01:sum}
 	is minimized.
 \end{problem}
@@ -23,8 +31,8 @@ Concrete variations of clustering analysis are defined by a clustering model. Th
 
 This problem is uneasy to solve due to its exponential complexity. Hence, many approximation algorithms emerged. 
 
-\begin{defn}
-	Suppose a cluster $\mathcal{C} \subset \R^d$. We define the \emph{centroid} $c \in \R^d$ of the cluster $\mathcal{C}$ as the average of all points $o \in \mathcal{C}$. 
+\begin{defn}[Centroid]
+	Suppose a cluster $\mathcal{C} \subset \R^d$. We define the \emph{centroid} $c \in \R^d$ of the cluster $\mathcal{C}$ such that its $i$-th element is equal to the arithmetic mean of the $i$-th elements of all points $o \in \mathcal{C}$. 
 	\label{def01:centr}
 \end{defn}
 
@@ -58,9 +66,10 @@ The most common implementation of centroid-based clustering is \emph{k-means}. I
 \end{algorithm}
 
 
-The algorithm divides data into $k$ clusters (hence, \emph{k}-means) in a iterative manner. Before the first iteration, initial $k$ central vectors are selected from the dataset. Each iteration, dataset objects are grouped into clusters according to the closest centroid. After that, new centroids are then computed from new clusters. Next iteration follows until centroids does not change or predefined number of iterations is reached. 
+The algorithm divides data into $k$ clusters (hence, \emph{k}-means) in a iterative manner. Before the first iteration, initial $k$ central vectors are selected from the dataset\footnote{The way of selecting $k$ initial vectors varies between 
+implementations.}. In the iteration loop, dataset objects are grouped into clusters according to the closest centroid. After that, new centroids are then computed from new clusters. Next iteration follows until centroids does not change or predefined number of iterations is reached. 
 
-The advantage of this algorithm is the fact that it is easily comprehensible; hence can sustain for large variety of datasets. Another think is that it is said to be the speediest centroid-based algorithm. However, the disadvantages are inability to deal with the noise in a dataset and clusters of non-convex shape~\cite{uppada2014centroid}.
+It is the main advantage that this algorithm is easily comprehensible; hence can be employed in a large variety of datasets. Also, the algorithm simplicity favors in its great performance. However, the disadvantages are inability to deal with the noise in a dataset and clusters of non-convex shape~\cite{uppada2014centroid}.
   
 
 \subsection{Hierarchical model}
@@ -69,11 +78,11 @@ In \emph{Hierarchical clustering model}, objects are \emph{connected} together f
 
 The above described approach of a hierarchical algorith is called \emph{agglomerative} approach. The algorithm begins with each object representing a cluster on its own. Then, in a bottom-up fashion clusters are successively connected into the only cluster. The other option is \emph{divisive approach}. Beginning with a single all-inclusive cluster it is divided into sub-clusters until single objects remain~\cite{rokach2005clustering}. 
 
-The result of hierarchical clustering can be viewed in a \emph{dendrogram} (see fig. \ref{fig01:dendro}). The x-axis states the distance of connected clusters. The y-axix shows the objects from a dataset.
+The result of hierarchical clustering can be viewed in a \emph{dendrogram} (see fig. \ref{fig01:dendro}). The x-axis states the distance between connected clusters. The y-axix shows labels of the objects from a dataset. Hence, the clusters that are connected in the higher part of the dendrogram were further apart from each other and the clusters connected at its bottom were close to each other.
 
 \begin{figure}\centering
-	\includegraphics[width=\linewidth]{img/dendro}
-	\caption{An example of dendrogram. placeholder }
+	\includegraphics[width=10cm]{img/dendro}
+	\caption{An example of a dendrogram.}
 	\label{fig01:dendro}
 \end{figure}
 
@@ -95,6 +104,8 @@ It is obvious that the choice of a distance function can influence the result of
 	\centering
 	\begin{tabular}{ll}
 		\toprule
+		Distance measure & Formula \\
+		\midrule
 		Manhattan & $||a-b||_1 = \sum_{i=1...d}|a_i-b_i|$          \\
 		Euclidean & $||a-b||_2 = \sqrt{\sum_{i=1...d}(a_i-b_i)^2}$ \\
 		Chebyshev & $||a-b||_\infty = \max_{i=1\dots d}|a_i-b_i|$  \\ \bottomrule
@@ -139,14 +150,18 @@ To produce more meaningful results, hierarchical clustering algorithms have bran
 
 \subsection{Mahalanobis distance}
 
-The significant part of this clustering variation is the measure of cluster dissimilarity. It is based on the \emph{Mahalanobis distance} \cite{mahalanobis1936generalized} (see def. \ref{def01:maha}), a distance between a point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis then points laying on the axis are closer to the set than points that are not; even if their euclidian distance to the center of the set is closer.
+The significant part of this clustering variation is the measure of cluster dissimilarity. It is based on the \emph{Mahalanobis distance} \cite{mahalanobis1936generalized}, a distance between a point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis then points laying on the axis are closer to the set than points that are not; even if their euclidian distance to the center of the set is closer.
 
-\begin{defn}
-	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$. We define \emph{the random vector of a cluster} $\mathbf{v}$ as a $d$-element vector; the $i$-th element being a discrete random variable with equal probability values $\{o_i:o\in \mathcal{C}\}$
+For its computation, the Mahalanobis distance uses a covariance matrix of the participating cluster. To know how the matrix is created, we need to define the \emph{random vector of a cluster}. 
+
+\begin{defn}[Random vector]
+	Given a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, we define \emph{the random vector of a cluster} $v$ as a vector of $d$ discrete random variable; a random variable $v_i$ having equal probability values $\{o_i:o\in \mathcal{C}\}$
 \end{defn}
 
-\begin{defn}
-	Suppose we have a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, the centroid $c$ of $\mathcal{C}$ and covariance matrix $\mathcal{S}$ from the random vector $\mathbf{v}$ of the cluster $\mathcal{C}$. \emph{Mahalanobis distance} between $u \in \R^d$ and $\mathcal{C}$ is defined by the equation \ref{eq01:maha}.
+With the random vector of a cluster we can easily create the covariance matrix of a cluster and properly define the Mahalanobis distance:
+
+\begin{defn}[Mahalanobis distance]
+	Having a cluster of $d$-dimensional points $\mathcal{C} \subset \R^d$, its centroid $c$ and the covariance matrix $\mathcal{S}$, we define the \emph{Mahalanobis distance} between $u \in \R^d$ and $\mathcal{C}$ by the equation \ref{eq01:maha}.
 	\begin{equation}\label{eq01:maha}
 	d_M(u,\mathcal{C}) = \sqrt{(u-c)^TS^{-1}(u-c)}
 	\end{equation}
@@ -154,43 +169,51 @@ The significant part of this clustering variation is the measure of cluster diss
 \end{defn}
 
 
-With \emph{Mahalanobis distance}, we are able to compute a point-cluster proximity. To fully incorporate the distance in a hierarchical algorithm, we need to find a method how to measure cluster-cluster proximity. There are two options how to achieve this. 
+However, using the equation \ref{eq01:maha}, we are only able to compute a point-cluster proximity. To fully incorporate the distance in a hierarchical algorithm, we need to find a method how to measure cluster-cluster proximity. There are two options how to achieve this:
 
-First, we can choose a path of the single and complete linkage criterion; hence, all points in cluster contribute to the measure. We achieve this with \emph{Full Mahalanobis distance} (FMD) (see def. \ref{def01:fmd}).
-The second option is similar to the centroid linkage as only the centroid of a cluster occurs in the computing. We define this as a \emph{Centroid Mahalanobis distance} (CMD) (see def. \ref{def01:cmd}).      
+\begin{itemize}
 
-To easily imagine the measure, suppose we have two elliptic clusters. The algorithm favors such clusters that their ellipsis are alongside rather than in a prolongation of one another \cite{dagnelie1991using} (see fig. \ref{fig01:ellipses}). Only when the cluster objects are uncorrelated, this measure of dissimilarity is equal to the euclidean distance with an according linkage.
+\item
+First, we can choose a path of the single and complete linkage criterion; hence, all points in cluster contribute to the measure. We achieve this with the \emph{Full Mahalanobis distance} (FMD):
 
-\begin{figure}\centering
-	\includegraphics[width=10cm]{img/ellipses}
-	\caption{Example of cluster dissimilarity in Mahalanobis-based hierarchical clustering.}
-	\label{fig01:ellipses}
-\end{figure}
-
-\begin{defn}
-	Suppose we have clusters $\mathcal{C}$ and $\mathcal{C}'$. We define the \emph{Full Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average of the mahalanobis distances between all objects $o \in \mathcal{C}$ and $\mathcal{C}'$ (see \ref{eq01:fmd}).
+\begin{defn}[Full Mahalanobis distance]
+	Having clusters $\mathcal{C}$ and $\mathcal{C}'$, we define the \emph{Full Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as the arithmetic mean of the Mahalanobis distances between each object $o \in \mathcal{C}$ and the cluster $\mathcal{C}'$ (see \ref{eq01:fmd}).
 	\begin{equation}\label{eq01:fmd}
 	d_{FM}(\mathcal{C},\mathcal{C}') =\frac{1}{|\mathcal{C}|}\sum_{o\in\mathcal{C}}{d_M(o,\mathcal{C}')}
 	\end{equation}
 	\label{def01:fmd}
 \end{defn}
 
-\begin{defn}
-	Suppose we have a clusters $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$. We define the \emph{Centroid Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as the mahalanobis distance between $c$ and $\mathcal{C}'$ (see \ref{eq01:cmd}).
+\item
+The second option is similar to the centroid linkage as only the centroid of a cluster takes part in the computing. We define this as the \emph{Centroid Mahalanobis distance} (CMD):
+
+\begin{defn}[Centroid Mahalanobis distance]
+	Suppose we have a clusters $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$. We define the \emph{Centroid Mahalanobis distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as the Mahalanobis distance between $c$ and $\mathcal{C}'$ (see \ref{eq01:cmd}).
 	\begin{equation}\label{eq01:cmd}
 	d_{CM}(\mathcal{C},\mathcal{C}')=d_M(c,\mathcal{C}')
 	\end{equation}
 	\label{def01:cmd}
 \end{defn}
 
+\end{itemize}
+
+To illustrate the measure of the Mahalanobis distance, let us suppose we have two elliptic clusters. In the means of the proximity, the measure favors such clusters that their ellipsis are alongside rather than in a prolongation of one another \cite{dagnelie1991using} (see fig. \ref{fig01:ellipses}). Only when the objects of a cluster form a spherical shape, this measure of dissimilarity is proportional to the euclidean distance with a corresponding linkage.
+
+\begin{figure}\centering
+	\includegraphics[width=10cm]{img/ellipses}
+	\caption{Example of cluster dissimilarity in the Mahalanobis-based hierarchical clustering.}
+	\label{fig01:ellipses}
+\end{figure}
+
+
 
 The pros and cons between FMD and CMD are trivial. Due to the full point contribution, FMC can produce more precise measure than its counterpart. On the other hand, CMD compensates is with the much needed time complexity. The current thesis will analyze the impact of both the methods in the following chapters.
 
 \vspace{0.5cm}
 
-To make use of this mahalanobis distance variants in MHCA implementations, we require distance funtion to be \emph{symmetric}. By its nature mahalanobis distance is not a symmetric funtion. However, we easily achieve this attribute with the \emph{Generalized distance} (see def. \ref{def01:gene}).
+To make use of these Mahalanobis distance variants in MHCA implementations, we need the distance function to be \emph{symmetric}. Originally, the Mahalanobis distance is not a symmetric funtion. However, we easily achieve this attribute with the \emph{Generalized distance}.
 
-\begin{defn}
+\begin{defn}[Generalized distance]
 	Suppose we have clusters $\mathcal{C}$, $\mathcal{C}'$ and a variant of mahalanobis distance~$d$ (either FMD or CMD). We define the \emph{Generalized distance} between clusters $\mathcal{C}$ and $\mathcal{C}'$ as an average distance between $\mathcal{C}$, $\mathcal{C}'$ and $\mathcal{C}'$, $\mathcal{C}$ (see \ref{eq01:gene}).
 	\begin{equation}\label{eq01:gene}
 	d_G(\mathcal{C},\mathcal{C}') = \frac{d(\mathcal{C},\mathcal{C}')+d(\mathcal{C}',\mathcal{C})}{2}
@@ -199,14 +222,16 @@ To make use of this mahalanobis distance variants in MHCA implementations, we re
 \end{defn}  
 
 
-\subsection{Algorithm optimizations}
+\subsection{Algorithm behavior improvemets}
 
-In early stages of MHCA it is sub-optimal to use full \emph{generalized distance}. It is due to the fact that clusters with one to few points does not form computable ellipsoids; in other words, Mahalanobis distance equation would produce distorted results. 
+If the distance function of a MHCA implementation was let to be a pure Mahalanobis distance, it would eventually halt due to the following problem --- the covariance matrix computation.
 
-To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold --- \emph{Mahalanobis threshold}. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance} (see def. \ref{def01:alt}).
+In early stages of MHCA --- when clusters consist of fewer points --- the covariance matrix of a cluster is often singular. Hence, we can not compute its inverse and perform the distance measure. Furthermore, the matrix can happen to be close to singular and --- when inverted --- can produce distorted results.
 
-\begin{defn}
-	Suppose a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$ and a variant of mahalanobis distance $d$. We define \emph{Altered general distance} by equation \ref{eq01:alt}:
+To solve this problem, we used the variant of euclidean distance with centroid linkage on clusters with their size under specified threshold --- \emph{Mahalanobis threshold}. The value of the threshold is proportional to the size of a dataset varying at about 0.1\% of the dataset size \cite{fivser2012detection}. Hence, to implement this optimization we defined \emph{Altered general distance}.
+
+\begin{defn}[Altered general distance]
+	Given a threshold $T_M$, a cluster $\mathcal{C}$ with its centroid $c$ and a cluster $\mathcal{C}'$ with its centroid $c'$ and a variant of mahalanobis distance $d$, we define \emph{Altered general distance} by equation \ref{eq01:alt}:
 	\begin{equation}
 	d_A(\mathcal{C},\mathcal{C}')=
 	\begin{cases}
@@ -224,9 +249,9 @@ To solve this problem, we used the variant of euclidean distance with centroid l
 
 \section{Algorithm complexity}
 
-The common problem in clustering algorithms is their \emph{time complexity}. In hierarchical clustering algorithms, we trivially achieve time complexity of $O(n^3)$ using $O(n^2)$ space. This restricts the use of the algorithms to dataset sizes varying between $10^3$ and $10^5$ points. Be aware that this restrictions is present not only due to the time complexity; the current computers can only with great difficulties store $10^6$ data points with the mentioned \emph{space complexity}.
+The common problem in clustering algorithms is their time complexity. In hierarchical clustering algorithms, we can achieve time complexity of $O(n^3)$ using $O(n^2)$ space. However, this restricts the use of the algorithms; datasets must consist of $10^3$ to $10^5$ points when using a contemporary hardware. Note that this restrictions is present not only due to the time complexity; for the current computers, it would be a difficult task to store $10^6$ data points into a structure with quadratic space requirements (i.e. a matrix).
 
-Let us elaborate more about the space and time complexity of the hierarchical clustering analysis (HCA) algorithms. \citet{day1984efficient} describes three implementations of HCA. In this thesis, we employ them in the manner of further research and describe them with emphases on the algorithm complexity:
+Due to the consequences of this problem, a MHCA algorithm implementation must be created wisely. \citet{day1984efficient} help us with this task by proposing three different implementations of a hierarchical clustering analysis (HCA). We describe them thoroughly and research potential pros and cons they bring:
 
 \begin{description}
 	\item[HCA with the dissmilarity matrix] -- The first and the most trivial implementation uses the \emph{dissimilarity matrix} $M$ (see def. \ref{def01:dismat}). Unless there remains only one cluster, the algorithm searches $M$ for the closest pair of clusters, stores the pair and updates $M$ (see alg. \ref{alg01:dismat}).
@@ -328,18 +353,14 @@ Let us elaborate more about the space and time complexity of the hierarchical cl
 
 \end{description}
 
-\begin{example}
+To fully show disadvantages of the algorithm complexity, we measured R language library function \texttt{hclust}; the frequenly used implementation of HCA. It computes centroid linkage with euclidean distance and uses dissimilarity matrix. 
 
-To fully show the algorithm complexity downside, we measured R language library function \texttt{hclust}; the frequenly used implementation of HCA. It computes centroid linkage with euclidean distance and uses dissimilarity matrix. 
+Fig. \ref{fig01:hclust} shows above stated polynomial time complexity of the implementation. Moreover, it halted at a dataset size of 47K as the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
 
-Fig. \ref{fig01:hclust} shows above stated polynomial time complexity of the implementation. Moreover, it halted at a dataset size of $47 000$ as the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
-
-In conclusion, we can see that the space complexity of HCA can be more restrictive in the means of overall algorithm usability than its time complexity. It can be easily solved by removing high space complexity structures (such as a dissimilarity matrix) for the price of lower speed while retaining the same asymptotic time complexity.
+In conclusion, the space complexity of HCA can be even more restrictive in the means of overall algorithm usability than its time complexity. We solve this by removing high space complexity structures (such as a dissimilarity matrix) for the price of lower speed while retaining the same asymptotic time complexity.
 
 \begin{figure}\centering
 	\includegraphics[width=10cm]{img/hclust}
 	\caption{Time complexity of \texttt{hclust} with respect to the size of a dataset.}
 	\label{fig01:hclust}
 \end{figure}
-
-\end{example}
