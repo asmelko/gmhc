@@ -80,15 +80,30 @@ float eucl_dist(const float* lhs, const float* rhs, csize_t size)
 	}
 	return std::sqrt(tmp_dist);
 }
-
-std::vector<float> mat_vec(const float* mat, const float* vec, csize_t size)
+struct size2 { size_t x, y; };
+size2 compute_coordinates(csize_t count_in_line, csize_t plain_index)
 {
-	std::vector<float> res;
-	for (csize_t i = 0; i < size; i++)
+	csize_t y = 0;
+	while (plain_index >= count_in_line)
 	{
-		res.push_back(0);
-		for (csize_t j = 0; j < size; j++)
-			res.back() += mat[i * size + j] * vec[j];
+		y++;
+		plain_index -= count_in_line--;
+	}
+	return { plain_index + y, y };
+}
+
+float mat_vec(const float* mat, const float* vec, csize_t size)
+{
+	float res = 0;
+	auto icov_size = (size + 1) * size / 2;
+
+	for (csize_t i = 0; i < icov_size; i++)
+	{
+		auto coords = compute_coordinates(size, i);
+		auto m = mat[coords.x + coords.y * size];
+		if (coords.x != coords.y)
+			m *= 2;
+		res += m* (vec[coords.x] * vec[coords.y]);
 	}
 	return res;
 }
@@ -116,8 +131,8 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 	{
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(lhs_m, diff.data(), size);
-		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
-		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
+		auto tmp_dist = std::sqrt(tmp);
+		dist += isnan(tmp_dist) || isinf(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
@@ -126,12 +141,14 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 	{
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(rhs_m, diff.data(), size);
-		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
-		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
+		auto tmp_dist = std::sqrt(tmp);
+		dist += isnan(tmp_dist) || isinf(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
 
+	if (isinf(dist) || isnan(dist))
+		return FLT_MAX2;
 	return dist / 2;
 }
 
@@ -287,6 +304,10 @@ void validator::get_min(const pasgn_t& expected,
 {
 	csize_t from, to;
 
+	volatile int x;
+	if (expected == std::make_pair<csize_t, csize_t>(8737, 8791))
+		x = 45;
+
 	while (apr_idx_ != apr_sizes_.size() && apr_sizes_[apr_idx_] == 1)
 		++apr_idx_;
 
@@ -305,10 +326,17 @@ void validator::get_min(const pasgn_t& expected,
 	{
 		for (csize_t j = i + 1; j < to; j++)
 		{
-			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
-
 			pasgn_t curr_ids = clusters_[i].id > clusters_[j].id ?
 				std::make_pair(clusters_[j].id, clusters_[i].id) : std::make_pair(clusters_[i].id, clusters_[j].id);
+
+			if (clusters_[i].id == 6803 && clusters_[j].id == 6815)
+				x = 4;
+
+			if (curr_ids == expected)
+				x = 5;
+
+			auto tmp_dist = compute_distance(clusters_[i].centroid.data(), clusters_[i].icov.data(), clusters_[j].centroid.data(), clusters_[j].icov.data(), point_dim_);
+
 
 			if (curr_ids == expected)
 			{
@@ -337,9 +365,14 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<f
 
 	if (expected.first != min_pair)//0.001f
 	{
-		bool good = true;
+		volatile bool good = true;
 		if (expected.first.first != min_pair.first && expected.first.second != min_pair.second)
-			good = recompute(min_pair) >= expected.second;
+		{
+			auto re = recompute(min_pair);
+			if (re != expected.second)
+				good = re > expected.second;
+			good = true;
+		}
 		else
 			good = !float_diff(expected_dist, min_dist, 0.001f);
 			

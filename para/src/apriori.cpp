@@ -6,7 +6,7 @@
 
 using namespace clustering;
 
-#define KERNEL_INFO kernel_info(80, 1024)
+#define KERNEL_INFO kernel_info(6, 1024)
 
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
 	: shared(shared_data) {}
@@ -25,15 +25,24 @@ void clustering_context_t::initialize()
 	update_data.maha_update_size = shared.cu_maha_upd_size;
 	update_data.to_update = cu_updates;
 }
-
+int it = 0;
 gmhc::res_t clustering_context_t::iterate()
 {
 	cluster_data_t data[2];
+
+	if (it > 4415)
+	{
+		printf("%f\n", recompute_dist(std::make_pair(8791, 8837)));
+	}
 
 	auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, bounds, shared.cu_min);
 
 	data[0] = cluster_data[min.min_i];
 	data[1] = cluster_data[min.min_j];
+
+	volatile int x;
+	if (data[0].id == 6803 || data[1].id == 6803)
+		x = 5;
 
 	move_clusters(min.min_i, min.min_j, data[0].size + data[1].size >= maha_threshold);
 
@@ -53,6 +62,7 @@ gmhc::res_t clustering_context_t::iterate()
 
 	run_update_neighbors<shared_apriori_data_t::neighbors_size>(compute_data, cu_tmp_neighbors, cu_neighbors, bounds, update_data, starting_info);
 
+	++it;
 	return std::make_pair(ret, min.min_dist);
 }
 
@@ -188,7 +198,7 @@ void clustering_context_t::compute_icov(csize_t pos)
 		CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 		if (info != 0)
-			run_set_default_inverse(icov, point_dim * point_dim);
+			run_set_default_inverse(icov, point_dim);
 
 		run_store_icovariance(cu_inverses + pos * icov_size, icov, point_dim);
 	}
@@ -228,12 +238,13 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
 		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
 			idxs.push_back(i);
 	}
-	for (csize_t i = bounds.maha_begin; i < bounds.maha_size; i++)
+	for (csize_t i = bounds.maha_begin; i < bounds.maha_begin + bounds.maha_size; i++)
 	{
 		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
 			idxs.push_back(i);
 	}
-
+	if (idxs.size() != 2)
+		return 0;
 	csize_t i = idxs[0];
 	csize_t j = idxs[1];
 	if (idxs[0] > idxs[1])
@@ -256,6 +267,9 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
 			rhs_icov = cu_inverses + icov_size * i;
 
 		dist = run_point_maha(cu_centroids + point_dim * j, cu_centroids + point_dim * i, point_dim, cu_inverses + icov_size * j, rhs_icov);
+
+		run_print_centroid(cu_centroids + point_dim * j, point_dim, 1);
+		run_print_centroid(cu_centroids + point_dim * i, point_dim, 1);
 	}
 	return dist;
 }

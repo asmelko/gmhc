@@ -210,7 +210,7 @@ __global__ void point_maha(const float* lhs_centroid, const float* rhs_centroid,
 
 	if (lane_id == 0)
 	{
-		*ret = dist;
+		*ret = dist/2;
 	}
 }
 

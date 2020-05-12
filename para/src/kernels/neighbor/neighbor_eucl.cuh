@@ -26,9 +26,11 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 		for (; y < idx; y += blockDim.x * gridDim.x)
 		{
 			float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
-
+			if (isinf(dist) || isnan(dist))
+				dist = FLT_MAX2;
 			//add_neighbor<N>(local_neighbors, neighbor_t{ dist, y });
 			add_neighbor<N>(neighbors_act + y * N, neighbor_t{ dist, idx });
+			add_neighbor<N>(neighbors_a + (gridDim.x * y + blockIdx.x) * N, neighbor_t{ dist, idx });
 		}
 	else
 		y += idx;
@@ -36,14 +38,18 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 	for (; y < centroid_count - 1; y += blockDim.x * gridDim.x)
 	{
 		float dist = euclidean_norm(shared_mem, centroids + (y + 1) * dim, dim);
+		if (isinf(dist) || isnan(dist))
+			dist = FLT_MAX2;
 
 		add_neighbor<N>(local_neighbors, neighbor_t{ dist, y + 1 });
 	}
 
 	reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem + dim));
 
+
 	if (threadIdx.x == 0)
 		memcpy(neighbors_a + (gridDim.x * idx + blockIdx.x) * N, local_neighbors, N * sizeof(neighbor_t));
+	__syncthreads();
 }
 
 template <csize_t N>
@@ -66,10 +72,16 @@ __global__ void neighbors_u(const float* __restrict__ centroids,
 	extern __shared__ float shared_mem[];
 
 	csize_t count = *upd_count;
-
+	bool eucl = false;
 	for (csize_t i = 0; i < count; ++i)
 	{
 		auto x = updated[i];
-		point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, neighbors_act, shared_mem, x, x == new_idx);
+		if (x != new_idx)
+			point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, neighbors_act, shared_mem, x, x == new_idx);
+		else
+			eucl = true;
 	}
+
+	if (eucl)
+		point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, neighbors_act, shared_mem, new_idx, true);
 }
