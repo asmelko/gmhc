@@ -15,7 +15,7 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
 	maha_threshold_ = mahalanobis_threshold;
-	starting_info_ = kernel_info(80, 512);
+	starting_info_ = kernel_info(6, 512);
 
 	CUCH(cudaSetDevice(0));
 

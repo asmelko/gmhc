@@ -17,13 +17,16 @@ void run_set_default_asgn(asgn_t* asgns, csize_t N)
 
 __global__ void set_default(float* __restrict__ icov_matrix, csize_t size)
 {
-	for (csize_t i = threadIdx.x; i < size; i += blockDim.x)
-		icov_matrix[i] = 1;
+	for (csize_t i = threadIdx.x; i < size*size; i += blockDim.x)
+		if (i / size == i % size)
+			icov_matrix[i] = 1;
+		else
+			icov_matrix[i] = 0;
 }
 
 void run_set_default_inverse(float* icov_matrix, csize_t size)
 {
-	set_default << <1, size >> > (icov_matrix, size);
+	set_default << <1, size*size >> > (icov_matrix, size);
 }
 
 __global__ void set_default_neigh(neighbor_t* neighbors, csize_t count)

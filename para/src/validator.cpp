@@ -117,7 +117,7 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(lhs_m, diff.data(), size);
 		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
-		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
+		dist += isnan(tmp_dist) || isinf(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
@@ -127,11 +127,13 @@ float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_
 		auto diff = minus(lhs_v, rhs_v, size);
 		auto tmp = mat_vec(rhs_m, diff.data(), size);
 		auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
-		dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
+		dist += isnan(tmp_dist) || isinf(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
 	}
 	else
 		dist += eucl_dist(lhs_v, rhs_v, size);
 
+	if (isinf(dist) || isnan(dist))
+		return FLT_MAX2;
 	return dist / 2;
 }
 

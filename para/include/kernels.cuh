@@ -29,6 +29,7 @@ struct csize2
 };
 
 constexpr clustering::csize_t MAX_DIM = 50;
+constexpr float FLT_MAX2 = 3.402823466e+37F;
 
 void assign_constant_storage(const float* value, clustering::csize_t size, cudaMemcpyKind kind);
 

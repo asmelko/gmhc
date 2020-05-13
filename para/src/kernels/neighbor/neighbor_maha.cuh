@@ -22,7 +22,7 @@ __inline__ __device__ float maha_dist(const float* __restrict__ point, const flo
 
 	if (lane_id == 0)
 	{
-		if (tmp_point < 0)
+		if (tmp_point < 0 || isnan(tmp_point) || isinf(tmp_point))
 		{
 			tmp_point = 0;
 			for (size_t i = 0; i < size; ++i)
@@ -37,7 +37,7 @@ template <csize_t N>
 __inline__ __device__ void point_neighbors_mat_warp
 (const float* __restrict__ centroids, const float* __restrict__ inverses, neighbor_t* __restrict__ neighbors,
 	float* __restrict__ curr_centroid, const float* __restrict__ this_centroid, const float* __restrict__ this_icov,
-	csize_t dim, csize_t big_begin, csize_t idx, csize_t orig_idx, bool eucl = false)
+	csize_t dim, csize_t big_begin, csize_t idx, csize_t orig_idx, neighbor_t* __restrict__ neighbors2 = nullptr, bool eucl = false)
 {
 	float dist = 0;
 
@@ -68,8 +68,11 @@ __inline__ __device__ void point_neighbors_mat_warp
 
 	if (lane_id == 0)
 	{
+		dist = (isnan(dist) || isinf(dist)) ? FLT_MAX2 : dist / 2;
 		idx = orig_idx == (csize_t)-1 ? idx : orig_idx;
-		add_neighbor<N>(neighbors, neighbor_t{ dist / 2, idx });
+		add_neighbor<N>(neighbors, neighbor_t{ dist, idx });
+		if (neighbors2)
+			add_neighbor<N>(neighbors2, neighbor_t{ dist, orig_idx });
 	}
 }
 
@@ -88,11 +91,8 @@ __inline__ __device__ void point_neighbors_mat
 	for (csize_t i = 0; i < N; ++i)
 		local_neighbors[i].distance = FLT_MAX;
 
-	bool needs_merge = false;
-
 	if (x < big_begin) // new eucl in mahas
 	{
-		needs_merge = true;
 		for (csize_t i = threadIdx.x; i < dim; i += blockDim.x)
 			shared_mem[i] = centroids[x * dim + i];
 
@@ -103,8 +103,10 @@ __inline__ __device__ void point_neighbors_mat
 			idx += blockDim.x * gridDim.x)
 		{
 			point_neighbors_mat_warp<N>
-				(centroids, inverses, local_neighbors, curr_centroid, this_centroid, this_icov, dim, big_begin, idx / warpSize, (csize_t)-1, true);
+				(centroids, inverses, neighbors + (gridDim.x * (idx / warpSize) + blockIdx.x) * N,
+					curr_centroid, this_centroid, this_icov, dim, big_begin, idx / warpSize, x, neighbors_act + (idx / warpSize) * N, true);
 		}
+		return;
 	}
 	else
 	{
@@ -138,7 +140,8 @@ __inline__ __device__ void point_neighbors_mat
 			{
 				point_neighbors_mat_warp<N>
 					(centroids, inverses, neighbors_act + (idx / warpSize) * N, 
-						curr_centroid, this_centroid, this_icov, dim, big_begin, idx / warpSize, x);
+						curr_centroid, this_centroid, this_icov, dim, big_begin, idx / warpSize, x, 
+						neighbors + (gridDim.x * (idx / warpSize) + blockIdx.x) * N);
 			}
 		}
 		else
@@ -155,15 +158,10 @@ __inline__ __device__ void point_neighbors_mat
 
 	if (threadIdx.x == 0)
 	{
-		if (needs_merge)
-		{
-			neighbor_t tmp_nei[N];
-			merge_neighbors<N>(neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, tmp_nei);
-			memcpy(local_neighbors, tmp_nei, sizeof(neighbor_t) * N);
-		}
-
 		memcpy(neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, sizeof(neighbor_t) * N);
 	}
+
+	__syncthreads();
 }
 
 template <csize_t N>
@@ -175,16 +173,14 @@ __global__ void neighbors_mat_u
 {
 	extern __shared__ float shared_mem[];
 
-	if (new_idx < big_begin)
-	{
-		point_neighbors_mat<N>(centroids, inverses, neighbors, neighbors_act, shared_mem, dim, small_count, big_begin, big_count, new_idx, true);
-	}
-
 	auto count = *upd_count - big_begin;
 
 	for (csize_t i = 0; i < count; ++i)
 	{
 		auto x = updated[i + big_begin];
-		point_neighbors_mat<N>(centroids, inverses, neighbors, neighbors_act, shared_mem, dim, small_count, big_begin, big_count, x, x == new_idx);
+		if (x != new_idx)
+			point_neighbors_mat<N>(centroids, inverses, neighbors, neighbors_act, shared_mem, dim, small_count, big_begin, big_count, x, x == new_idx);
 	}
+
+	point_neighbors_mat<N>(centroids, inverses, neighbors, neighbors_act, shared_mem, dim, small_count, big_begin, big_count, new_idx, true);
 }

@@ -6,7 +6,7 @@
 
 using namespace clustering;
 
-#define KERNEL_INFO kernel_info(80, 1024)
+#define KERNEL_INFO kernel_info(6, 1024)
 
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
 	: shared(shared_data) {}
@@ -160,17 +160,17 @@ void clustering_context_t::compute_icov(csize_t pos)
 	run_covariance(input_t{ cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, KERNEL_INFO);
 	run_finish_covariance(icov, cluster_data[pos].size, point_dim, shared.cu_tmp_icov);
 
-	CUCH(cudaDeviceSynchronize());
-
 	//test covariance
 	if (vld)
 	{
 		vld->cov_v.resize((point_dim + 1) * point_dim / 2);
+		CUCH(cudaDeviceSynchronize());
 		CUCH(cudaMemcpy(vld->cov_v.data(), icov, ((point_dim + 1) * point_dim / 2) * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 	}
 
 	//compute inverse
 	{
+		CUCH(cudaDeviceSynchronize());
 		CUCH(cudaMemcpy(shared.cu_read_icov, &shared.cu_tmp_icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 		CUCH(cudaMemcpy(shared.cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
 
@@ -188,7 +188,7 @@ void clustering_context_t::compute_icov(csize_t pos)
 		CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 		if (info != 0)
-			run_set_default_inverse(icov, point_dim * point_dim);
+			run_set_default_inverse(icov, point_dim);
 
 		run_store_icovariance(cu_inverses + pos * icov_size, icov, point_dim);
 	}
@@ -197,12 +197,15 @@ void clustering_context_t::compute_icov(csize_t pos)
 	if (vld)
 	{
 		vld->icov_v.resize(point_dim * point_dim);
+		CUCH(cudaDeviceSynchronize());
 		CUCH(cudaMemcpy(vld->icov_v.data(), icov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 	}
 }
 
 void clustering_context_t::verify(pasgn_t id_pair, float dist)
 {
+	CUCH(cudaDeviceSynchronize());
+
 	//copy centroid
 	std::vector<float> tmp_centr;
 	tmp_centr.resize(point_dim);
@@ -228,11 +231,14 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
 		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
 			idxs.push_back(i);
 	}
-	for (csize_t i = bounds.maha_begin; i < bounds.maha_size; i++)
+	for (csize_t i = bounds.maha_begin; i < bounds.maha_begin + bounds.maha_size; i++)
 	{
 		if (cluster_data[i].id == expected_id.first || cluster_data[i].id == expected_id.second)
 			idxs.push_back(i);
 	}
+
+	if (idxs.size() != 2)
+		return 0;
 
 	csize_t i = idxs[0];
 	csize_t j = idxs[1];
