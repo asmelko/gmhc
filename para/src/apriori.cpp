@@ -261,5 +261,7 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
 
 		dist = run_point_maha(cu_centroids + point_dim * j, cu_centroids + point_dim * i, point_dim, cu_inverses + icov_size * j, rhs_icov);
 	}
+	if (isinf(dist))
+		return FLT_MAX;
 	return dist;
 }

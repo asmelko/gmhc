@@ -8,7 +8,7 @@ using namespace clustering;
 chunk_t serial_euclidean_min(const reader::data_t<float>& data)
 {
 	chunk_t res;
-	res.min_dist = FLT_MAX;
+	res.min_dist = FLT_INF;
 	for (asgn_t i = 0; i < data.points; i++)
 	{
 		for (asgn_t j = i + 1; j < data.points; j++)
