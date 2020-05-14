@@ -59,7 +59,7 @@ __inline__ __device__ void point_neighbors_mat_warp
 
 	if (lane_id == 0)
 	{
-		dist = isinf(dist) ? FLT_MAX : dist / 2;
+		dist = (isinf(dist) || isnan(dist)) ? FLT_MAX : dist / 2;
 
 		add_neighbor<N>(neighbors, neighbor_t{ dist, idx });
 	}
@@ -67,7 +67,7 @@ __inline__ __device__ void point_neighbors_mat_warp
 
 template <csize_t N>
 __inline__ __device__ void point_neighbors_mat
-(const float* __restrict__ centroids, const float* __restrict__ inverses, 
+(const float* __restrict__ centroids, const float* __restrict__ inverses,
 	neighbor_t* __restrict__ neighbors, float* __restrict__ shared_mem,
 	csize_t dim, csize_t small_count, csize_t big_begin, csize_t big_count, csize_t x)
 {
@@ -89,7 +89,7 @@ __inline__ __device__ void point_neighbors_mat
 		else
 			shared_mem[i] = inverses[x * icov_size + i - dim];
 	}
-	
+
 	__syncthreads();
 
 	csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;

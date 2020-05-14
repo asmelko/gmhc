@@ -24,7 +24,7 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 	{
 		float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
 
-		if (isinf(dist))
+		if ((isinf(dist) || isnan(dist)))
 			dist = FLT_MAX;
 
 		add_neighbor<N>(local_neighbors, neighbor_t{ dist, y });

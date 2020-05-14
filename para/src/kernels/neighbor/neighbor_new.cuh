@@ -98,7 +98,7 @@ __global__ void neighbors_new_u
 
 		__syncthreads();
 
-		for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x + big_begin * warpSize; 
+		for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x + big_begin * warpSize;
 			idx < new_idx * warpSize; idx += blockDim.x * gridDim.x)
 		{
 			point_neighbors_new_warp<N>
