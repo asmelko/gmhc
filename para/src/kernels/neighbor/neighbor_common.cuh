@@ -23,7 +23,7 @@ __device__ void add_neighbor(neighbor_t* __restrict__ neighbors, neighbor_t neig
 
 	for (++i; i < N; i++)
 	{
-		if (prev_min.distance == FLT_MAX)
+		if (prev_min.distance == FLT_INF)
 			return;
 
 		neighbor_t tmp = neighbors[i];
@@ -84,7 +84,7 @@ __device__ void reduce_min_block(neighbor_t* __restrict__ neighbors, neighbor_t*
 		memcpy(neighbors, shared_mem + threadIdx.x * N, sizeof(neighbor_t) * N);
 	else
 		for (clustering::csize_t i = 0; i < N; i++)
-			neighbors[i].distance = FLT_MAX;
+			neighbors[i].distance = FLT_INF;
 
 	reduce_min_warp<N>(neighbors);
 }

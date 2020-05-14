@@ -140,7 +140,7 @@ __global__ void simple_min(const float* clusters, csize_t dim, csize_t count, ch
 	auto new_count = ((count + 1) * (count)) / 2;
 
 	chunk_t tmp;
-	tmp.min_dist = FLT_MAX;
+	tmp.min_dist = FLT_INF;
 
 	for (csize_t idx = threadIdx.x; idx < new_count; idx += blockDim.x)
 	{

@@ -6,8 +6,6 @@
 
 using namespace clustering;
 
-#define KERNEL_INFO kernel_info(80, 1024)
-
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
 	: shared(shared_data) {}
 

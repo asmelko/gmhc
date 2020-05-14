@@ -32,7 +32,7 @@ void run_set_default_inverse(float* icov_matrix, csize_t size)
 __global__ void set_default_neigh(neighbor_t* neighbors, csize_t count)
 {
 	for (csize_t i = blockIdx.x * blockDim.x + threadIdx.x; i < count; i += gridDim.x * blockDim.x)
-		neighbors[i].distance = FLT_MAX;
+		neighbors[i].distance = FLT_INF;
 }
 
 void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info info)

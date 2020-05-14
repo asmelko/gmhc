@@ -32,11 +32,11 @@ __global__ void update(neighbor_t* __restrict__  neighbors_a, csize_t* __restric
 
 		for (csize_t i = 0; i < N; i++)
 		{
-			if (tmp_nei[i].distance == FLT_MAX)
+			if (tmp_nei[i].distance == FLT_INF)
 				break;
 
 			if (tmp_nei[i].idx == move_a.first || tmp_nei[i].idx == move_b.first)
-				tmp_nei[i].distance = FLT_MAX;
+				tmp_nei[i].distance = FLT_INF;
 			else
 			{
 				if (tmp_nei[i].idx == move_a.second)
@@ -49,9 +49,9 @@ __global__ void update(neighbor_t* __restrict__  neighbors_a, csize_t* __restric
 		}
 
 		for (csize_t i = last_empty; i < N; i++)
-			tmp_nei[i].distance = FLT_MAX;
+			tmp_nei[i].distance = FLT_INF;
 
-		if (tmp_nei[0].distance == FLT_MAX)
+		if (tmp_nei[0].distance == FLT_INF)
 		{
 			csize_t store_idx = atomicAdd(idx < small_size ? small_work_idx : big_work_idx, 1);
 

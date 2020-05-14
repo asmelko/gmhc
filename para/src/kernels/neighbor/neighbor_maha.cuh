@@ -3,6 +3,8 @@
 #include <device_launch_parameters.h>
 #include "neighbor_common.cuh"
 
+#include <limits>
+
 using namespace clustering;
 
 __inline__ __device__ float maha_dist(const float* __restrict__ point, const float* __restrict__ matrix, csize_t size, unsigned int lane_id)
@@ -57,7 +59,7 @@ __inline__ __device__ void point_neighbors_mat_warp
 
 	if (lane_id == 0)
 	{
-		dist = (isnan(dist) || isinf(dist)) ? FLT_MAX2 : dist / 2;
+		dist = isinf(dist) ? FLT_MAX : dist / 2;
 
 		add_neighbor<N>(neighbors, neighbor_t{ dist, idx });
 	}
@@ -76,7 +78,7 @@ __inline__ __device__ void point_neighbors_mat
 	neighbor_t local_neighbors[N];
 
 	for (csize_t i = 0; i < N; ++i)
-		local_neighbors[i].distance = FLT_MAX;
+		local_neighbors[i].distance = FLT_INF;
 
 	auto icov_size = (dim + 1) * dim / 2;
 

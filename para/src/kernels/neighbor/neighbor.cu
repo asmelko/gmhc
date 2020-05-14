@@ -12,7 +12,7 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t s
 	static __shared__ chunk_t shared_mem[32];
 
 	chunk_t tmp;
-	tmp.min_dist = FLT_MAX;
+	tmp.min_dist = FLT_INF;
 	for (csize_t idx = threadIdx.x; idx < small_count + big_count; idx += blockDim.x)
 	{
 		if (idx >= small_count)

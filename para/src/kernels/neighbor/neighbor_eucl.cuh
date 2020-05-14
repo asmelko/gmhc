@@ -12,7 +12,7 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 	neighbor_t local_neighbors[N];
 
 	for (csize_t i = 0; i < N; ++i)
-		local_neighbors[i].distance = FLT_MAX;
+		local_neighbors[i].distance = FLT_INF;
 
 	for (csize_t i = threadIdx.x; i < dim; i += blockDim.x)
 		shared_mem[i] = centroids[idx * dim + i];
@@ -25,7 +25,7 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 		float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
 
 		if (isinf(dist))
-			dist = FLT_MAX2;
+			dist = FLT_MAX;
 
 		add_neighbor<N>(local_neighbors, neighbor_t{ dist, y });
 	}

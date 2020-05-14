@@ -44,7 +44,7 @@ __global__ void reduce_min(const chunk_t* input, chunk_t* output, csize_t input_
     static __shared__ chunk_t shared_mem[32];
 
     chunk_t min;
-    min.min_dist = FLT_MAX;
+    min.min_dist = FLT_INF;
 
     for (csize_t i = threadIdx.x; i < input_size; i += blockDim.x)
     {
@@ -62,7 +62,7 @@ __global__ void reduce_min(const chunk_t* input, chunk_t* output, csize_t input_
 __inline__ __device__ chunk_t diagonal_loop(csize_t block_size, csize_t dim, float* shared_mem)
 {
     chunk_t min;
-    min.min_dist = FLT_MAX;
+    min.min_dist = FLT_INF;
 
     for (csize_t i = threadIdx.x; i < (((block_size + 1) * block_size) / 2) - block_size; i += blockDim.x)
     {
@@ -87,7 +87,7 @@ __inline__ __device__ chunk_t diagonal_loop(csize_t block_size, csize_t dim, flo
 __inline__ __device__ chunk_t non_diagonal_loop(csize2 chunk_dim, csize_t dim, float* shared_mem)
 {
     chunk_t min;
-    min.min_dist = FLT_MAX;
+    min.min_dist = FLT_INF;
 
     for (csize_t i = threadIdx.x; i < chunk_dim.x * chunk_dim.y; i += blockDim.x)
     {

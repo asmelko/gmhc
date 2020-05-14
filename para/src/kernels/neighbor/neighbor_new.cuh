@@ -33,7 +33,7 @@ __inline__ __device__ void point_neighbors_new_warp
 
 	if (lane_id == 0)
 	{
-		dist = (isnan(dist) || isinf(dist)) ? FLT_MAX2 : dist / 2;
+		dist = (isnan(dist) || isinf(dist)) ? FLT_MAX : dist / 2;
 
 		add_neighbor<N>(neighbors, neighbor_t{ dist, orig_idx });
 	}
@@ -57,7 +57,7 @@ __global__ void neighbors_new_u
 		{
 			float dist = euclidean_norm(shared_mem, centroids + x * dim, dim);
 			if (isinf(dist) || isnan(dist))
-				dist = FLT_MAX2;
+				dist = FLT_MAX;
 
 			add_neighbor<N>(neighbors + x * N, neighbor_t{ dist, new_idx });
 		}

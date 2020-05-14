@@ -5,6 +5,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #include "structures.hpp"
+#include <limits>
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
 void cuda_check(cudaError_t code, const char* file, int line);
@@ -29,7 +30,7 @@ struct csize2
 };
 
 constexpr clustering::csize_t MAX_DIM = 50;
-constexpr float FLT_MAX2 = 3.402823466e+37F;
+constexpr float FLT_INF = std::numeric_limits<float>::infinity();
 
 void assign_constant_storage(const float* value, clustering::csize_t size, cudaMemcpyKind kind);
 

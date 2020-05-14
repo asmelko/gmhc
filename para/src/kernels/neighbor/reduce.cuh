@@ -18,7 +18,7 @@ __inline__ __device__ void point_reduce
 		memcpy(local, neighbors + (block * to_reduce + nei) * N, sizeof(neighbor_t) * N);
 	else
 		for (csize_t i = 0; i < N; i++)
-			local[i].distance = FLT_MAX;
+			local[i].distance = FLT_INF;
 
 
 	for (nei += warpSize; nei < to_reduce; nei += warpSize)
