@@ -1,15 +1,41 @@
 #include <iostream>
-#include <chrono>
+#include <istream>
 
 #include "gmhc.hpp"
 #include "reader.hpp"
+
+std::vector<clustering::asgn_t> create_apriori_assigns(const char* file_name, size_t count)
+{
+	std::ifstream fs(file_name);
+	std::vector<clustering::asgn_t> ret;
+
+	if (!fs.is_open())
+	{
+		std::cerr << "file could not open" << std::endl;
+		return {};
+	}
+
+	for (size_t i = 0; i < count; ++i)
+	{
+		clustering::asgn_t tmp;
+		fs >> tmp;
+		ret.push_back(tmp);
+
+		if (fs.fail() || fs.bad())
+		{
+			std::cerr << "issue when reading data";
+			return {};
+		}
+	}
+	return ret;
+}
 
 int main(int argc, char** argv)
 {
 	if (argc != 3 && argc != 4)
 	{
 		std::cout << "bad input" << std::endl <<
-			"usage: mhclust file_name maha_threshold [apriori_size]" << std::endl;
+			"usage: mhclust file_name maha_threshold [apriori_file]" << std::endl;
 		return 1;
 	}
 
@@ -22,11 +48,10 @@ int main(int argc, char** argv)
 
 	if (argc == 4)
 	{
-		auto apr_size = std::strtoul(argv[3], NULL, 10);
 
-		for (clustering::csize_t i = 0; i < data.points; i++)
-			apriori_assignments.push_back(i / apr_size);
-
+		apriori_assignments = create_apriori_assigns(argv[3], data.points);
+		if (apriori_assignments.empty())
+			return 1;
 		apr_asgn = apriori_assignments.data();
 	}
 
@@ -34,17 +59,14 @@ int main(int argc, char** argv)
 
 	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
 
-	auto start = std::chrono::system_clock::now();
 	auto res = gmhclust.run();
-	auto end = std::chrono::system_clock::now();
-
-	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::cerr << argv[1] << " time: " << elapsed_seconds.count() << std::endl;
 
 	for (auto& e : res)
 		std::cout << e.first.first << " "
 		<< e.first.second << " "
 		<< e.second << std::endl;
+
+	gmhclust.free();
 
 	return 0;
 }

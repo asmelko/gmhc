@@ -55,6 +55,13 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 		apriori_count_ = 0;
 		return;
 	}
+
+	if (point_dim > MAX_DIM)
+	{
+		std::cerr << "currently allowed maximum dimension is 50" << std::endl;
+		common_.cluster_count = 0;
+		apriori_count_ = 0;
+	}
 }
 
 void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t size, validator* vld)
