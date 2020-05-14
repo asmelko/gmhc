@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 		return 1;
 	}
 
-	auto data = clustering::reader::read_data_from_binary_file<float>(argv[1]);
+	auto data = clustering::reader::read_data_from_file<float>(argv[1]);
 
 	std::vector<clustering::asgn_t> apriori_assignments;
 	clustering::asgn_t* apr_asgn = nullptr;
@@ -48,16 +48,19 @@ int main(int argc, char** argv)
 
 	if (argc == 4)
 	{
+		auto apr_size = std::strtoul(argv[3], NULL, 10);
 
-		apriori_assignments = create_apriori_assigns(argv[3], data.points);
-		if (apriori_assignments.empty())
-			return 1;
+		for (clustering::csize_t i = 0; i < data.points; i++)
+			apriori_assignments.push_back(i / apr_size);
+
 		apr_asgn = apriori_assignments.data();
 	}
 
 	clustering::gmhc gmhclust;
+	clustering::validator vld;
 
-	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
+	vld.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
+	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn, &vld);
 
 	auto res = gmhclust.run();
 
