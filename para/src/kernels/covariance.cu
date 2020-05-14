@@ -1,6 +1,6 @@
-#include <kernels.cuh>
+#include "kernels.cuh"
 
-#include <device_launch_parameters.h>
+#include "device_launch_parameters.h"
 
 #include "common_kernels.cuh"
 

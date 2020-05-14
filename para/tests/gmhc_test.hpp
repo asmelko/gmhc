@@ -1,12 +1,12 @@
-#include <gmock/gmock.h>
-#include <reader.hpp>
+#include "gmock/gmock.h"
+#include "reader.hpp"
 
 #include <chrono>
 #include <cstdlib>
 
 #include "serial_impl.hpp"
 
-#include <gmhc.hpp>
+#include "gmhc.hpp"
 
 using namespace clustering;
 

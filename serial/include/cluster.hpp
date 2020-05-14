@@ -1,7 +1,7 @@
 #ifndef CLUSTER_HPP
 #define CLUSTER_HPP
 
-#include <clustering.hpp>
+#include "clustering.hpp"
 
 namespace clustering {
 

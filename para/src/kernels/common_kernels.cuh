@@ -1,9 +1,9 @@
 #ifndef COMMON_KERNELS_CUH
 #define COMMON_KERNELS_CUH
 
-#include <device_launch_parameters.h>
+#include "device_launch_parameters.h"
 
-#include <kernels.cuh>
+#include "kernels.cuh"
 
 __inline__ __device__ float euclidean_norm(const float* __restrict__ sub, clustering::csize_t dim)
 {

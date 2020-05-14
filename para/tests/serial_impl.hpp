@@ -1,9 +1,9 @@
 #ifndef SERIAL_IMPL_HPP
 #define SERIAL_IMPL_HPP
 
-#include <validator.hpp>
-#include <kernels.cuh>
-#include <reader.hpp>
+#include "validator.hpp"
+#include "kernels.cuh"
+#include "reader.hpp"
 
 chunk_t serial_euclidean_min(const clustering::reader::data_t<float>& data);
 

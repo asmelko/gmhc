@@ -1,8 +1,8 @@
 #include <iostream>
 #include <chrono>
 
-#include <gmhc.hpp>
-#include <reader.hpp>
+#include "gmhc.hpp"
+#include "reader.hpp"
 
 int main(int argc, char** argv)
 {

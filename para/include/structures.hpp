@@ -1,7 +1,7 @@
 #ifndef COMMON_STRUCTURES_CUH
 #define COMMON_STRUCTURES_CUH
 
-#include <clustering.hpp>
+#include "clustering.hpp"
 
 struct chunk_t
 {

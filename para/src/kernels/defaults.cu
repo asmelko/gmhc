@@ -1,5 +1,5 @@
-#include <kernels.cuh>
-#include <device_launch_parameters.h>
+#include "kernels.cuh"
+#include "device_launch_parameters.h"
 #include <cfloat>
 
 using namespace clustering;

@@ -1,7 +1,7 @@
 #ifndef GMHC_HPP
 #define GMHC_HPP
 
-#include <apriori.hpp>
+#include "apriori.hpp"
 
 #define KERNEL_INFO kernel_info(6, 1024)
 

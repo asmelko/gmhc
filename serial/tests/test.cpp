@@ -1,6 +1,6 @@
 #include "gmock/gmock.h"
-#include <smhc.hpp>
-#include <reader.hpp>
+#include "smhc.hpp"
+#include "reader.hpp"
 
 #include <string>
 

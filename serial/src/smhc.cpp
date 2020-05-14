@@ -1,4 +1,4 @@
-#include <smhc.hpp>
+#include "smhc.hpp"
 
 using namespace clustering;
 

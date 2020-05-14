@@ -1,8 +1,9 @@
-#include <apriori.hpp>
+#include "apriori.hpp"
 
-#include <kernels.cuh>
+#include "kernels.cuh"
 
-#include <gmhc.hpp>
+#include "gmhc.hpp"
+#include <cfloat>
 
 using namespace clustering;
 

@@ -1,6 +1,6 @@
-#include <cluster.hpp>
-#include <blas.hh>
-#include <lapack.hh>
+#include "cluster.hpp"
+#include "blas.hh"
+#include "lapack.hh"
 #include <stdexcept>
 
 #define LACH(x) if (x) throw std::runtime_error("LAPACK error")

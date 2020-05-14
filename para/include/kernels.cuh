@@ -1,9 +1,9 @@
 #ifndef KERNELS_CUH
 #define KERNELS_CUH
 
-#include <clustering.hpp>
-#include <cublas_v2.h>
-#include <cuda_runtime.h>
+#include "clustering.hpp"
+#include "cublas_v2.h"
+#include "cuda_runtime.h"
 #include "structures.hpp"
 #include <limits>
 

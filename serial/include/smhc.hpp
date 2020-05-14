@@ -1,7 +1,7 @@
 #ifndef SMHC_H
 #define SMHC_H
 
-#include <cluster.hpp>
+#include "cluster.hpp"
 #include <array>
 
 namespace clustering {

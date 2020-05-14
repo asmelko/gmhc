@@ -1,5 +1,5 @@
-#include <gmhc.hpp>
-#include <kernels.cuh>
+#include "gmhc.hpp"
+#include "kernels.cuh"
 #include <cassert>
 #include <iostream>
 #include <map>
