@@ -239,4 +239,32 @@ std::vector<gmhc::res_t> gmhc::run()
 	return ret;
 }
 
-void gmhc::free() {}
+void gmhc::free() 
+{
+	CUCH(cudaFree(cu_points_));
+	CUCH(cudaFree(cu_centroids_));
+	CUCH(cudaFree(cu_point_asgns_));
+	CUCH(cudaFree(cu_neighs_));
+	CUCH(cudaFree(cu_tmp_neighs_));
+	CUCH(cudaFree(cu_icov_));
+	CUCH(cudaFree(cu_update_));
+
+	delete[] cluster_data_;
+
+	CUCH(cudaFree(common_.cu_min));
+	CUCH(cudaFree(common_.cu_tmp_icov));
+	CUCH(cudaFree(common_.cu_eucl_upd_size));
+	CUCH(cudaFree(common_.cu_maha_upd_size));
+	CUCH(cudaFree(common_.cu_read_icov));
+	CUCH(cudaFree(common_.cu_write_icov));
+	CUCH(cudaFree(common_.cu_info));
+	CUCH(cudaFree(common_.cu_pivot));
+	BUCH(cublasDestroy(common_.cublas_handle));
+
+	if (apriori_count_)
+	{
+		CUCH(cudaFree(cu_apriori_centroids_));
+		CUCH(cudaFree(cu_apriori_icov_));
+		delete[] apriori_cluster_data_;
+	}
+}

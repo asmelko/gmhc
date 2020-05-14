@@ -30,6 +30,7 @@ TEST(para, apriori_small)
 	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
 
 	auto res = para.run();
+	para.free();
 
 	ASSERT_FALSE(vld.has_error());
 }
@@ -52,6 +53,7 @@ TEST(para, apriori_big)
 	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
 
 	auto res = para.run();
+	para.free();
 
 	ASSERT_FALSE(vld.has_error());
 }
@@ -68,6 +70,7 @@ TEST(para, small)
 	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, nullptr, &vld);
 
 	auto res = para.run();
+	para.free();
 
 	ASSERT_FALSE(vld.has_error());
 }
@@ -85,6 +88,7 @@ TEST(para, nilsson)
 	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, nullptr, &vld);
 
 	auto res = para.run();
+	para.free();
 
 	ASSERT_FALSE(vld.has_error());
 }
