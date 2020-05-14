@@ -29,7 +29,7 @@ TEST(kernel, neighbor_small)
 
 	CUCH(cudaMemcpy(cu_centroids, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-	run_neighbors<neigh_number>(cu_centroids, (csize_t)data.dim, (csize_t)data.points, cu_tmp_n, cu_n, kernel);
+	run_neighbors<neigh_number>(centroid_data_t{ cu_centroids,nullptr, (csize_t)data.dim }, cu_tmp_n, cu_n, cluster_bound_t{ (asgn_t)data.points, 0, 0 }, kernel);
 	host_res = run_neighbors_min<neigh_number>(cu_n, cluster_bound_t{ (asgn_t)data.points, 0, 0 }, cu_out);
 
 	CUCH(cudaGetLastError());
@@ -50,7 +50,7 @@ TEST(kernel, neighbor_big)
 	float* cu_centroids;
 	chunk_t* cu_out;
 	chunk_t host_res;
-	kernel_info kernel(50,  1024);
+	kernel_info kernel(50, 1024);
 
 	CUCH(cudaSetDevice(0));
 
@@ -72,7 +72,7 @@ TEST(kernel, neighbor_big)
 
 	start = std::chrono::system_clock::now();
 
-	run_neighbors<neigh_number>(cu_centroids, (csize_t)data.dim, (csize_t)data.points, cu_tmp_n, cu_n, kernel);
+	run_neighbors<neigh_number>(centroid_data_t{ cu_centroids,nullptr, (csize_t)data.dim }, cu_tmp_n, cu_n, cluster_bound_t{ (asgn_t)data.points, 0, 0 }, kernel);
 	host_res = run_neighbors_min<neigh_number>(cu_n, cluster_bound_t{ (asgn_t)data.points, 0, 0 }, cu_out);
 
 	CUCH(cudaGetLastError());

@@ -31,10 +31,8 @@ int main(int argc, char** argv)
 	}
 
 	clustering::gmhc gmhclust;
-	clustering::validator vld;
 
-	vld.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
-	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn, &vld);
+	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
 
 	auto start = std::chrono::system_clock::now();
 	auto res = gmhclust.run();

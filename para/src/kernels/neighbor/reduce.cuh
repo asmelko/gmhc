@@ -38,12 +38,18 @@ __inline__ __device__ void point_reduce
 
 
 template <csize_t N>
-__global__ void reduce(const neighbor_t* __restrict__ neighbors, csize_t to_reduce, csize_t count, neighbor_t* __restrict__  reduced)
+__global__ void reduce(const neighbor_t* __restrict__ neighbors, neighbor_t* __restrict__ reduced,
+	csize_t small_count, csize_t big_begin, csize_t big_count, csize_t to_reduce)
 {
-	for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
-	{
+	csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
+
+	for (; idx < small_count * warpSize; idx += blockDim.x * gridDim.x)
 		point_reduce<N>(neighbors, to_reduce, reduced, idx / warpSize);
-	}
+
+	idx += (big_begin - small_count) * warpSize;
+
+	for (; idx < (big_begin + big_count) * warpSize; idx += blockDim.x * gridDim.x)
+		point_reduce<N>(neighbors, to_reduce, reduced, idx / warpSize);
 }
 
 template <csize_t N>

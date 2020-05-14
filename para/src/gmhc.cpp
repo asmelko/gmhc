@@ -15,7 +15,7 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
 	maha_threshold_ = mahalanobis_threshold;
-	starting_info_ = kernel_info(6, 512);
+	starting_info_ = kernel_info(80, 1024);
 
 	CUCH(cudaSetDevice(0));
 
@@ -201,7 +201,8 @@ std::vector<gmhc::res_t> gmhc::run()
 		{
 			auto& ctx = apr_ctxs_[i];
 
-			run_neighbors<shared_apriori_data_t::neighbors_size>(ctx.cu_centroids, point_dim, ctx.bounds.eucl_size, ctx.cu_tmp_neighbors, ctx.cu_neighbors, ctx.starting_info);
+			run_neighbors<shared_apriori_data_t::neighbors_size>(
+				ctx.compute_data, ctx.cu_tmp_neighbors, ctx.cu_neighbors, ctx.bounds, ctx.starting_info);
 
 			while (ctx.cluster_count > 1)
 			{
@@ -216,12 +217,10 @@ std::vector<gmhc::res_t> gmhc::run()
 		}
 
 		move_apriori(eucl_size, maha_size);
-
-		run_set_default_neigh(last.cu_neighbors, common_.cluster_count * common_.neighbors_size, starting_info_);
-		run_update_neighbors<shared_apriori_data_t::neighbors_size>(last.compute_data, last.cu_tmp_neighbors, last.cu_neighbors, last.bounds, last.update_data, last.starting_info);
 	}
-	else
-		run_neighbors<shared_apriori_data_t::neighbors_size>(last.cu_centroids, point_dim, last.bounds.eucl_size, last.cu_tmp_neighbors, last.cu_neighbors, last.starting_info);
+
+	run_neighbors<shared_apriori_data_t::neighbors_size>(
+		last.compute_data, last.cu_tmp_neighbors, last.cu_neighbors, last.bounds, last.starting_info);
 
 	//compute rest
 	while (last.cluster_count > 1)

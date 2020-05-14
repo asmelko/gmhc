@@ -51,7 +51,7 @@ void run_set_default_neigh(neighbor_t* neighbors, clustering::csize_t count, ker
 void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
 template <clustering::csize_t N>
-void run_neighbors(const float* centroids, clustering::csize_t dim, clustering::csize_t centroid_count, neighbor_t* tmp_neighbors, neighbor_t* neighbors, kernel_info info);
+void run_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, cluster_bound_t sizes, kernel_info info);
 
 template <clustering::csize_t N>
 chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result);

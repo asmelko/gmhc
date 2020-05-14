@@ -7,8 +7,7 @@ using namespace clustering;
 
 template <csize_t N>
 __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, 
-	neighbor_t* __restrict__ neighbors_a, neighbor_t* __restrict__ neighbors_act,
-	float* __restrict__ shared_mem, csize_t idx, bool from_start)
+	neighbor_t* __restrict__ neighbors, float* __restrict__ shared_mem, csize_t idx)
 {
 	neighbor_t local_neighbors[N];
 
@@ -20,68 +19,49 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 
 	__syncthreads();
 
-	csize_t y = threadIdx.x + blockIdx.x * blockDim.x;
-
-	if (from_start)
-		for (; y < idx; y += blockDim.x * gridDim.x)
-		{
-			float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
-			if (isinf(dist) || isnan(dist))
-				dist = FLT_MAX2;
-			//add_neighbor<N>(local_neighbors, neighbor_t{ dist, y });
-			add_neighbor<N>(neighbors_act + y * N, neighbor_t{ dist, idx });
-			add_neighbor<N>(neighbors_a + (gridDim.x * y + blockIdx.x) * N, neighbor_t{ dist, idx });
-		}
-	else
-		y += idx;
-
-	for (; y < centroid_count - 1; y += blockDim.x * gridDim.x)
+	for (csize_t y = threadIdx.x + blockIdx.x * blockDim.x + idx + 1; 
+		y < centroid_count; y += blockDim.x * gridDim.x)
 	{
-		float dist = euclidean_norm(shared_mem, centroids + (y + 1) * dim, dim);
-		if (isinf(dist) || isnan(dist))
+		float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
+
+		if (isinf(dist))
 			dist = FLT_MAX2;
 
-		add_neighbor<N>(local_neighbors, neighbor_t{ dist, y + 1 });
+		add_neighbor<N>(local_neighbors, neighbor_t{ dist, y });
 	}
 
 	reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem + dim));
 
+	__syncthreads();
 
 	if (threadIdx.x == 0)
-		memcpy(neighbors_a + (gridDim.x * idx + blockIdx.x) * N, local_neighbors, N * sizeof(neighbor_t));
-	__syncthreads();
+		memcpy(neighbors + (gridDim.x * idx + blockIdx.x) * N, local_neighbors, N * sizeof(neighbor_t));
 }
 
 template <csize_t N>
-__global__ void neighbors(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, neighbor_t* __restrict__ neighbors_a)
+__global__ void neighbors(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, neighbor_t* __restrict__ neighbors)
 {
 	extern __shared__ float shared_mem[];
 
 	for (csize_t x = 0; x < centroid_count; ++x)
 	{
-		point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, nullptr, shared_mem, x, false);
+		point_neighbor<N>(centroids, dim, centroid_count, neighbors, shared_mem, x);
 	}
 }
 
 template <csize_t N>
 __global__ void neighbors_u(const float* __restrict__ centroids, 
-	neighbor_t* __restrict__ neighbors_a, neighbor_t* __restrict__ neighbors_act,
+	neighbor_t* __restrict__ neighbors,
 	const csize_t* __restrict__ updated, const csize_t* __restrict__ upd_count,
-	csize_t dim, csize_t centroid_count, csize_t new_idx)
+	csize_t dim, csize_t centroid_count)
 {
 	extern __shared__ float shared_mem[];
 
 	csize_t count = *upd_count;
-	bool eucl = false;
+
 	for (csize_t i = 0; i < count; ++i)
 	{
 		auto x = updated[i];
-		if (x != new_idx)
-			point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, neighbors_act, shared_mem, x, x == new_idx);
-		else
-			eucl = true;
+		point_neighbor<N>(centroids, dim, centroid_count, neighbors, shared_mem, x);
 	}
-
-	if (eucl)
-		point_neighbor<N>(centroids, dim, centroid_count, neighbors_a, neighbors_act, shared_mem, new_idx, true);
 }

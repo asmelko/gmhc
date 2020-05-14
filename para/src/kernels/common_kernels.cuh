@@ -5,6 +5,15 @@
 
 #include <kernels.cuh>
 
+__inline__ __device__ float euclidean_norm(const float* __restrict__ sub, clustering::csize_t dim)
+{
+	float tmp = 0;
+	for (size_t i = 0; i < dim; ++i)
+		tmp += sub[i] * sub[i];
+
+	return sqrtf(tmp);
+}
+
 __device__ float euclidean_norm(const float* __restrict__ l_point, const float* __restrict__ r_point, clustering::csize_t dim);
 
 __device__ void reduce_sum_warp(float* __restrict__ point, clustering::csize_t dim);
