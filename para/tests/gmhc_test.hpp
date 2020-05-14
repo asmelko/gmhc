@@ -72,14 +72,14 @@ TEST(para, small)
 	ASSERT_FALSE(vld.has_error());
 }
 
-TEST(para, big)
+TEST(para, nilsson)
 {
-	auto data = reader::read_data_from_file<float>("big");
+	auto data = reader::read_data_from_binary_file<float>("nilsson");
 
 	gmhc para;
 	validator vld;
 
-	auto thresh = 20;
+	auto thresh = 44;
 
 	vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh);
 	para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, nullptr, &vld);

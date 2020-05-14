@@ -25,10 +25,15 @@ TARGET_LINK_LIBRARIES(gmhclust para)
 IF (BUILD_GMHC_TESTS)
 	INCLUDE(GoogleTest)
 
-	configure_file(
-                ${PROJECT_SOURCE_DIR}/tests/input/big
-                ${PROJECT_BINARY_DIR}/big
-				COPYONLY)
+	FILE(GLOB_RECURSE TEST_FILES "${PROJECT_SOURCE_DIR}/tests/input/*")
+
+	foreach(file_path ${TEST_FILES})
+		get_filename_component(file ${file_path} NAME)
+		configure_file(
+					${PROJECT_SOURCE_DIR}/tests/input/${file}
+					${PROJECT_BINARY_DIR}/${file}
+					COPYONLY)
+	endforeach()
 
 	ADD_EXECUTABLE(para_test tests/test.cpp tests/serial_impl.cpp)
 

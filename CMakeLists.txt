@@ -10,17 +10,10 @@ ELSE ()
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 ENDIF()
 
-IF (NOT DEFINED BUILD_GMHC_TESTS)
-    SET(BUILD_GMHC_TESTS true)
-ENDIF ()
+OPTION(BUILD_GMHC_TESTS "build tests" ON)
+OPTION(BUILD_GMHC_SERIAL "build CPU serial implementation" ON)
+OPTION(BUILD_GMHC_PARA "build GPU parallel implementation" ON)
 
-IF (NOT DEFINED BUILD_GMHC_SERIAL)
-    SET(BUILD_GMHC_SERIAL true)
-ENDIF ()
-
-IF (NOT DEFINED BUILD_GMHC_PARA)
-    SET(BUILD_GMHC_PARA true)
-ENDIF ()
 
 IF (BUILD_GMHC_TESTS)
     # Download and unpack googletest at configure time
@@ -53,8 +46,6 @@ ENDIF (BUILD_GMHC_TESTS)
 
 
 INCLUDE_DIRECTORIES(include)
-
-ADD_EXECUTABLE(gmhc main.cpp)
 
 IF (BUILD_GMHC_SERIAL)
     ADD_SUBDIRECTORY(serial)
