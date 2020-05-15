@@ -5,6 +5,8 @@
 #include "gmhc.hpp"
 #include <cfloat>
 
+#define KERNEL_INFO kernel_info(80, 1024)
+
 using namespace clustering;
 
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
@@ -210,8 +212,7 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
 	tmp_centr.resize(point_dim);
 	CUCH(cudaMemcpy(tmp_centr.data(), cu_centroids + update_data.new_idx * point_dim, sizeof(float) * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-
-	vld->verify(id_pair, dist, tmp_centr.data(), 
+	vld->verify(id_pair, dist, tmp_centr.data(),
 		std::bind(&clustering_context_t::recompute_dist, this, std::placeholders::_1));
 
 	if (vld->has_error())
@@ -262,6 +263,7 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
 
 		dist = run_point_maha(cu_centroids + point_dim * j, cu_centroids + point_dim * i, point_dim, cu_inverses + icov_size * j, rhs_icov);
 	}
+
 	if (isinf(dist))
 		return FLT_MAX;
 	return dist;
