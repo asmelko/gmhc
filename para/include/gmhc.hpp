@@ -3,8 +3,6 @@
 
 #include "apriori.hpp"
 
-#define KERNEL_INFO kernel_info(6, 1024)
-
 namespace clustering
 {
 
