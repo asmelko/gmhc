@@ -106,7 +106,9 @@ __inline__ __device__ void point_neighbors_mat
 			(centroids, inverses, local_neighbors, curr_centroid, this_centroid, this_icov, dim, big_begin, (idx / warpSize));
 	}
 
-	reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem + (33 + dim) * dim), false);
+	__syncthreads();
+
+	reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem), false);
 
 	__syncthreads();
 

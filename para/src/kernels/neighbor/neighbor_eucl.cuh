@@ -32,8 +32,6 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 
 	reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem + dim));
 
-	__syncthreads();
-
 	if (threadIdx.x == 0)
 		memcpy(neighbors + (gridDim.x * idx + blockIdx.x) * N, local_neighbors, N * sizeof(neighbor_t));
 }

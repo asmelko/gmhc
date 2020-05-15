@@ -3,6 +3,7 @@
 #include "device_launch_parameters.h"
 
 #include "neighbor_common.cuh"
+#include <algorithm>
 
 using namespace clustering;
 
@@ -43,7 +44,7 @@ void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neigh
 {
 	csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbor_t) * N;
 	csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
-	csize_t shared_mat = shared_new + 32 * sizeof(neighbor_t) * N;
+	csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
 	CUCH(cudaMemset(upd_data.eucl_update_size, 0, sizeof(csize_t)));
 	CUCH(cudaMemcpy(upd_data.maha_update_size, &sizes.maha_begin, sizeof(csize_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -76,7 +77,7 @@ void run_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* 
 {
 	csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbor_t) * N;
 	csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
-	csize_t shared_mat = shared_new + 32 * sizeof(neighbor_t) * N;
+	csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
 	if (sizes.eucl_size)
 		neighbors<N> << <info.grid_dim, info.block_dim, shared >> > (data.centroids, data.dim, sizes.eucl_size, tmp_neighbors);
