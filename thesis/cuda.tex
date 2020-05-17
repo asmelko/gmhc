@@ -22,13 +22,13 @@ Since all block threads reside on the same processor and share common resources,
 \end{figure}
 
 
-The device memory is hierarchicaly divided into parts each being accessible by a different set of threads:
+The device memory is hierarchically divided into parts each being accessible by a different set of threads:
 
 \begin{description}
-	\item[Global memory] -- This memory is accessible by any thread. Any memory request is transfered via tranactions; hence, to avoid decrease of the data throughput, memory accesses should be coalesced. 
+	\item[Global memory] -- This memory is accessible by any thread. Any memory request is transferred via transactions; hence, to avoid decrease of the data throughput, memory accesses should be coalesced. 
 	\item[Local memory] -- Each thread has exclusive access to its local memory. As it resides in a global memory, the local memory is a thread private global memory.
-	\item[Shared memory] -- The shared memory is assigned to a block. It means that threads from the same block has access to the same shared memory. It is placed on-chip so it has much lower latency and higher bandwith than the global or local memory.
-	\item[Constant memory] -- The constant memory is a read-only memory accesible by any thread. Due to its read-only property, it can be heavily cached and may perform better than global memory. Together with global memory, it persists across different kernel launches.
+	\item[Shared memory] -- The shared memory is assigned to a block. It means that threads from the same block has access to the same shared memory. It is placed on-chip so it has much lower latency and higher bandwidth than the global or local memory.
+	\item[Constant memory] -- The constant memory is a read-only memory accessible by any thread. Due to its read-only property, it can be heavily cached and may perform better than global memory. Together with global memory, it persists across different kernel launches.
 \end{description}
 
 The building block of the CUDA-enabled GPU hardware architecture is multi-threaded \emph{streaming multiprocessor (SM)}. A GPU contains an array of multiprocessors whose number varies between different GPUs. When a kernel launches, its grid of blocks is distributed among available multiprocessors and execute in parallel (see fig.~\ref{fig02:SM}). On the selected multiprocessor, block threads are executed in~parallel as well. Moreover, multiple blocks can run concurrently on one multiprocessor.
