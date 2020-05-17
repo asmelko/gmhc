@@ -66,7 +66,7 @@
 \def\ThesisTitle{Mahalanobis based hierarchical clustering accelerated on GPU}
 
 % Author of the thesis
-\def\ThesisAuthor{Adam Šmelko}
+\def\ThesisAuthor{Bc. Adam Šmelko}
 
 % Year when the thesis is submitted
 \def\YearSubmitted{2020}
@@ -97,12 +97,12 @@ Dedication.
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-Abstract.
+During a clustering of a flow-cytometry data, the Mahalanobis distance function is used to form elliptical clusters naturally. However, reasonably computable dataset sizes are restricted to a factor of 100K points due to~the~polynomial time and space complexity of the current algorithm. In this thesis, we researched possible ways of implementing clustering algorithms and proposed an~implementation of Mahalanobis-based hierarchical clustering analysis accelerated on a single GPU. Using CUDA platform we achieved the performance increase of up to 5000-times on single-point datasets and 40-times on apriori datasets compared to a serial CPU counterpart. With this contribution, the size of flow cytometry datasets can increase to millions of points.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
 \def\Keywords{%
-{key} {words}
+{clustering} {high-dimensional data} {GPU}
 }
 
 %% The hyperref package for clickable links in PDF and also for storing
