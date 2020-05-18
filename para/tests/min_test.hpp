@@ -67,7 +67,7 @@ TEST(kernel, euclidean_min_big)
 	chunk_t* cu_out;
 	chunk_t host_res;
 	float** cu_invs;
-	kernel_info kernel(50,  1024, shared_size);
+	kernel_info kernel(50, 1024, shared_size);
 
 	cu_in.count = (csize_t)data.points;
 	cu_in.dim = (csize_t)data.dim;

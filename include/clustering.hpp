@@ -14,6 +14,7 @@ using pasgn_t = std::pair<asgn_t, asgn_t>;
 template <typename T>
 using pasgnd_t = std::pair<pasgn_t, T>;
 
+//base for hierarchical clustering algorithms
 template <typename T>
 class hierarchical_clustering
 {

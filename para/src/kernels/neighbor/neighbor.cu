@@ -55,7 +55,7 @@ void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neigh
 
 	if (sizes.eucl_size)
 		neighbors_u<N> << <info.grid_dim, info.block_dim, shared >> >
-		(data.centroids, tmp_neighbors, 
+		(data.centroids, tmp_neighbors,
 			upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size);
 
 	if (sizes.maha_size)
@@ -67,7 +67,7 @@ void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neigh
 		(tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.eucl_update_size,
 			sizes.maha_begin, upd_data.maha_update_size, info.grid_dim);
 
-	neighbors_new<N><<<info.grid_dim, info.block_dim, shared_new >>> (data.centroids, data.inverses, act_neighbors,
+	neighbors_new<N> << <info.grid_dim, info.block_dim, shared_new >> > (data.centroids, data.inverses, act_neighbors,
 		data.dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, upd_data.new_idx);
 }
 

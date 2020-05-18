@@ -6,7 +6,7 @@
 using namespace clustering;
 
 template <csize_t N>
-__device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count, 
+__device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim, csize_t centroid_count,
 	neighbor_t* __restrict__ neighbors, float* __restrict__ shared_mem, csize_t idx)
 {
 	neighbor_t local_neighbors[N];
@@ -19,7 +19,7 @@ __device__ void point_neighbor(const float* __restrict__ centroids, csize_t dim,
 
 	__syncthreads();
 
-	for (csize_t y = threadIdx.x + blockIdx.x * blockDim.x + idx + 1; 
+	for (csize_t y = threadIdx.x + blockIdx.x * blockDim.x + idx + 1;
 		y < centroid_count; y += blockDim.x * gridDim.x)
 	{
 		float dist = euclidean_norm(shared_mem, centroids + y * dim, dim);
@@ -48,7 +48,7 @@ __global__ void neighbors(const float* __restrict__ centroids, csize_t dim, csiz
 }
 
 template <csize_t N>
-__global__ void neighbors_u(const float* __restrict__ centroids, 
+__global__ void neighbors_u(const float* __restrict__ centroids,
 	neighbor_t* __restrict__ neighbors,
 	const csize_t* __restrict__ updated, const csize_t* __restrict__ upd_count,
 	csize_t dim, csize_t centroid_count)

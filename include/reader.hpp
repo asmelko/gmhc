@@ -10,6 +10,7 @@
 
 namespace clustering {
 
+//reads input data
 struct reader
 {
 	template <typename T>
@@ -86,7 +87,7 @@ private:
 	{
 		std::uint32_t dim, points;
 		float point;
-		
+
 		stream.read((char*)&dim, sizeof(std::int32_t));
 		stream.read((char*)&points, sizeof(std::int32_t));
 
