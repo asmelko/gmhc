@@ -14,9 +14,9 @@ class smhc : public hierarchical_clustering<float>
 public:
 	smhc(size_t maha_threshold = 16);
 	
-	virtual void initialize(const float* data_points, size_t data_points_size, size_t data_point_dim) override;
+	virtual void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim) override;
 
-	virtual std::vector<pasgn_t> run() override;
+	virtual std::vector<pasgnd_t<float>> run() override;
 
 	virtual void free() override;
 private:
