@@ -40,7 +40,7 @@ __inline__ __device__ void point_neighbors_new_warp
 }
 
 template <csize_t N>
-__global__ void neighbors_new_u
+__global__ void neighbors_new
 (const float* __restrict__ centroids, const float* __restrict__ inverses, neighbor_t* __restrict__ neighbors,
 	csize_t dim, csize_t small_count, csize_t big_begin, csize_t big_count, csize_t new_idx)
 {
