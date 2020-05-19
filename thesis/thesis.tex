@@ -158,9 +158,46 @@ During a clustering of a flow-cytometry data, the Mahalanobis distance function 
 %%% should be uploaded to SIS and optionally also included in the thesis on a~CD/DVD.
 %%% Allowed file formats are specified in provision of the rector no. 72/2017.
 \appendix
-%\chapter{Attachments}
+\chapter{User guide}
 
-%\section{First Attachment}
+\section{Build guide}
+
+The Mahalanobis-based hierarchical clustering project was developed with the CMake build tool. To build the executable, use CMake configure and build commands in a build directory. Then, the directory \texttt{para} will contain \texttt{gmhclust} executable. The executable can be built on Linux and Windows as well. The only dependency is the CUDA compiler (\texttt{nvcc}). See the following steps:
+
+\begin{lstlisting}
+cd gmhc
+mkdir build && cd build
+cmake ..
+cmake --build .
+ls para/gmhclust
+\end{lstlisting}
+
+\section{Executable CLI}
+
+The \texttt{gmhclust} executable has three command line parameters:
+\begin{enumerate}
+	\item \emph{Dataset file path} -- The mandatory parameter with a path to a dataset file. The file is binary and has structure as follows:
+	\begin{enumerate}
+		\item 4B unsigned integer $D$ -- point \emph{dimension}
+		\item 4B unsigned integer $N$ -- \emph{number} of points
+		\item $N*D$ 4B floats -- $N$ single-precision $D$-dimensional points stored one after another
+	\end{enumerate}
+	\item \emph{Mahalanobis threshold} -- An absolute positive number that states the Mahalanobis threshold. It is the mandatory parameter.
+	\item \emph{Apriori assignments file path} -- An optional path to an apriori assignments file --- a file with space separated 4B unsigned integers (assignment numbers). The number of integers is the same as the number of points in the dataset; it sequentially assigns each point in the dataset file an assignment number. Then simply, if the $i$-th and the $j$-th assignment numbers are equal, then the $i$-th and $j$-th points are assigned the same apriori cluster. 
+\end{enumerate}
+
+The executable writes the clustering process to the standard output. Each line contains an ID pair of merged clusters with their merge distance as well.
+
+\chapter{Enclosed CD}
+
+The enclosed CD contais this folders:
+
+\begin{itemize}
+	\item \texttt{gmhc} contains the source code of the implementation.
+	\item \texttt{data} contains dataset files used during experiments.
+	\item \texttt{docs} contains the programmer documentation of the implementation.
+\end{itemize} 
+
 
 \openright
 \end{document}
