@@ -1,5 +1,6 @@
 #include <iostream>
 #include <istream>
+#include <climits>
 
 #include "gmhc.hpp"
 #include "reader.hpp"
@@ -44,7 +45,14 @@ int main(int argc, char** argv)
 	std::vector<clustering::asgn_t> apriori_assignments;
 	clustering::asgn_t* apr_asgn = nullptr;
 
-	auto thresh = std::strtoul(argv[2], NULL, 10);
+	char* end;
+	auto thresh = std::strtoll(argv[2], &end, 10);
+
+	if (thresh >= (long long)ULONG_MAX || thresh < 0 || *end != '\0')
+	{
+		std::cerr << "bad threshold" << std::endl;
+		return 1;
+	}
 
 	if (argc == 4)
 	{
@@ -57,7 +65,10 @@ int main(int argc, char** argv)
 
 	clustering::gmhc gmhclust;
 
-	gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, thresh, apr_asgn);
+	bool init = gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, (clustering::csize_t)thresh, apr_asgn);
+
+	if (!init)
+		return 1;
 
 	auto res = gmhclust.run();
 

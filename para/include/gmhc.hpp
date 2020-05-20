@@ -77,7 +77,7 @@ class gmhc : public hierarchical_clustering<float>
 public:
 	using res_t = pasgnd_t<float>;
 
-	void initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments = nullptr, validator* vld = nullptr);
+	bool initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments = nullptr, validator* vld = nullptr);
 
 	virtual std::vector<res_t> run() override;
 

@@ -6,8 +6,19 @@
 
 using namespace clustering;
 
-void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments, validator* vld)
+bool gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments, validator* vld)
 {
+	if (point_dim > MAX_DIM)
+	{
+		std::cerr << "currently allowed maximum dimension is 50" << std::endl;
+		return false;
+	}
+	else if (point_dim < 1)
+	{
+		std::cerr << "dimension should be at least 2" << std::endl;
+		return false;
+	}
+
 	hierarchical_clustering::initialize(data_points, data_points_size, data_point_dim);
 
 	common_.id = (asgn_t)data_points_size;
@@ -53,15 +64,9 @@ void gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 
 		set_apriori(apr_ctxs_.front(), 0, points_size, vld);
 		apriori_count_ = 0;
-		return;
 	}
 
-	if (point_dim > MAX_DIM)
-	{
-		std::cerr << "currently allowed maximum dimension is 50" << std::endl;
-		common_.cluster_count = 0;
-		apriori_count_ = 0;
-	}
+	return true;
 }
 
 void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t size, validator* vld)
