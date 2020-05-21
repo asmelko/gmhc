@@ -1,4 +1,4 @@
-\chapter{Experiments}
+\chapter{Results}
 
 The last chapter of the thesis describes the experiments that were performed to~provide a clear result of the MHCA implementation performance. The aim of~the~thesis was to create the MHCA implementation that is capable of clustering datasets of hundred thousands and milions of points in a reasonable amount of~time.
 
@@ -58,7 +58,7 @@ As can be seen from table \ref{fig04:neigh}, the variant of 1 closest neighbor a
 
 The forthcoming experiments will be performed with the 1 closest neighbor variant.
 
-\section{Performance}
+\section{Performance speedup}
 
 The next set of experiments determine the performance improvements of the GPU implementation over the CPU implementation. The performance comparison was performed on single-point and apriori datasets separately.
 
@@ -70,7 +70,7 @@ Unfortunately, during the single-point testing, we reached the computational lim
 	\label{fig04:fract_comp}
 \end{figure}
 
-\subsection{Single-point datasets performance comparison}
+\subsection{Single-point datasets performance speedup}
 
 To determine the performance increase, we decided to down-sample Nillson\_rare dataset (as it is the smallest one). We created 10 samples with their sizes corresponding to 10\% of the dataset up to 100\%.
 As seen from fig.~\ref{fig04:single_perf}, the performance difference increases as the dataset size increases. It is a common consequence of~the~fact that there is less work to parallelize in smaller datasets than in bigger datasets. In the dataset of size around 4K, the performance of \texttt{gmhclust} is 60-times greater. This scales up to 5000-times faster time for the full Nilsson\_rare dataset.
@@ -81,13 +81,13 @@ As seen from fig.~\ref{fig04:single_perf}, the performance difference increases 
 	\label{fig04:single_perf}
 \end{figure}
 
-\subsection{Apriori datasets performance comparison}
+\subsection{Apriori datasets performance speedup}
 
 In contrast with the single-point datasets, the CPU implementation managed to compute apriori datasets of big sizes. It is a consequence of the wisely chosen apriori clusters.
 
 When the algorithm is inputed with apriori clusters, it does not compute the~whole dataset at once --- it clusters each apriori cluster first. This fact reduces the overall time complexity significantly, allowing the CPU algorithm to compute big datasets in a short amount of time.
 
-For example, suppose the input dataset apriori\_2M and a function $f$ that takes a dataset size and outputs the required time for its clustering. Then, the algorithm performance is proportional to $$1000f(2000)+f(1000)$$ that is --- deducing from the previous experiment --- far less than $f(1000*2000)$.
+For example, suppose the input dataset apriori\_2M and a function $f$ that takes a dataset size and outputs the required time for its clustering. Then, the algorithm performance is proportional to $$1000f(2000)+f(1000)$$ that is --- deducing from the previous experiment --- far less than $f(1000\cdot 2000)$.
 
 We measured the performance of the CPU and GPU implementation on apriori\_1M and apriori\_2M (see fig.~\ref{fig04:apr_perf_comp}). The results of the performance increase are~8-times and 20-times respectively. As we expected, it is not as measurable as~in~single-point datasets even though it has much more points. 
 
