@@ -81,9 +81,16 @@ To solve this problem, we implemented an additional feature called the \emph{apr
 	\label{def03:apriori}
 \end{defn}
 
-The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating better initial clusters that the MHCA algorithm.
+The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating better initial clusters that the MHCA algorithm (see fig.~\ref{fig03:apr_ex}).
 
 With this feature, the MHCA algorithm is guided by the apriori clusters to~create the corresponding merged clusters. They are usually of a small size that just reached the Mahalanobis threshold and can fully exhibit the MHCA properties. Overall, we suppose that apriori clusters can lessen the probability of~an~error during the early stage of the algorithm.
+
+
+\begin{figure}\centering
+	\includegraphics[width=10cm]{img/apriori_example}
+	\caption{An example dataset with (right) and without (left) pre-computation of apriori clusters (each apriori cluster is visualized as an ellipse --- dataset points contained in an ellipse represent a subset of the dataset).}
+	\label{fig03:apr_ex}
+\end{figure}
 
 \section{Generic interface to clustering algorithms}
 
@@ -177,12 +184,18 @@ For each cluster, the indexing structure is able to retrieve an index to~the~clu
 
 
 \subsection{Clustering}
-The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters.
+The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters (see fig.~\ref{fig03:clust_ctx}).
 
 \begin{defn}[Clustering context]
 	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-based array tuple $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$ with its indexing structure $\mathcal{Q}$, we define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'},\mathcal{A'},\mathcal{C'},\mathcal{I'},\mathcal{N'},\mathcal{S'},\mathcal{Q}')$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$. $\mathcal{Q}'$ describes the order of the sub-arrays.
 	\label{def03:context}
 \end{defn}
+
+\begin{figure}\centering
+	\includegraphics[width=\linewidth]{img/clustering_context}
+	\caption{An example of a dataset division into subsets and creation of clustering contexts (each context is assigned sub-arrays of the main arrays only with data relevant to the subset).}
+	\label{fig03:clust_ctx}
+\end{figure}
 
  If \texttt{apriori\_assignments} are present, each element of the array serves as the~clustering context for a corresponding apriori cluster and holds methods for its further clustering. Hence, it will be further called the \emph{context array}. 
 
@@ -366,7 +379,7 @@ After the inversion done by the CUBLAS subroutine \texttt{cublasSmatinvBatched},
 
 The first step is performed to get rid of redundant information and to save space as the $\mathcal{I}$ array has the greatest space complexity among the cluster-based arrays.
 
-The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in equation \ref{eq03:form}.
+The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in the equation \ref{eq03:form}.
 
 \begin{equation}
 \T{\mathbf{x}}\mathbf{M}\mathbf{x} = \sum_{i=1}^{n}\sum_{j=1}^{n}{m_{ij}x_ix_j} = \sum_{i=1}^{n}{m_{ii}x_i^2} + \sum_{i=1}^{n}\sum_{j>i}^{n}{2m_{ij}x_ix_j}
@@ -423,7 +436,7 @@ When all clusters from $\mathcal{U}$ are visited, the kernel ends.
 	As the Altered general distance function is symmetric, there is no need to compute distance between all clusters and a cluster $c$ that needs to be updated. We only need to compute distances of clusters with their indices greater than the~index of $c$. If we follow this invariant throughout the algorithm, we can safely ignore the clusters of lower index in the computation as during \emph{theirs} computation the cluster $c$ was already involved. This does not hold for newly created clusters. They need to be measured against all the remaining clusters to~hold the invariant (the kernel \texttt{neighbors\_new}).
 \end{rem}
 
-\subsubsection{Kernel \texttt{neighbor\_mat\_u}} This kernel shows similarities with the previous kernel. The main distinction is that it updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis kernels}, for simplicity) instead of those that did not. We created the separate kernel hoping to utilize the GPU more and to achieve a better performance.
+\subsubsection{Kernel \texttt{neighbor\_mat\_u}} This kernel shows similarities with the previous kernel. The main distinction is that it updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis clusters}, for simplicity) instead of those that did not. We created the separate kernel hoping to utilize the GPU more and to achieve a better performance.
 
 In addition to $\mathcal{C}$, the kernel takes $\mathcal{I}$ as an input as well. The access to the inverse covariance matrices is vital as they are involved in a distance computation of Mahalanobis clusters. 
 
