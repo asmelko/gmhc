@@ -8,12 +8,12 @@ using namespace clustering;
 
 bool gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments, validator* vld)
 {
-	if (point_dim > MAX_DIM)
+	if (data_point_dim > MAX_DIM)
 	{
 		std::cerr << "currently allowed maximum dimension is 50" << std::endl;
 		return false;
 	}
-	else if (point_dim < 1)
+	else if (data_point_dim < 1)
 	{
 		std::cerr << "dimension should be at least 2" << std::endl;
 		return false;
