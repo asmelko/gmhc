@@ -1,8 +1,54 @@
 \chapter{GPU implementation}
 
-This chapter guides the reader through the implementation of the Mahalanobis-based hierarchical clustering analysis. First, we describe the algorithm and the high level look on the implementation. Then, we thoroughly describe the most important functions.
+This chapter guides the reader through the implementation of the Mahalanobis-based hierarchical clustering analysis. First, we summarize the important parts of the CUDA parallel platform. Next, we describe the algorithm and the high level look on the implementation. Then, we thoroughly describe the most important functions.
 
-\section{The algorithm choice}
+\section{CUDA programming model overview}
+
+The problem this thesis aims to solve is implementing an algorithm that is able to provide a hierarchical clustering of very large datasets while retaining the reasonable computation time --- the time required to compute a magnitude smaller datasets with current HCA algorithms.
+Trying to achive this performance, we used a combination of C++ programming language and \emph{CUDA}\footnote{Compute Unified Device Architecture} API.
+
+CUDA is a parallel platform and API allowing a programmer to use GPU for general purpose programming. This API exposes a computational power of~hundreds (even thousands) cores of CUDA-enabled GPUs~\cite{cuda}.
+
+
+\subsection{Terminology}
+
+The starting point for running any code on GPU using CUDA is a \emph{kernel}. A~kernel is a function that is executed on GPU; we say it contains \emph{device code}. Complementary to a device code, a \emph{host code} is the phrase for code executed on a CPU. Hence, a common CUDA application runs host code that determines which device code to run next. 
+
+Kernel is run $n$ times in parallel by $n$ threads each having its unique \emph{thread ID}. IDs of threads can be identified by \emph{one-dimensional}, \emph{two-dimensional} or \emph{three-dimensional} indices forming block of threads, called \emph{thread block}. This property reflects shapes of common structures such as vectors and matrices resulting in~more natural computation.
+
+Since all block threads reside on the same processor and share common resources, the block size is limited\footnote{Currently up to 1024 threads}. However, a kernel can be launched with multiple equally shaped blocks to increase the number of running threads. They can be organised into up to three-dimensional structure called \emph{grid}. This naturally implies unique block ID. A grid can be of an arbitrary size; usually dictated by~the~computed data (see fig.~\ref{fig02:grid}). It is a common practise that grid size surpasses the number of GPU processors.
+
+
+\begin{figure}\centering
+	\includegraphics[width=7cm]{img/grid}
+	\caption{An example of 2D grid of 2D size (3,2) with 2D blocks of 2D size (4,3).}
+	\label{fig02:grid}
+\end{figure}
+
+
+The device memory is hierarchically divided into parts each being accessible by a different set of threads:
+
+\begin{description}
+	\item[Global memory] -- This memory is accessible by any thread. Any memory request is transferred via transactions; hence, to avoid decrease of the data throughput, memory accesses should be coalesced. 
+	\item[Local memory] -- Each thread has exclusive access to its local memory. As it resides in a global memory, the local memory is a thread private global memory.
+	\item[Shared memory] -- The shared memory is assigned to a block. It means that threads from the same block has access to the same shared memory. It is placed on-chip so it has much lower latency and higher bandwidth than the global or local memory.
+	\item[Constant memory] -- The constant memory is a read-only memory accessible by any thread. Due to its read-only property, it can be heavily cached and may perform better than global memory. Together with global memory, it persists across different kernel launches.
+\end{description}
+
+The building block of the CUDA-enabled GPU hardware architecture is multi-threaded \emph{streaming multiprocessor (SM)}. A GPU contains an array of multiprocessors whose number varies between different GPUs. When a kernel launches, its grid of blocks is distributed among available multiprocessors and execute in parallel (see fig.~\ref{fig02:SM}). On the selected multiprocessor, block threads are executed in~parallel as well. Moreover, multiple blocks can run concurrently on one multiprocessor.
+
+\begin{figure}\centering
+	\includegraphics[width=8cm]{img/SM}
+	\caption{An example of different grid block distributions among SMs.}
+	\label{fig02:SM}
+\end{figure}
+
+To achieve this grade of parallelism, a GPU employs \emph{SIMT architecture} (Single Instruction - Multiple Threads). A~multiprocessor partitions an assigned block to chunks of 32 threads called \emph{warps}. Each warp thread is executed concurrently. During the execution, threads start with the the same program address but have own registers and instruction pointers so they can branch independently. However, a warp executes one common instruction at the time. Hence, to achieve the greatest performance all warp threads must agree on the program path.
+
+Moreover, as warp threads execute concurrently, warp offers \emph{shuffle instructions}. All threads in warp are able to distribute their data to another thread within just one instruction. This comes to a great use for synchronization but can also be used to achieve high throughput reduction operations as well.
+
+
+\section{Choice of the algorithm}
 
 The first chapter introduced three views on implementation of hierarchical clustering. To decide which one to choose, we need to take into an account two conditions. First, the algorithm should not require a quadratic space complexity as it must be able to process rather large datasets. Second, the algorithm should exhibit some parallelism opportunities; otherwise massive GPU parallel properties will be to no use.  We describe the mentioned algorithms according to this conditions:
 \begin{description}
@@ -35,9 +81,16 @@ To solve this problem, we implemented an additional feature called the \emph{apr
 	\label{def03:apriori}
 \end{defn}
 
-The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating better initial clusters that the MHCA algorithm.
+The intended usage of the feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating better initial clusters that the MHCA algorithm (see fig.~\ref{fig03:apr_ex}).
 
 With this feature, the MHCA algorithm is guided by the apriori clusters to~create the corresponding merged clusters. They are usually of a small size that just reached the Mahalanobis threshold and can fully exhibit the MHCA properties. Overall, we suppose that apriori clusters can lessen the probability of~an~error during the early stage of the algorithm.
+
+
+\begin{figure}\centering
+	\includegraphics[width=10cm]{img/apriori_example}
+	\caption{An example dataset with (right) and without (left) pre-computation of apriori clusters (each apriori cluster is visualized as an ellipse --- dataset points contained in an ellipse represent a subset of the dataset).}
+	\label{fig03:apr_ex}
+\end{figure}
 
 \section{Generic interface to clustering algorithms}
 
@@ -45,7 +98,7 @@ The chosen algorithm is implemented in the main class of the program --- \texttt
 This template provides key data fields and methods for a hierarchical clustering algorithm (see list.~\ref{lst03:hc}): 
 
 \begin{description}
-	\item[\texttt{initialize()}] sets the fields of the class. A templated field \texttt{points} is an array of dataset objects --- points. They are expected to be of a floating-point numeric type. Fields \texttt{point\_dim} and \texttt{points\_size} state a point dimensionality and a total number of points in the array. Hence, each \texttt{point\_dim} consecutive array elements represent one point and the total array size is~$\texttt{point\_dim}*\texttt{points\_size}$ elements.
+	\item[\texttt{initialize()}] sets the fields of the class. A templated field \texttt{points} is an array of dataset objects --- points. They are expected to be of a floating-point numeric type. Fields \texttt{point\_dim} and \texttt{points\_size} state a point dimensionality and a total number of points in the array. Hence, each \texttt{point\_dim} consecutive array elements represent one point and the total array size is~$\texttt{point\_dim}\cdot\texttt{points\_size}$ elements.
 	
 	\item[\texttt{run()}] initiates the clustering. It returns a vector of \texttt{pasgnd\_t} structures --- pairs that contain \emph{assignments} and a \emph{distance} --- the IDs of merged clusters and~the~distance between them. Each point from the input array is assigned an~unique consecutive ID starting from $0$. When two clusters are merged, the new cluster is assigned the next available unique ID. The process of merging is then stored in the returning vector. Hence, the vector completely describes the whole clustering process.
 	
@@ -131,12 +184,18 @@ For each cluster, the indexing structure is able to retrieve an index to~the~clu
 
 
 \subsection{Clustering}
-The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters.
+The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters (see fig.~\ref{fig03:clust_ctx}).
 
 \begin{defn}[Clustering context]
 	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-based array tuple $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$ with its indexing structure $\mathcal{Q}$, we define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'},\mathcal{A'},\mathcal{C'},\mathcal{I'},\mathcal{N'},\mathcal{S'},\mathcal{Q}')$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$. $\mathcal{Q}'$ describes the order of the sub-arrays.
 	\label{def03:context}
 \end{defn}
+
+\begin{figure}\centering
+	\includegraphics[width=\linewidth]{img/clustering_context}
+	\caption{An example of a dataset division into subsets and creation of clustering contexts (each context is assigned sub-arrays of the main arrays only with data relevant to the subset).}
+	\label{fig03:clust_ctx}
+\end{figure}
 
  If \texttt{apriori\_assignments} are present, each element of the array serves as the~clustering context for a corresponding apriori cluster and holds methods for its further clustering. Hence, it will be further called the \emph{context array}. 
 
@@ -320,7 +379,7 @@ After the inversion done by the CUBLAS subroutine \texttt{cublasSmatinvBatched},
 
 The first step is performed to get rid of redundant information and to save space as the $\mathcal{I}$ array has the greatest space complexity among the cluster-based arrays.
 
-The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in equation \ref{eq03:form}.
+The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in the equation \ref{eq03:form}.
 
 \begin{equation}
 \T{\mathbf{x}}\mathbf{M}\mathbf{x} = \sum_{i=1}^{n}\sum_{j=1}^{n}{m_{ij}x_ix_j} = \sum_{i=1}^{n}{m_{ii}x_i^2} + \sum_{i=1}^{n}\sum_{j>i}^{n}{2m_{ij}x_ix_j}
@@ -377,7 +436,7 @@ When all clusters from $\mathcal{U}$ are visited, the kernel ends.
 	As the Altered general distance function is symmetric, there is no need to compute distance between all clusters and a cluster $c$ that needs to be updated. We only need to compute distances of clusters with their indices greater than the~index of $c$. If we follow this invariant throughout the algorithm, we can safely ignore the clusters of lower index in the computation as during \emph{theirs} computation the cluster $c$ was already involved. This does not hold for newly created clusters. They need to be measured against all the remaining clusters to~hold the invariant (the kernel \texttt{neighbors\_new}).
 \end{rem}
 
-\subsubsection{Kernel \texttt{neighbor\_mat\_u}} This kernel shows similarities with the previous kernel. The main distinction is that it updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis kernels}, for simplicity) instead of those that did not. We created the separate kernel hoping to utilize the GPU more and to achieve a better performance.
+\subsubsection{Kernel \texttt{neighbor\_mat\_u}} This kernel shows similarities with the previous kernel. The main distinction is that it updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis clusters}, for simplicity) instead of those that did not. We created the separate kernel hoping to utilize the GPU more and to achieve a better performance.
 
 In addition to $\mathcal{C}$, the kernel takes $\mathcal{I}$ as an input as well. The access to the inverse covariance matrices is vital as they are involved in a distance computation of Mahalanobis clusters. 
 
