@@ -3,12 +3,21 @@
 
 #include "clustering.hpp"
 
+//this file contains structures used in kernels or to pass parameters to kernels
+
 //structure that holds indices of cluster pair and distance between them 
 struct chunk_t
 {
 	float min_dist;
 	clustering::csize_t min_i, min_j;
 };
+
+//represents 2D coordinates of csize_t type
+struct csize2
+{
+	clustering::csize_t x, y;
+};
+
 
 //structure describing a clusters id and size
 struct cluster_data_t

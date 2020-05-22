@@ -201,7 +201,7 @@ void gmhc::move_apriori(csize_t eucl_size, csize_t maha_size)
 std::vector<gmhc::res_t> gmhc::run()
 {
 	std::vector<res_t> ret;
-	clustering_context_t& last = apr_ctxs_.front();
+	clustering_context_t& final = apr_ctxs_.front();
 
 	//compute apriori
 	if (apriori_count_)
@@ -232,12 +232,12 @@ std::vector<gmhc::res_t> gmhc::run()
 	}
 
 	run_neighbors<shared_apriori_data_t::neighbors_size>(
-		last.compute_data, last.cu_tmp_neighbors, last.cu_neighbors, last.bounds, last.starting_info);
+		final.compute_data, final.cu_tmp_neighbors, final.cu_neighbors, final.bounds, final.starting_info);
 
 	//compute rest
-	while (last.cluster_count > 1)
+	while (final.cluster_count > 1)
 	{
-		auto tmp = last.iterate();
+		auto tmp = final.iterate();
 		ret.push_back(tmp);
 	}
 

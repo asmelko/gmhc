@@ -51,7 +51,7 @@ public:
 	bool has_error() const;
 
 	//adjusted diff of floats
-	//with respect to slight differences of CPU and GPU
+	//respect slight differences of CPU and GPU floating point computation
 	static bool float_diff(float a, float b, float d = 0.05f);
 	static bool float_diff(const float* a, const float* b, csize_t size, float d = 0.05f);
 private:
