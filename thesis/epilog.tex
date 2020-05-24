@@ -1,0 +1,14 @@
+\chapter*{Conclusion}
+\addcontentsline{toc}{chapter}{Conclusion}
+
+Over the past years, implementing general clustering algorithms using GPUs has become an expanding topic. As there is always more data to process, GPU implementations help greatly in accelerating a related research.  Still, there are many of~the algorithms that are supported only on CPUs, which can significantly decrease their usability. In the current thesis we proposed and tested an implementation of the Mahalanobis-based hierarchical clustering accelerated on a single GPU. 
+
+For the proposed implementation, we used CUDA platform to communicate with a GPU. We employed high throughput operations like shuffle instructions and utilized a device memory hierarchy using shared and constant memory. With~the~stated features, we were able to achieve exceptional performance improvements.
+
+The proposed MHCA implementation provides performance increase up to 5000-fold in measured single-point datasets and 20-fold in apriori datasets. Moreover, it requires only linear space with respect to the dataset size, which is an important factor in the general clustering scalability.
+
+With such performance increase, this implementation is able to extend the size of reasonably computable datasets from hundreds of thousands to millions of points. It can be used to advance research in the field of cell cytometry by decreasing computation time as well as enabling to compute larger datasets.
+
+The experiments showed that the computing of distance between small clusters may be too naive and can propagate a creation of unwanted clusters. This weakness can be addressed by implementing a different strategy for early stages of the algorithm; i.e.~by creating artificial covariance matrices for small clusters.
+
+The work can be further expanded by implementing the Full Mahalanobis distance (see def.~\ref{def01:fmd}). It can provide more precise dissimilarity measure, which can lead to a better clustering results. Naturally, it would come for the price of a~greater overall time complexity. 
