@@ -59,6 +59,7 @@
 \setlength{\marginparwidth}{6em}
 \setuptodonotes{fancyline}
 \newcommand{\xxx}[1]{\textcolor{red}{#1}}
+\newcommand{\clen}{\textcolor{violet}{\tiny\fbox{člen?}}}
 
 %%% Basic information on the thesis
 
@@ -161,7 +162,7 @@ During a clustering of a flow-cytometry data, the Mahalanobis distance function 
 
 \section{Build guide}
 
-The Mahalanobis-based hierarchical clustering project was developed with the CMake build tool. To build the executable, use CMake configure and build commands in a build directory. Then, the directory \texttt{para} will contain \texttt{gmhclust} executable. The only dependency is the CUDA compiler (\texttt{nvcc}). The executable should be portable to all platforms supporting \texttt{nvcc}; it was successfully tested on Ubuntu 18.04 and Windows 10. See the following steps:
+The Mahalanobis-average hierarchical clustering project was developed with the CMake build tool. To build the executable, use CMake configure and build commands in a build directory. Then, the directory \texttt{para} will contain \texttt{gmhclust} executable. The only dependency is the CUDA compiler (\texttt{nvcc}). The executable should be portable to all platforms supporting \texttt{nvcc}; it was successfully tested on Ubuntu 18.04 and Windows 10. See the following steps:
 
 \begin{lstlisting}
 cd gmhc

@@ -1,11 +1,11 @@
 \chapter{GPU implementation}
 
-This chapter guides the reader through the implementation of the Mahalanobis-based hierarchical clustering analysis. First, we summarize the most important parts of the CUDA parallel platform. Next, we describe the algorithm and the~high level look on the implementation. Last, we thoroughly describe the~most important functions.
+This chapter focuses on the implementation of the Mahalanobis-average hierarchical clustering analysis. First, we summarize the most important parts of the CUDA parallel platform. Next, we describe the algorithm and the~high level look on the implementation. Last, we thoroughly describe the~most important functions.
 
 \section{CUDA programming model overview}
 
 The problem this thesis aims to solve is to implement an algorithm that is able to provide a hierarchical clustering of very large datasets while retaining a reasonable computation time --- the time required to compute a magnitude smaller datasets with current HCA algorithms.
-Trying to achieve this performance, we used a combination of C++ programming language and \emph{CUDA}\footnote{Compute Unified Device Architecture} API.
+In an effort of achieving this performance, we used a combination of C++ programming language and \emph{CUDA}\footnote{Compute Unified Device Architecture} API.
 
 CUDA is a parallel platform and API allowing a programmer to use GPU for~general purpose programming. This API exposes a computational power of~hundreds (even thousands) cores of CUDA-enabled GPUs~\cite{cuda}.
 
@@ -94,7 +94,7 @@ With this feature, the MHCA algorithm is guided by the apriori clusters to~creat
 
 \section{Generic interface to clustering algorithms}
 
-The chosen algorithm is implemented in the main class of the program --- \texttt{gmhc}\footnote{An abbreviation for GPU Mahalanobis-based Hierarchical Clustering}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
+The chosen algorithm is implemented in the main class of the program --- \texttt{gmhc}\footnote{An abbreviation for GPU Mahalanobis-average Hierarchical Clustering}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
 This template provides key data fields and methods for a hierarchical clustering algorithm (see list.~\ref{lst03:hc}): 
 
 \begin{description}

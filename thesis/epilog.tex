@@ -1,7 +1,7 @@
 \chapter*{Conclusion}
 \addcontentsline{toc}{chapter}{Conclusion}
 
-Over the past years, implementing general clustering algorithms using GPUs has become an expanding topic. As there is always more data to process, GPU implementations help greatly in accelerating a related research.  Still, there are many of~the algorithms that are supported only on CPUs, which can significantly decrease their usability. In the current thesis we proposed and tested an implementation of the Mahalanobis-based hierarchical clustering analysis accelerated on a single GPU. 
+Over the past years, implementing general clustering algorithms using GPUs has become an expanding topic. As there is always more data to process, GPU implementations help greatly in accelerating a related research.  Still, there are many of~the algorithms that are supported only on CPUs, which can significantly decrease their usability. In the current thesis we proposed and tested an implementation of the Mahalanobis-average hierarchical clustering analysis accelerated on a single GPU. 
 
 For the proposed implementation, we used CUDA platform to communicate with a GPU. We employed high throughput operations like warp shuffle instructions and utilized a device memory hierarchy using shared and constant memory. With~the~stated features, we were able to achieve exceptional performance improvements.
 
