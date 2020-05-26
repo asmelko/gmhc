@@ -172,26 +172,27 @@ A vital part of the MHCA is its unique dissimilarity measure. It is based on the
 
 To measure the Mahalanobis distance, the covariance matrix of~a~participating cluster needs to be computed. We create the covariance matrix using the random vector of a cluster.
 
-\begin{defn}[Random vector]
-	Given a cluster $C$ of a vector-space dataset, we define the \emph{random vector} $v$ of the cluster $C$ as a vector of $d$ discrete random variables; a random variable $v_i$ has equal probability values $\{o_i:o\in C\}$
+\begin{defn}[Random vector]\todo{tohle zni hodne neprakticky, rovnou tam rekni ze random vector reprezentujes matici vsech pozorovani at v tom neni zmatek}
+	Given a cluster $C$ of a vector-space dataset, we define the \emph{random vector} $v$ of the cluster $C$ as a vector of $d$ \xxx{discrete} random variables; a random variable $v_i$ has equal probability values $\{o_i:o\in C\}$
 \end{defn}
 
 \begin{defn}[Covariance matrix]
-	Having a random vector $v$ of length $n$, we define the \emph{covariance matrix} $\cov(v)$ as a $n\times n$ matrix that holds covariances of each pair of vector element:
+	Having a \xxx{random vector $v$ of length $n$}\todo{neni to set of vectors?!}, we define the \emph{covariance matrix} $\cov(v)$ as a $n\times n$ matrix that holds covariances of each pair of vector element:
 	$$\cov(v)_{i,j}=\cov(v_i,v_j)$$
 \end{defn}
 
-Using the random vector of a cluster we can easily create the covariance matrix of a cluster and properly define the Mahalanobis distance:
+Using the random vector of a cluster we can \xxx{easily create}\todo{neni to easily, a ty ji nevyrabis ale pocitas}\ the covariance matrix of a cluster and properly define the Mahalanobis distance:
 
 \begin{defn}[Mahalanobis distance]
 	Having a cluster $C$ of a vector-space dataset $\mathcal{D}\in\R^d$ and the random vector $v$ of $C$, we define the \emph{Mahalanobis distance} between $u \in \R^d$ and $C$ as
 	\[d_\text{Maha}(u,C) = \sqrt{(u-\mean(C))^T\cov(v)^{-1}(u-\mean(C))}.\]
 \end{defn}
 
+\todo{Co se stane kdyz je $\cov(v)$ singularni?}
 
-However, using this equation, we are only able to compute a point cluster distance. To fully incorporate the Mahalanobis distance in a hierarchical algorithm, we need to find a method how to measure a cluster cluster distance. 
+\xxx{However, using this equation,} we are only able to compute \xxx{a point cluster distance}. To fully incorporate the Mahalanobis distance in a hierarchical algorithm, we need to \xxx{find}\todo{construct?} a method \xxx{how} to measure a \xxx{cluster cluster distance}. 
 
-We can achieve it either by computing the arithmetic mean of the distances between all points and a cluster or by computing just one distance between a centroid and a cluster. We respectively call these distance functions the \emph{Full Mahalanobis distance} (FMD) and the \emph{Centroid Mahalanobis distance} (CMD).
+\xxx{We can achieve it either by}\todo{rovnou rekni ze prirozene vznikaji 2 pouzitelny metody}\ computing the arithmetic mean of the distances between all points and a cluster or by computing just one distance between a centroid and a cluster. We respectively call these distance functions the \emph{Full Mahalanobis distance} (FMD) and the \emph{Centroid Mahalanobis distance} (CMD).
 
 \begin{defn}[Full Mahalanobis distance]
 	Having clusters $C$ and $C'$, we define the \emph{Full Mahalanobis distance} between clusters $C$ and $C'$ as the arithmetic mean of the Mahalanobis distances between each object $o \in C$ and the~cluster $C'$:
@@ -216,11 +217,9 @@ To illustrate the measure of the Mahalanobis distance, let us suppose we have tw
 
 
 
-The pros and cons between FMD and CMD are trivial. Due to the full point contribution, FMC can produce more precise measure than its simpler counterpart. On the~other hand, CMD compensates this with much lower time complexity.
+The \xxx{pros and cons} between FMD and CMD are \xxx{trivial}. Due to the \xxx{full point contribution}\todo{def?}, FMC can produce more precise measure than its simpler counterpart. On the~other hand, CMD compensates this with much lower time complexity.\todo{jaky je meritko ty presnosti? V jakym pripade je teda presnost potreba, a kdy neni a vyplati se to aproximovat tim prumerem?}
 
-\vspace{0.5cm}
-
-To make use of these Mahalanobis distance variants in MHCA implementations, we need the distance function to be symmetric. Originally, the Mahalanobis distance is not a symmetric function. Fortunately, we easily fix the aforementioned distance functions with the \emph{Generalized distance}.
+To \xxx{make use of these} Mahalanobis distance variants in \xxx{MHCA} implementations, we need the distance function to be symmetric. Originally, the Mahalanobis distance is not a symmetric function. Fortunately, we easily fix the aforementioned distance functions with the \emph{Generalized distance}.
 
 \begin{defn}[Generalized distance]
 	Given clusters $C$, $C'$ and a variant of the Mahalanobis distance~$d_\text{Variant}$ (either FMD or CMD), we define the \emph{Generalized distance} between clusters $C$ and $C'$ as the arithmetic mean of distances between $C$, $C'$ and $C'$, $C$:
@@ -230,14 +229,15 @@ To make use of these Mahalanobis distance variants in MHCA implementations, we n
 
 
 \subsection{Algorithm behavior improvements}
+\todo{Zlepsit nadpis, zabejvas se tady vylozene tim ze `Fixujes singularitu kovariancni matice'}
 
-If the distance function of a MHCA implementation was let to be the pure Mahalanobis distance, it would eventually halt due to the following problem --- the~covariance matrix computation.
+If the distance function of a MHCA implementation \xxx{was let to be the pure Mahalanobis distance, it would eventually halt due to the following problem --- the~covariance matrix computation.}
 
-In early stages of MHCA --- when clusters consist of fewer points --- the covariance matrix of a cluster is often singular. Hence, we can not compute its inverse and perform the distance measure. Furthermore, the matrix can happen to be close to singular and --- when inverted --- can produce distorted results.
+In early stages of MHCA --- when clusters consist of fewer points --- the covariance matrix of a cluster is often singular\todo{to je jeste v pohode protoze to dokazes detekovat, horsi je kdyz je `nearly singular' a zacnou ti vychazet vzdalenosti co se blizej}. Hence, we can not compute its inverse and perform the distance measure. Furthermore, the matrix can happen to be close to singular and --- when inverted --- can produce \xxx{distorted}\todo{specifikuj}\ results.
 
-To solve this problem, we used the~euclidean distance with the~centroid linkage on clusters whose sizes are under a~specified threshold --- the~\emph{Mahalanobis threshold}. The value of the threshold is proportional to the size of a dataset~\cite{fivser2012detection}. Hence, to implement this optimization we defined the \emph{Altered general distance}.
+To solve this problem, \xxx{we used}\todo{Fiser et al used}\ the~euclidean distance with the~centroid linkage on clusters whose sizes are under a~specified threshold \xxx{--- the~\emph{Mahalanobis threshold}}. The value of the threshold is proportional to the size of a dataset~\cite{fivser2012detection}. \xxx{Hence,} to implement this optimization\todo{je to fakt optimalizace? neni to spis workaround?}\ we defined the \emph{Altered general distance}.\todo{eeeeeeeeeeeeeeemph}
 
-\begin{defn}[Altered general distance]
+\begin{defn}[Altered general distance]\todo{mozna by mnohem lepsi nazev byl `Non-singular Mahalanobis Distance' nebo tak neco}
 	Given a threshold $T_M$, a cluster $C$ and its centroid $c$, a cluster $C'$ and its centroid $c'$ and a variant of the Mahalanobis distance~$d_\text{Variant}$ (either FMD or CMD), we define the \emph{Altered general distance} as
 	$$
 	d_\text{Altered}(C,C')=
@@ -255,8 +255,8 @@ To solve this problem, we used the~euclidean distance with the~centroid linkage 
 
 \section{Computational complexity of the hierarchical clustering algorithms}
 
-The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $O(n^3)$, which restricts their use for large datasets ($>10^5$ points for the contemporary hardware)~\cite{sasirekha2013agglomerative}.
-A MHCA algorithm implementation must be created with respect to this problem. \citet{day1984efficient} propose three different variants of a hierarchical clustering analysis. We describe them thoroughly and research their advantages and disadvantages.
+The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $O(n^3)$, which restricts \xxx{their} use for large datasets ($\geq10^5$ points \xxx{for} the contemporary hardware)~\cite{sasirekha2013agglomerative}.
+A MHCA algorithm implementation \xxx{must be created with respect} to this problem. \citet{day1984efficient} propose three different variants of a \xxx{hierarchical clustering analysis}. We describe them thoroughly and \xxx{research}\todo{spis review, ale tu vetu asi muzes uplne vynechat (a pristi muzes slepit s predchozi)} their advantages and disadvantages.
 
 The authors distinguish between three HCA algorithms based on the data structures they utilize:
 \begin{itemize}
@@ -267,14 +267,14 @@ The authors distinguish between three HCA algorithms based on the data structure
 
 \subsection{HCA with the dissimilarity matrix}
 
-The first and the most trivial variant uses the \emph{dissimilarity matrix} $M$.
+\xxx{The first and the most trivial} variant uses the \emph{dissimilarity matrix} $M$.\todo{zbytecna veta}
 
 \begin{defn}[Dissimilarity matrix]
-	Suppose a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the~\emph{dissimilarity matrix} $M$ is $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
+	\xxx{Suppose} a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the~\emph{dissimilarity matrix} $M$ is $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
 	\label{def01:dismat}
 \end{defn}
 
-Unless there remains only one cluster, the current algorithm searches $M$ for~the~closest pair of clusters, stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}).
+Unless there remains only one cluster, the current algorithm searches $M$ for~the~closest pair of clusters\todo{bacha, pouzivas `closest' coz je distance na podobnost, kde chces `most similar', a zaroven bys mel upozornit na to ze `most similar' clustery se poznaj jako minimum v ty matici}, stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}).
 
 \begin{algorithm}[t]
 	\caption{HCA with dissimilarity matrix}
