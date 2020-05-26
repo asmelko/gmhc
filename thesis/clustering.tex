@@ -156,24 +156,24 @@ The choice of a linkage criterion in hierarchical clustering algorithm is vital.
 	\label{fig01:link}
 \end{figure}
 
-\section{Mahalanobis coupling of clusters in hierarchical clustering}
+\section{Hierarchical clustering with Mahalanobis linkage}
 
-In hierarchical clustering analysis (HCA), algorithms branch into different variations so they are more suitable for a specific dataset type~\cite{murtagh2008hierarchical} \cite{oh2004hierarchical} \cite{zhao2005hierarchical}. As an example of this process, see fig.~\ref{fig01:mhca}. A general HCA is unable to properly cluster the provided dataset. The~\emph{Ma\-ha\-la\-no\-bis-average hierarchical clustering analysis} (MHCA) focuses on the datasets that create clusters of ellipsoid shapes. Such datasets are common products of~the~measurements of cell cytometry data in bioinformatics, which was the original purpose for its design.
+\xxx{In} hierarchical clustering analysis (HCA)\todo{tady je uz ponekud pozde na zkratku}, algorithms branch into different variations so they are more suitable for a specific dataset type~\cite{murtagh2008hierarchical} \cite{oh2004hierarchical} \cite{zhao2005hierarchical}\todo{slep to do jednoho cite commandu, normalne cite\{a,b\} bez mezery}. \xxx{As an example of this process,} see fig.~\ref{fig01:mhca}\todo{ctenar se tam v tomhle okamziku podiva a nebude mu vubec jasny co tam ma hledat. Chces zacit tim ze typickej pripad pro podobnou customizaci je ze ocekavas urcitej tvar clusteru, napriklad ze jsou to pomerne dlouhy elipsoidy nebo gaussiany}. A general HCA is unable to properly cluster the \xxx{provided} dataset. The~\emph{Ma\-ha\-la\-no\-bis-average hierarchical clustering analysis} (MHCA) focuses on the datasets that create clusters of ellipsoid shapes. Such datasets are common \xxx{products}\todo{commonly originate in ...}\ of~the~measurements of cell cytometry data in bioinformatics, which was the original purpose for \xxx{its} design.
 
 \begin{figure}[t]\centering
 	\includegraphics[width=10cm]{img/mhca}
-	\caption{A comparison of HCA and MHCA clusterings on a dataset that forms elliptic groups of points~\cite{fivser2012detection}. The upper two figures show the stage of clustering when both algorithms clustered the dataset into three clusters. MHCA properly recognizes the elliptic clusters.}
+	\caption{A comparison of HCA and MHCA clustering on a dataset that \xxx{forms} elliptic groups of points~\cite{fivser2012detection}. \xxx{je nutny rict odkud si vzal ten obrazek!} The upper two figures show the state of clustering when both algorithms cluster the dataset into three clusters. MHCA properly recognizes the elliptic clusters.}
 	\label{fig01:mhca}
 \end{figure}
 
 \subsection{Mahalanobis distance}
 
-A vital part of the MHCA is its unique dissimilarity measure. It is based on the \emph{Mahalanobis distance}~\cite{mahalanobis1936generalized}, a~distance between a~point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis, then points laying on this axis are closer to the set than points that are not; even if their euclidean distance to the center of the set is closer.
+A \xxx{vital} part of the MHCA is its \xxx{unique} dissimilarity measure\todo{zbytecna veta, slep s nasledujici}. It is based on the \emph{Mahalanobis distance}~\cite{mahalanobis1936generalized}, a~distance between a~point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis, then points laying on this axis are closer to the set than points that are not; even if their euclidean distance to the center of the set is closer.
 
-To measure the Mahalanobis distance, the covariance matrix of~a~participating cluster needs to be computed. We create the covariance matrix using the random vector of a cluster.
+To measure the Mahalanobis distance, \xxx{the} covariance matrix of~a~participating cluster needs to be computed. We \xxx{create} the covariance matrix using the random vector of a cluster.
 
-\begin{defn}[Random vector]\todo{tohle zni hodne neprakticky, rovnou tam rekni ze random vector reprezentujes matici vsech pozorovani at v tom neni zmatek}
-	Given a cluster $C$ of a vector-space dataset, we define the \emph{random vector} $v$ of the cluster $C$ as a vector of $d$ \xxx{discrete} random variables; a random variable $v_i$ has equal probability values $\{o_i:o\in C\}$
+\begin{defn}[Random vector of a cluster]
+	Given a cluster $C$ of a vector-space dataset, we define its random vector $v$ as a vector of $d$ discrete random variables, where the random variable $v_i$ takes values from $\{x_i:x\in C\}$ with equal probability.
 \end{defn}
 
 \begin{defn}[Covariance matrix]
