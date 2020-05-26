@@ -274,7 +274,7 @@ The authors distinguish between three HCA algorithms based on the data structure
 	\label{def01:dismat}
 \end{defn}
 
-Unless there remains only one cluster, the current algorithm searches $M$ for~the~closest pair of clusters\todo{bacha, pouzivas `closest' coz je distance na podobnost, kde chces `most similar', a zaroven bys mel upozornit na to ze `most similar' clustery se poznaj jako minimum v ty matici}, stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}).
+Unless there remains only one cluster, the \xxx{current} algorithm searches $M$ for~the~closest pair of clusters\todo{bacha, pouzivas `closest' coz je distance na podobnost, kde chces `most similar', a zaroven bys mel upozornit na to ze `most similar' clustery se poznaj jako minimum v ty matici}, stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}).
 
 \begin{algorithm}[t]
 	\caption{HCA with dissimilarity matrix}
@@ -292,9 +292,11 @@ Unless there remains only one cluster, the current algorithm searches $M$ for~th
 	\end{algorithmic}
 \end{algorithm}
 
-The main cycle in line $3$ repeats $n = |\mathcal{D}|$ times; each iteration the number of clusters is reduced by 1. The search in line $4$ is bounded by $O(n^2)$ time, having its peak in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measures for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are $n$~iterations performed, this results in the overall time complexity of $O(n^3)$. 
+The main cycle \xxx{in}\todo{on?}\ line $3$\todo{tady nastava zmateni protoze ctenar netusi kde ma vzit ten treti radek, idealne tohle chces ve stejnym odstavci jako referenci na ten algoritmus, tak aby bylo videt ze ty radky sou z nej} repeats $n = |\mathcal{D}|$ times; \xxx{each iteration}\todo{predlozku?}\ the number of clusters is reduced by 1. The search in line $4$ is bounded by $O(n^2)$ time, \xxx{having its peak}\todo{with maximal complexity}\ in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measur\xxx{es}\todo{measurements?}\ for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are total $n$~iterations performed, this results in the overall time complexity of $O(n^3)$. 
 
-The space required to store $M$ is $O(n^2)$. As there is no other non-trivial requirement, the overall space complexity is $O(n^2)$ as well. 
+The space required to store $M$ is $O(n^2)$. As there is no other non-trivial requirement, the overall space complexity is $O(n^2)$ as well.
+
+\todo{Z tech poznamek udelej oddeleny algoritmy, kdyz uz maj uplne jinou slozitost tak je dobry to videt explicitne. Zaroven se tim definuje ten `In-place HCA' kterej mas v tabulce ale tady neni nikde videt.}
 \begin{rem}
 	Note that this algorithm does not have to store the dissimilarity matrix in the memory. We can decide to measure a cluster dissimilarity \emph{in-place}. Line $6$ would become redundant and the time complexity of line $4$ would increase by a constant multiplicative factor; hence, the overall time complexity remains the same while the~space complexity becomes $O(n)$. We will refer to this variant as the \emph{in-place HCA}.
 \end{rem}
@@ -374,13 +376,13 @@ We summarize the time and space complexity of the mentioned algorithms in the ta
 		 & \textbf{Time} & \textbf{Space} \\
 		 \pulrad{\textbf{HCA variant}} & \textbf{complexity} & \textbf{complexity} \\
 		\midrule
-		HCA with dissimilarity matrix & $O(n^3)$ & $O(n^2)$ \\
+		HCA with dissimilarity matrix & $O(n^3)$ & $O(n^2)$ \xxx{mathcal O!}\\
 		in-place HCA & $O(n^3)$ & $O(n)$ \\
 		HCA with the nearest neighbor array & $O(n^3)$ & $O(n)$ \\
 		HCA with priority queues & $O(n^2\log(n))$ & $O(n^2)$ \\
 		\bottomrule
 	\end{tabular}
-	\caption{The summary of time and space complexity for the HCA variants.}
+	\caption{The summary of time and space complexity for the HCA variants. \xxx{Tohle je trochu nepresny --- neni v tom videt zavislost na slozitosti vypoctu ty disimilarity (tj. efektivne na dimenzionalite toho datasetu). Doporucuju to udelat aspon pro ty minkowskiho vzdalenosti tim ze tam pridas vliv ty dimenze. Konkretne v prvnim radku ma bejt $\mathcal{O}(n\cdot(n^2 + nd))$ (coz ma vyhodu pro obrovsky $d>>>n$) a v druhym to je na ferovku $\mathcal{O}(n^3\cdot d)$}}
 	\label{tab01:hca}
 \end{table}
 
