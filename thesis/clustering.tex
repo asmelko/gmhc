@@ -388,7 +388,7 @@ We summarize the time and space complexity of the mentioned algorithms in the ta
 
 To show an example of the big algorithm complexity, we tested the limits of a dissimilarity matrix variant implementation. We measured the R language library function \texttt{hclust}; a frequently used implementation of HCA. It computes the centroid linkage with the euclidean distance and uses the dissimilarity matrix. 
 
-Fig. \ref{fig01:hclust} confirms the above stated polynomial time complexity of the implementation. Moreover, it halted at a dataset size of 47K because the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
+Fig. \ref{fig01:hclust} \xxx{confirms} the above stated polynomial time complexity of the implementation. Moreover, \xxx{it halted} at a dataset size of 47K because the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
 
 In conclusion, the space complexity of HCA can be even more restrictive in the means of the overall algorithm usability than its time complexity. The performance and usability of the HCA variants depends on many factors and the programmer needs to find a balance between their tradeoffs. The metric function is one of them. For example, when the Minkowski distance is used, we can prefer the in-place HCA over the HCA with dissimilarity matrix for a lower space complexity while retaining the same asymptotic time complexity. However, if the distance metric is more complex, one may prefer to store the measures in the memory.
 
