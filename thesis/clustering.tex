@@ -74,7 +74,7 @@ Since the only performance demanding parts of the $k$-means algorithm are the as
 
 \subsection{Hierarchical model}
 
-In the hierarchical clustering model, objects are connected together forming a tree-like structure. In contrast with the aim of a centroid-based model that returns only $k$ centroids, hierarchical clustering algorithms capture the whole connecting process. These algorithms start with all objects from a dataset as initial clusters. Each iteration, two clusters are connected creating a new one, finishing with one all-inclusive cluster. Commonly, the algorithms represent the connecting process as an ordered list of pairs --- a list of connected clusters~\cite{karypis1999chameleon}.
+In the hierarchical clustering model, objects are connected together forming a tree-like structure. In contrast with the aim of a centroid-based model that returns only $k$ centroids, hierarchical clustering analysis (HCA) captures the whole connecting process. HCA algorithms start with all objects from a dataset as initial clusters. Each iteration, two clusters are connected creating a new one, finishing with one all-inclusive cluster. Commonly, the algorithms represent the connecting process as an ordered list of pairs --- a list of connected clusters~\cite{karypis1999chameleon}.
 
 The result of a hierarchical clustering can be viewed as a \emph{dendrogram} (see fig.~\ref{fig01:dendro}). The y-axis states the measure of similarity between connected clusters. The x-axis shows labels of the objects from a dataset. Hence, the clusters that are connected in the higher part of the dendrogram are considered less similar, and the clusters connected at its bottom are more similar. 
 
@@ -156,47 +156,45 @@ The choice of a linkage criterion in hierarchical clustering algorithm is vital.
 	\label{fig01:link}
 \end{figure}
 
-\section{Hierarchical clustering with Mahalanobis linkage}
+\section{Hierarchical clustering with the Ma\-ha\-la\-no\-bis linkage}
 
-\xxx{In} hierarchical clustering analysis (HCA)\todo{tady je uz ponekud pozde na zkratku}, algorithms branch into different variations so they are more suitable for a specific dataset type~\cite{murtagh2008hierarchical} \cite{oh2004hierarchical} \cite{zhao2005hierarchical}\todo{slep to do jednoho cite commandu, normalne cite\{a,b\} bez mezery}. \xxx{As an example of this process,} see fig.~\ref{fig01:mhca}\todo{ctenar se tam v tomhle okamziku podiva a nebude mu vubec jasny co tam ma hledat. Chces zacit tim ze typickej pripad pro podobnou customizaci je ze ocekavas urcitej tvar clusteru, napriklad ze jsou to pomerne dlouhy elipsoidy nebo gaussiany}. A general HCA is unable to properly cluster the \xxx{provided} dataset. The~\emph{Ma\-ha\-la\-no\-bis-average hierarchical clustering analysis} (MHCA) focuses on the datasets that create clusters of ellipsoid shapes. Such datasets are common \xxx{products}\todo{commonly originate in ...}\ of~the~measurements of cell cytometry data in bioinformatics, which was the original purpose for \xxx{its} design.
+Commonly, HCA algorithms branch into different variations so they are more suitable for a specific dataset type~\cite{murtagh2008hierarchical,oh2004hierarchical,zhao2005hierarchical}. A common cause for such customization is a shape of clusters, i.e. an elliptical or gaussian shape (see fig. \ref{fig01:mhca}). A general HCA is unable to properly cluster such dataset. The~\emph{Ma\-ha\-la\-no\-bis-average hierarchical clustering analysis} (MHCA) focuses on the datasets that create clusters of ellipsoid shapes. Such datasets commonly originate in the~measurements of cell cytometry data in bioinformatics, which was the original purpose for the design of MHCA.
 
 \begin{figure}[t]\centering
 	\includegraphics[width=10cm]{img/mhca}
-	\caption{A comparison of HCA and MHCA clustering on a dataset that \xxx{forms} elliptic groups of points~\cite{fivser2012detection}. \xxx{je nutny rict odkud si vzal ten obrazek!} The upper two figures show the state of clustering when both algorithms cluster the dataset into three clusters. MHCA properly recognizes the elliptic clusters.}
+	\caption{A comparison of HCA and MHCA clustering on a dataset that contains elliptic groups of points (taken from the \texttt{tsieger/mhca} Github repository). The upper two figures show the state of clustering when both algorithms cluster the dataset into three clusters. MHCA properly recognizes the elliptic clusters.}
 	\label{fig01:mhca}
 \end{figure}
 
 \subsection{Mahalanobis distance}
 
-A \xxx{vital} part of the MHCA is its \xxx{unique} dissimilarity measure\todo{zbytecna veta, slep s nasledujici}. It is based on the \emph{Mahalanobis distance}~\cite{mahalanobis1936generalized}, a~distance between a~point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis, then points laying on this axis are closer to the set than points that are not; even if their euclidean distance to the center of the set is closer.
+An important part of MHCA is the dissimilarity measure based on the \emph{Mahalanobis distance}~\cite{mahalanobis1936generalized}, a~distance between a~point and a set of points (in our case a cluster). If points in the set are strongly correlated in some axis, then points laying on this axis are closer to the set than points that are not; even if their euclidean distance to the center of the set is closer.
 
-To measure the Mahalanobis distance, \xxx{the} covariance matrix of~a~participating cluster needs to be computed. We \xxx{create} the covariance matrix using the random vector of a cluster.
+To measure the Mahalanobis distance, a covariance matrix of~a~participating cluster needs to be computed. We compute the covariance matrix using the random vector of a cluster.
 
 \begin{defn}[Random vector of a cluster]
-	Given a cluster $C$ of a vector-space dataset, we define its random vector $v$ as a vector of $d$ discrete random variables, where the random variable $v_i$ takes values from $\{x_i:x\in C\}$ with equal probability.
+	Given a cluster $C$ of a vector-space dataset, we define its \emph{random vector} $v$ as a vector of $d$ discrete random variables, where the random variable $v_i$ takes values from $\{x_i:x\in C\}$ with equal probability.
 \end{defn}
 
 \begin{defn}[Covariance matrix]
-	Having a \xxx{random vector $v$ of length $n$}\todo{neni to set of vectors?!}, we define the \emph{covariance matrix} $\cov(v)$ as a $n\times n$ matrix that holds covariances of each pair of vector element:
+	Given a random vector $v$ of length $n$, we define the \emph{covariance matrix} $\cov(v)$ as a $n\times n$ matrix that holds covariances of each pair of vector element:
 	$$\cov(v)_{i,j}=\cov(v_i,v_j)$$
 \end{defn}
 
-Using the random vector of a cluster we can \xxx{easily create}\todo{neni to easily, a ty ji nevyrabis ale pocitas}\ the covariance matrix of a cluster and properly define the Mahalanobis distance:
+Using the random vector of a cluster we can compute the covariance matrix of a cluster and properly define the Mahalanobis distance:
 
 \begin{defn}[Mahalanobis distance]
-	Having a cluster $C$ of a vector-space dataset $\mathcal{D}\in\R^d$ and the random vector $v$ of $C$, we define the \emph{Mahalanobis distance} between $u \in \R^d$ and $C$ as
+	Suppose a cluster $C$ of a vector-space dataset $\mathcal{D}\in\R^d$ and the random vector $v$ of $C$. If the $\cov(v)$ is regular, we define the \emph{Mahalanobis distance} between $u \in \R^d$ and $C$ as
 	\[d_\text{Maha}(u,C) = \sqrt{(u-\mean(C))^T\cov(v)^{-1}(u-\mean(C))}.\]
 \end{defn}
 
-\todo{Co se stane kdyz je $\cov(v)$ singularni?}
+Note that this equation computes a distance between a point and a cluster. To fully incorporate the Mahalanobis distance in a hierarchical algorithm, we need to construct a method to measure a distance between two clusters.
 
-\xxx{However, using this equation,} we are only able to compute \xxx{a point cluster distance}. To fully incorporate the Mahalanobis distance in a hierarchical algorithm, we need to \xxx{find}\todo{construct?} a method \xxx{how} to measure a \xxx{cluster cluster distance}. 
-
-\xxx{We can achieve it either by}\todo{rovnou rekni ze prirozene vznikaji 2 pouzitelny metody}\ computing the arithmetic mean of the distances between all points and a cluster or by computing just one distance between a centroid and a cluster. We respectively call these distance functions the \emph{Full Mahalanobis distance} (FMD) and the \emph{Centroid Mahalanobis distance} (CMD).
+Two usable methods naturally arise. We compute either the arithmetic mean of the distances between all points and a cluster or just the distance between a centroid and a cluster. We respectively call these methods the \emph{Full Mahalanobis distance} (FMD) and the \emph{Centroid Mahalanobis distance} (CMD).
 
 \begin{defn}[Full Mahalanobis distance]
 	Having clusters $C$ and $C'$, we define the \emph{Full Mahalanobis distance} between clusters $C$ and $C'$ as the arithmetic mean of the Mahalanobis distances between each object $o \in C$ and the~cluster $C'$:
-	$$d_\text{MahaFull}(C,C') =\frac{1}{|C|}\sum_{o\in C}{d_M(o,C')}$$
+	$$d_\text{MahaFull}(C,C') =\frac{1}{|C|}\sum_{o\in C}{d_\text{Maha}(o,C')}$$
 	\label{def01:fmd}
 \end{defn}
 
@@ -219,7 +217,8 @@ To illustrate the measure of the Mahalanobis distance, let us suppose we have tw
 
 The \xxx{pros and cons} between FMD and CMD are \xxx{trivial}. Due to the \xxx{full point contribution}\todo{def?}, FMC can produce more precise measure than its simpler counterpart. On the~other hand, CMD compensates this with much lower time complexity.\todo{jaky je meritko ty presnosti? V jakym pripade je teda presnost potreba, a kdy neni a vyplati se to aproximovat tim prumerem?}
 
-To \xxx{make use of these} Mahalanobis distance variants in \xxx{MHCA} implementations, we need the distance function to be symmetric. Originally, the Mahalanobis distance is not a symmetric function. Fortunately, we easily fix the aforementioned distance functions with the \emph{Generalized distance}.
+
+To properly utilize the Mahalanobis distance variants as dissimilarity metrics in a MHCA implementation, we need the distance function to be symmetric. Originally, the Mahalanobis distance is not a symmetric function. Fortunately, we easily fix the aforementioned distance functions with the Generalized distance.
 
 \begin{defn}[Generalized distance]
 	Given clusters $C$, $C'$ and a variant of the Mahalanobis distance~$d_\text{Variant}$ (either FMD or CMD), we define the \emph{Generalized distance} between clusters $C$ and $C'$ as the arithmetic mean of distances between $C$, $C'$ and $C'$, $C$:
@@ -228,19 +227,16 @@ To \xxx{make use of these} Mahalanobis distance variants in \xxx{MHCA} implement
 \end{defn}  
 
 
-\subsection{Algorithm behavior improvements}
-\todo{Zlepsit nadpis, zabejvas se tady vylozene tim ze `Fixujes singularitu kovariancni matice'}
+\subsection{Singularity of cluster covariance matrix}
 
-If the distance function of a MHCA implementation \xxx{was let to be the pure Mahalanobis distance, it would eventually halt due to the following problem --- the~covariance matrix computation.}
+In early stages of MHCA --- when clusters consist of fewer points --- the covariance matrix of a cluster is often singular As a result, we can not compute its inverse and perform the distance measure. Furthermore, the matrix can happen to be close to singular and --- when inverted --- can produce false results such as negative distances or infinity floating points.
 
-In early stages of MHCA --- when clusters consist of fewer points --- the covariance matrix of a cluster is often singular\todo{to je jeste v pohode protoze to dokazes detekovat, horsi je kdyz je `nearly singular' a zacnou ti vychazet vzdalenosti co se blizej}. Hence, we can not compute its inverse and perform the distance measure. Furthermore, the matrix can happen to be close to singular and --- when inverted --- can produce \xxx{distorted}\todo{specifikuj}\ results.
+To solve this problem, \citet{fivser2012detection} specified a cluster size threshold; if the size of a cluster is lower than the threshold, then the cluster dissimilarity measurements are computed using euclidean distance. The value of the threshold is proportional to the size of a dataset. We denote this threshold as the \emph{Mahalanobis threshold} and to implement the singularity workaround we defined the Non-singular Mahalanobis Distance.
 
-To solve this problem, \xxx{we used}\todo{Fiser et al used}\ the~euclidean distance with the~centroid linkage on clusters whose sizes are under a~specified threshold \xxx{--- the~\emph{Mahalanobis threshold}}. The value of the threshold is proportional to the size of a dataset~\cite{fivser2012detection}. \xxx{Hence,} to implement this optimization\todo{je to fakt optimalizace? neni to spis workaround?}\ we defined the \emph{Altered general distance}.\todo{eeeeeeeeeeeeeeemph}
-
-\begin{defn}[Altered general distance]\todo{mozna by mnohem lepsi nazev byl `Non-singular Mahalanobis Distance' nebo tak neco}
-	Given a threshold $T_M$, a cluster $C$ and its centroid $c$, a cluster $C'$ and its centroid $c'$ and a variant of the Mahalanobis distance~$d_\text{Variant}$ (either FMD or CMD), we define the \emph{Altered general distance} as
+\begin{defn}[Non-singular Mahalanobis Distance]
+	Given a threshold $T_M$, a cluster $C$ and its centroid $c$, a cluster $C'$ and its centroid $c'$ and a variant of the Mahalanobis distance~$d_\text{Variant}$ (either FMD or CMD), we define the \emph{Non-singular Mahalanobis Distance} as
 	$$
-	d_\text{Altered}(C,C')=
+	d_\text{NSing}(C,C')=
 	\begin{cases}
 		d_\text{General}(C, C'),                       & \text{if $|C|\ge T_M$ and $|C'|\ge T_M$}, \\
 		\dfrac{d_\text{Variant}(C, C')+||c-c'||_2}{2}, & \text{if $|C| < T_M$ and $|C'|\ge T_M$},  \\
@@ -251,14 +247,10 @@ To solve this problem, \xxx{we used}\todo{Fiser et al used}\ the~euclidean dista
 	\label{def01:alt}
 \end{defn}
 
-
-
 \section{Computational complexity of the hierarchical clustering algorithms}
+\label{sec01:hca}
 
-The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $O(n^3)$, which restricts \xxx{their} use for large datasets ($\geq10^5$ points \xxx{for} the contemporary hardware)~\cite{sasirekha2013agglomerative}.
-A MHCA algorithm implementation \xxx{must be created with respect} to this problem. \citet{day1984efficient} propose three different variants of a \xxx{hierarchical clustering analysis}. We describe them thoroughly and \xxx{research}\todo{spis review, ale tu vetu asi muzes uplne vynechat (a pristi muzes slepit s predchozi)} their advantages and disadvantages.
-
-The authors distinguish between three HCA algorithms based on the data structures they utilize:
+The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $O(n^3)$, which restricts its use for large datasets ($\geq10^5$ points when using the contemporary hardware)~\cite{sasirekha2013agglomerative}. \citet{day1984efficient} propose three different HCA variants based on the data structures they utilize:
 \begin{itemize}
 	\item HCA with the dissimilarity matrix,
 	\item HCA with the nearest neighbor array,
@@ -267,14 +259,14 @@ The authors distinguish between three HCA algorithms based on the data structure
 
 \subsection{HCA with the dissimilarity matrix}
 
-\xxx{The first and the most trivial} variant uses the \emph{dissimilarity matrix} $M$.\todo{zbytecna veta}
+The first variant caches the dissimilarity measurements in the \emph{dissimilarity matrix} $M$.
 
 \begin{defn}[Dissimilarity matrix]
-	\xxx{Suppose} a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the~\emph{dissimilarity matrix} $M$ is $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
+	Having a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity, we define the~\emph{dissimilarity matrix} $M$ as a $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
 	\label{def01:dismat}
 \end{defn}
 
-Unless there remains only one cluster, the \xxx{current} algorithm searches $M$ for~the~closest pair of clusters\todo{bacha, pouzivas `closest' coz je distance na podobnost, kde chces `most similar', a zaroven bys mel upozornit na to ze `most similar' clustery se poznaj jako minimum v ty matici}, stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}).
+Unless there remains only one cluster, this algorithm searches $M$ for the most similar pair of clusters (represented by the matrix minimum), stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}). The main cycle on line $3$ repeats $n = |\mathcal{D}|$ times; in each iteration, the number of clusters is reduced by 1. The search on line $4$ is bounded by $O(n^2)$ time, with maximal complexity in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measurements for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are total $n$~iterations performed, this results in the overall time complexity of $O(n^3)$. 
 
 \begin{algorithm}[t]
 	\caption{HCA with dissimilarity matrix}
@@ -291,8 +283,6 @@ Unless there remains only one cluster, the \xxx{current} algorithm searches $M$ 
 		\EndProcedure
 	\end{algorithmic}
 \end{algorithm}
-
-The main cycle \xxx{in}\todo{on?}\ line $3$\todo{tady nastava zmateni protoze ctenar netusi kde ma vzit ten treti radek, idealne tohle chces ve stejnym odstavci jako referenci na ten algoritmus, tak aby bylo videt ze ty radky sou z nej} repeats $n = |\mathcal{D}|$ times; \xxx{each iteration}\todo{predlozku?}\ the number of clusters is reduced by 1. The search in line $4$ is bounded by $O(n^2)$ time, \xxx{having its peak}\todo{with maximal complexity}\ in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measur\xxx{es}\todo{measurements?}\ for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are total $n$~iterations performed, this results in the overall time complexity of $O(n^3)$. 
 
 The space required to store $M$ is $O(n^2)$. As there is no other non-trivial requirement, the overall space complexity is $O(n^2)$ as well.
 
@@ -312,7 +302,7 @@ This algorithm introduces the array of the nearest neighbors.
 \end{defn}
 
 Instead of the dissimilarity matrix, each cluster is assigned the index pointing to~its closest neighboring cluster. 
-Compared with the previous algorithm, this algorithm trades the expensive \emph{closest pair search} with the expensive \emph{structure update}  (see alg.~\ref{alg01:neigh}).
+Compared with the previous algorithm, this algorithm trades the expensive \emph{closest pair search} with the expensive \emph{structure update}  (see alg.~\ref{alg01:neigh}). On line $4$, each closest pair search can be performed in $O(n)$ time as the~array length does not exceeds $n$ elements. However on line $6$, the worst case update of $N$ happens when each cluster resides in the closest neighborhood with the clusters that are being merged (clusters $i$  and $j$). In this case, the~whole array has to be recomputed, which corresponds to~the~computation of the whole dissimilarity matrix. Hence, the time complexity for~this step is $O(n^2)$. To sum up, the overall time complexity is $O(n^3)$ and~the~space complexity is $O(n)$ because $N$ does not have more than linear space requirements.
 
 
 
@@ -332,14 +322,11 @@ Compared with the previous algorithm, this algorithm trades the expensive \emph{
 	\end{algorithmic}
 \end{algorithm}
 
-
-In line $4$, each closest pair search can be performed in $O(n)$ time as the~array length does not exceeds $n$ elements. However in line $6$, the worst case update of $N$ happens when each cluster resides in the closest neighborhood with the clusters that are being merged (clusters $i$  and $j$). In this case, the~whole array has to be recomputed, which corresponds to~the~computation of the whole dissimilarity matrix. Hence, the time complexity for~this step is $O(n^2)$. To sum up, the overall time complexity is $O(n^3)$ and~the~space complexity is $O(n)$ because $N$ does not have more than linear space requirements.
-
-Despite the equal time complexities, this algorithm may outperform the previous one because in the majority of situations the update step in line $6$ does not require the whole array to be recomputed. Moreover, if the~number of elements to be updated remains constant each iteration, the overall algorithm time complexity may be $O(n^2)$. 
+Despite the equal time complexities, this algorithm may outperform the previous one because in the majority of situations the update step on line $6$ does not require the whole array to be recomputed. Moreover, if the~number of elements to be updated remains constant each iteration, the overall algorithm time complexity may be $O(n^2)$. 
 
 \subsection{HCA with priority queues}
 
-This algorithm takes the advantage of the previous one employing the fast search and combines it with the fast update using \emph{priority queues} (see alg.~\ref{alg01:queue}).
+This algorithm takes the advantage of the previous one employing the fast search and combines it with the fast update using \emph{priority queues}.
 Each object from a dataset is assigned a~priority queue constructed from the remainder of the dataset. The priority label of a queued element is a dissimilarity measure between the object and the queued element. 
 
 \begin{algorithm}[t]
@@ -361,7 +348,7 @@ Each object from a dataset is assigned a~priority queue constructed from the rem
 \end{algorithm}
 
 When a priority queue is implemented as a heap, its time complexity can be $O(1)$ for the minimum retrieval and $O(log(n))$ for the insertion and deletion of an element~\cite{fredman1987fibonacci}.
-Therefore, the search step in line $4$ takes $O(k)$ time (bounded by~$O(n)$ during the first iteration). Next in line $6$, we need two delete and one insert operations (corresponding to deleting two merged clusters and inserting one new). We can perform such update on $n$~queues in $O(n\log{n})$ time.
+Therefore, in alg.~\ref{alg01:queue}, the search step on line $4$ takes $O(k)$ time (bounded by~$O(n)$ during the first iteration). Next on line $6$, we need two delete and one insert operations (corresponding to deleting two merged clusters and inserting one new). We can perform such update on $n$~queues in $O(n\log{n})$ time.
 
 To sum up, the overall time complexity is $O(n^2\log{n})$. The space complexity is $O(n^2)$ because all $n$ queues have the linear space requirements.
 
@@ -388,7 +375,7 @@ We summarize the time and space complexity of the mentioned algorithms in the ta
 
 To show an example of the big algorithm complexity, we tested the limits of a dissimilarity matrix variant implementation. We measured the R language library function \texttt{hclust}; a frequently used implementation of HCA. It computes the centroid linkage with the euclidean distance and uses the dissimilarity matrix. 
 
-Fig. \ref{fig01:hclust} \xxx{confirms} the above stated polynomial time complexity of the implementation. Moreover, \xxx{it halted} at a dataset size of 47K because the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
+Fig. \ref{fig01:hclust} supports the above stated polynomial time complexity of the implementation. Moreover, it stopped at a dataset size of 47K because the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
 
 In conclusion, the space complexity of HCA can be even more restrictive in the means of the overall algorithm usability than its time complexity. The performance and usability of the HCA variants depends on many factors and the programmer needs to find a balance between their tradeoffs. The metric function is one of them. For example, when the Minkowski distance is used, we can prefer the in-place HCA over the HCA with dissimilarity matrix for a lower space complexity while retaining the same asymptotic time complexity. However, if the distance metric is more complex, one may prefer to store the measures in the memory.
 
