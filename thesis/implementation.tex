@@ -64,6 +64,7 @@ Last, the application should maximize the instruction throughput. It is accompli
 
 
 \section{Implementation strategy}
+\label{sec03:impl}
 
 Section \ref{sec01:hca} introduced three variants of a hierarchical clustering analysis. To decide which one to implement, it must satisfy the memory usage and the level of parallelism. Specifically, the algorithm must have subquadratic space requirements as it must be able to process rather large datasets. Next, the algorithm should exhibit some parallelism opportunities; otherwise massive GPU parallel properties will be to no use.  We compare the mentioned algorithms according to these conditions:
 
@@ -137,6 +138,7 @@ public:
 \end{lstlisting}
 
 \section{Mahalanobis clustering implementation}
+\label{sec03:gmhc}
 
 The class \texttt{gmhc} is the entry point of the whole gpu-accelerated MHCA algorithm. It inherits from \texttt{hierarchical\_clustering<float>} template specialization, which means that the algorithm expects dataset objects to be single-precision points of~a~specified dimension. The class communicates
 with a GPU; hence, it holds structures used by the device.

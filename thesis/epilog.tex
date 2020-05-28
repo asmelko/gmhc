@@ -1,18 +1,18 @@
 \chapter*{Conclusion}
 \addcontentsline{toc}{chapter}{Conclusion}
 
-Over the past years, implementing general clustering algorithms using GPUs has become an expanding topic. As there is always more data to process, GPU implementations help greatly in accelerating a related research.  Still, there are many of~the algorithms that are supported only on CPUs, which can significantly decrease their usability. In the present thesis we have proposed and tested an implementation of the Mahalanobis-average hierarchical clustering analysis accelerated on a single GPU. 
+In this thesis we have researched possible variations of agglomerative hierarchical clustering algorithms (section~\ref{sec01:hca}) and selected the variant that promised high GPU utilization and low memory requirements (section~\ref{sec03:impl}). Then, we have implemented the Mahalanobis-average hierarchical clustering accelerated on a single GPU (section~\ref{sec03:gmhc}). To measure the speedup, we have performed experiments that summarize the results (chapter~\ref{sec04:res}). 
 
-For the proposed implementation, we used CUDA platform to communicate with a GPU. We employed high throughput operations like warp shuffle instructions and utilized a device memory hierarchy using shared and constant memory. With~the~stated features, we have achieved remarkable performance improvements.
+For the proposed implementation, we have used CUDA platform to communicate with a GPU. The implementation uses the Centroid Mahalanobis distance (see def.~\ref{def01:cmd}) as the dissimilarity measure, and it can cluster datasets from single-points or with a help of apriori clusters. We have tested the implementation on single-point datasets with sizes from 40K to 800K points and apriori datasets with sizes from 1M to 5M points. Due to the big time and memory requirements of the CPU implementation, datasets were down-sampled. For single-point datasets, the speedup was 60-times for 4K points and 5000-times for 40K. For apriori datasets, the speedup was 8-times for 1M points and 20-times for 2M points. We have also tested the clustering performance of different apriori cluster size and count ratios. We have discovered that clustering time increases faster with higher apriori cluster count than with higher apriori cluster size.
 
-The proposed MHCA implementation provides performance increase of up to 5000x in measured single-point datasets and 20x in apriori datasets. Moreover, it requires only linear space with respect to the dataset size, which is an~important factor in the general clustering scalability.
-
-With such performance increase, this implementation is able to extend the size of reasonably computable datasets from hundreds of thousands to millions of points. It can be used to advance research in the field of cell cytometry by~decreasing computation time as well as enabling to compute larger datasets.
+Regarding the comparison of clustering results, the clusterings differed for sin\-gle-point datasets due to the slightly different dissimilarity measures. On the other hand, in case of more frequently used apriori clusters, the clusterings were practically the same.
 
 \subsection*{Future work}
 
-The experiments showed that the measure of dissimilarity between small clusters may be too naive and can propagate a creation of unwanted clusters. This weakness can be addressed by implementing a different dissimilarity measure for clusters under the Mahalanobis threshold. For example, we can perform a transformation on a covariance matrix of a small cluster to make it regular. Then it can be properly inverted and used in the Mahalanobis distance formula.
+The main concern of the future work is to implement the remainder of the functionalities of the current MHCA algorithm.
 
-Moreover, a covariance matrix can be normalized by dividing each element by its discriminant. When used in the distance formula, this transformation produces the combination of the Mahalanobis and Euclidean distance.
+The first step is to implement the dissimilarity measure that can provide better clustering of small clusters. We can transform a covariance matrix of  these clusters to make it regular. Then it can be properly inverted and used in the Mahalanobis distance formula.
+
+Next, a covariance matrix can be normalized by dividing each element by its discriminant. When used in the distance formula, this transformation outputs the combination of the Mahalanobis and Euclidean distance. The determinant can be computed as a side product of the Cholesky decomposition that can be used to compute the inverse of a covariance matrix.
 
 The work can be further expanded by implementing the Full Mahalanobis distance (see def.~\ref{def01:fmd}). It can cover the cases when CMD does not provide precise dissimilarity measure which can lead to a better clustering results. Naturally, it would come for the price of~a~greater overall time complexity. 

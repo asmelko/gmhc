@@ -98,7 +98,7 @@ Dedication.
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-In cytometry, researchers use the agglomerative hierarchical clustering with the Mahalanobis distance to cluster flow and mass cytometry datasets. The current implementation restricts the applicable size of clustering input to a factor of 100,000 cells. This thesis proposes the implementation accelerated on a single CUDA-enabled GPU. The improved performance and linear space complexity of the algorithm results in 5000x speedup for single-point datasets and 20x for apriori-datasets. With the accelerated algorithm, the applicable size of clustering input is increased to millions of cells.
+Hierarchical clustering algorithms are common tools for simplifying, exploring and analyzing datasets in many areas of research. For flow cytometry, a specific variant of agglomerative clustering has been proposed, that uses cluster linkage based on Mahalanobis distance to produce results better suited for the domain. Applicability of this clustering algorithm is currently limited by its relatively high computational complexity, which does not allow it to scale to common cytometry datasets. This thesis describes a specialized, GPU-accelerated version of the Mahalanobis-average linked hierarchical clustering, which improves the algorithm performance by several orders of magnitude, thus allowing it to scale to much larger datasets. The thesis provides an overview of current hierarchical clustering algorithms, and details the construction of the variant used on GPU. The result is benchmarked on publicly available high-dimensional data from mass cytometry.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
