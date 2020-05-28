@@ -47,19 +47,30 @@ To achieve this grade of parallelism, a GPU employs the \emph{SIMT architecture}
 
 Moreover, as warp threads execute concurrently, CUDA offers \emph{warp shuffle instructions}. All threads in a warp are able to distribute their data to another thread within just one instruction. This comes to a great use for synchronization but can also be used to achieve high throughput reduction operations as well.
 
-\todo{Tady mas terminologii, ale vubec nikde neni zdurazneny proc to je vlastne rychly a jaky jsou hlavni metody jak to optimalizovat. Hod sem kratkou sekci `GPU performance and optimization concerns' kde to zhruba vysypes.}
+\subsection{GPU performance and optimization concerns}
+
+To greatly utilize a CUDA-enabled GPU and achieve a great performance, a program code must be written with respect to the GPU architecture. These guidelines help us in this task:
+
+A GPU task has to be split to many small data dependent sub-tasks (i.e.~a computation of one element in a dissimilarity matrix). Threads must not perform many different tasks. Rather, they must perform the same task with a different data. Satisfying this condition, we follow the model of the SIMT architecture.
+
+The next step is to maximize the memory throughput. The programmer should minimize data transfers with low bandwidth such as copying data between CPU and GPU. This can be accomplished by creating and operating with structures directly in a GPU without mapping it to the CPU memory.
+
+
+On-chip shared memory should be utilized. It is equivalent to the user-ma\-na\-ged cache and provides much higher data throughput than the global memory. 
+Heavy use task related data should be moved there.
+
+Last, the application should maximize the instruction throughput. It is accomplished by using lower precision data types that does not affect the result or by using high throughput instructions like warp shuffle. The most importantly, the programmer should minimize the use of control flow instructions (if, switch, while, etc.) that cause divergent warps. 
+
 
 \section{Implementation strategy}
 
 Section \ref{sec01:hca} introduced three variants of a hierarchical clustering analysis. To decide which one to implement, it must satisfy the memory usage and the level of parallelism. Specifically, the algorithm must have subquadratic space requirements as it must be able to process rather large datasets. Next, the algorithm should exhibit some parallelism opportunities; otherwise massive GPU parallel properties will be to no use.  We compare the mentioned algorithms according to these conditions:
 
-\todo{mozna z toho chces udelat prehlednou tabulku, kde bude `memory used' a `independent threads' oddelene vyjadreny v zavislosti na $n$, $d$ a $k$.}
-
 \begin{description}
 
-\item[HCA with dissimilarity matrix] satisfies the memory usage if the dissimilarity matrix is not held in the memory. The parallelism requirement is satisfied as each matrix field can be computed independently, exposing great parallelism opportunity. 
+\item[In-place HCA] satisfies the memory usage with its linear space complexity. In this variant, finding the most similar cluster pair is equivalent to a computation of the whole dissimilarity matrix. The parallelism requirement is satisfied because each measure of dissimilarity can be computed independently, exposing great parallelism opportunity. 
 
-\item[HCA with the nearest neighbor array] has required subquadratic space complexity by definition. On the other hand, it provides less space for a parallelism because the algorithm does not compute whole dissimilarity matrix as in the previous algorithm. Large dataset sizes may compensate for this disadvantage. 
+\item[In-place HCA with the nearest neighbor array] satisfies the required memory usage as well. On the other hand, it provides less space for a parallelism because the algorithm does not compute whole dissimilarity matrix as in the previous algorithm. Large dataset sizes may compensate for this disadvantage. 
 
 \item[HCA with priority queues] is unsuitable as it does not satisfy the memory usage. Moreover, operation over priority queues (insert, delete and min) are not of a parallel nature and may create a bottleneck in the computation.
 
@@ -71,13 +82,10 @@ Additionally, we decided to implement the CMD variant of the Mahalanobis distanc
 
 \subsection{Apriori clustering optimization}
 
-When cluster sizes reach the Mahalanobis threshold, a MHCA algorithm starts to~form elliptic clusters. However, until then, a simple euclidean distance is used. This is the important stage of the algorithm as an improper initial clustering can \xxx{decrease the overall clustering result}. Hence, a simple hierarchical euclidean clustering can be unsatisfactory.
-\todo{Ta apriori optimizace je hlavne proto aby ses vyhnul tomu ze mas miliardu bodu a potrebujes pocitat miliardu na druhou vzdalenosti; to ze to pomaha na zacatku s tim ze }
-
-To solve this problem, we use the apriori clustering method.
+As already mentioned, the present HCA algorithms can hardly cluster datasets of big sizes. This can be improved by implementing the apriori clustering method.
 
 \begin{defn}[Apriori clustering]
-	Given a dataset $\mathcal{D}$ and HCA algorithm $\mathcal{A}$, we define the \emph{apriori clusters} of $\mathcal{A}$ as a partitioning of  $\mathcal{D}$ into non-empty subsets $\mathcal{D}_1,\dots,\mathcal{D}_k$    if both conditions hold:
+	Given a dataset $\mathcal{D}$ and a HCA algorithm $\mathcal{A}$, we define the \emph{apriori clusters} of $\mathcal{A}$ as a partitioning of  $\mathcal{D}$ into non-empty subsets $\mathcal{D}_1,\dots,\mathcal{D}_k$    if these conditions hold:
 	\begin{enumerate}
 		\item $\mathcal{A}$ performs clustering of each subset separately; meaning that clusters from different subsets can not be merged.
 		\item When each subset is clustered into the only cluster, $\mathcal{A}$ clusters the resulting clusters as if they were in one subset.
@@ -85,20 +93,17 @@ To solve this problem, we use the apriori clustering method.
 	\label{def03:apriori}
 \end{defn}
 
-The intended usage of this feature is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating \xxx{better initial clusters}\todo{to `better' neni pravda, dulezity je ze sou rychlejc. Ale rozhodne se tim vyhejbas ruznejm potizim se singularitou ty kovariantni matice}\ that the MHCA algorithm (see fig.~\ref{fig03:apr_ex}).
-
-With this feature, the MHCA algorithm is guided by the apriori clusters to~create the corresponding merged clusters. They are usually of a small size that just reached the Mahalanobis threshold and can fully exhibit the MHCA properties. Overall, we suppose that apriori clusters can lessen the probability of~an~error during the early stage of the algorithm.
-
+The intended usage of this method is that the apriori clusters are created from a dataset using non-hierarchical clustering algorithm such as \emph{k-means} --- an algorithm that is capable of creating a dataset partitioning fast. With this feature, a HCA algorithm is guided by the apriori clusters to~create the corresponding merged clusters. They do not cluster the whole dataset at once. Rather, each apriori cluster is clustered separately. This results in a much faster computation (see section \ref{sec04:apr_perf}) and increased size of computable datasets. 
 
 \begin{figure}\centering
 	\includegraphics[width=10cm]{img/apriori_example}
-	\caption{An example dataset with (right) and without (left) visualized pre-computed apriori clusters (each apriori cluster is visualized as an ellipse --- dataset points contained in an ellipse represent a subset of the dataset).\xxx{Tohle vypada dost podezrele, skoro jako ze apriori clustery to prakticky vyresily :D }}
+	\caption{An example dataset with (right) and without (left) visualized pre-computed apriori clusters (each apriori cluster is visualized as an ellipse --- dataset points contained in an ellipse represent a subset of the dataset).}
 	\label{fig03:apr_ex}
 \end{figure}
 
 \section{Benchmarking framework}
 
-The chosen algorithm\todo{jen jeden? Taky by bylo vhodny trochu `switchnout' do toho ze implementujes, ze to kodis v C++ apod.} is implemented in the main class of the program --- \texttt{gmhc}\footnote{An abbreviation for GPU Mahalanobis-average Hierarchical Clustering}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
+We implemented the selected algorithm with the apriori clustering method in C++ language. Its implementation resides in the main class of the program --- \texttt{gmhc}\footnote{An abbreviation for GPU Mahalanobis-average Hierarchical Clustering}. It inherits from an abstract template class \texttt{hierarchical\_clustering}.
 This template provides key data fields and methods for a hierarchical clustering algorithm (see list.~\ref{lst03:hc}): 
 
 \begin{description}
@@ -161,9 +166,9 @@ Next follows the main responsibility of the \texttt{initialize} method --- devic
 \end{defn}
 
 \begin{defn}[Cluster-related arrays]
-	Given a dataset $\mathcal{D}$, its clusters $c_1,\dots,c_k$, a~Mahalanobis threshold $T_M$ and a positive number $m \le k$, we define the following \emph{cluster-related arrays}:
+	Given a dataset $\mathcal{D}$, its clusters $c_1,\dots,c_k$, a~Mahalanobis threshold $T_M$ and a positive number $m \le |\mathcal{D}|$, we define the following \emph{cluster-related arrays}:
 	\begin{itemize}
-		\item the centroid array\todo{tady uz je emph zas zbytecnej} $\mathcal{C}$ as an array that contains centroids of all $k$ clusters,
+		\item the centroid array $\mathcal{C}$ as an array that contains centroids of all $k$ clusters,
 		\item the inverse covariance array $\mathcal{I}$ as an array that contains inverse covariance matrices of all clusters that reached $T_M$,
 		\item the neighbor array $\mathcal{N}$ as an array that contains $m$ indices and distances to~the~$m$~closest clusters for each of $k$ clusters,
 		\item the status array $\mathcal{S}$ as an array that contains sizes and unique ids of all $k$~clusters.
@@ -174,22 +179,12 @@ Next follows the main responsibility of the \texttt{initialize} method --- devic
 
 All but the status array are device arrays. Device arrays are used within kernels while the host array controls the flow of run kernels.  
 
-To indicates a location of a cluster data distributed among the cluster-based arrays, we define their \emph{indexing structure}.
-
-\begin{defn}[Indexing structure]\todo{tohle neni definice, proste nahoru napis ze tu ctverici budes pojmenovavat `Indexing structure' a znacit Q. Btw je to jeden z mala pripadu kdy je emph povolen. :D Taky je mozny ze sem to naprosto spatne pochopil protoze ta definice je fakt nepruhledna a nedokazu rict co v tom Q teda vlastne ma bejt.}
-	\xxx{Having} a dataset $\mathcal{D}$, its $k$ clusters and a corresponding cluster-based array tuple $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$, we define the \emph{indexing structure} $\mathcal{Q}$ that determines the order of the cluster-related data in these arrays.
-	\label{def03:index}
-\end{defn}
-
-For each cluster, the indexing structure is able to retrieve an index to~the~clus\-ter-related arrays pointing to its data. The most importantly, data about a specific cluster resides under the same index within all cluster-related arrays.
-
-
 
 \subsection{Clustering}
 The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters (see fig.~\ref{fig03:clust_ctx}).
 
 \begin{defn}[Clustering context]
-	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-based array tuple $(\mathcal{C},\mathcal{I},\mathcal{N},\mathcal{S})$ with its indexing structure $\mathcal{Q}$, we define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'},\mathcal{A'},\mathcal{C'},\mathcal{I'},\mathcal{N'},\mathcal{S'},\mathcal{Q}')$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$. $\mathcal{Q}'$ describes the order of the sub-arrays.
+	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-related array tuple $(\mathcal{C}, \mathcal{I}, \mathcal{N}, \mathcal{S})$, we define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'}, \mathcal{A'}, \mathcal{C'}, \mathcal{I'}, \mathcal{N'}, \mathcal{S'})$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$.
 	\label{def03:context}
 \end{defn}
 
@@ -214,7 +209,7 @@ We divide the whole clustering algorithm into the top level \emph{apriori cluste
 	Before any context begins the clustering, its closest neighbor array has to~be initialized. It is done by the kernels \texttt{neighbors}.
 	
 	
-	\begin{algorithm}
+	\begin{algorithm}[t]
 		\caption{Apriori clustering}
 		\label{alg03:apriori}
 		\begin{algorithmic}[1]
@@ -232,13 +227,13 @@ We divide the whole clustering algorithm into the top level \emph{apriori cluste
 		\end{algorithmic}
 	\end{algorithm}
 
-	\item[Context clustering layer] performs one iteration of clustering within the specified context (see alg.~\ref{alg03:context}). First, it goes through the neighbor array of the context and finds the closest pair of clusters (kernel \texttt{neighbor\_min}). At that moment, there are two clusters to be removed and one new cluster to be created. Hence, the cluster-based arrays of~the~context need to be updated accordingly.
+	\item[Context clustering layer] performs one iteration of clustering within the specified context (see alg.~\ref{alg03:context}). First, it goes through the neighbor array of the context and finds the closest pair of clusters (kernel \texttt{neighbor\_min}). At that moment, there are two clusters to be removed and one new cluster to be created. Hence, the cluster-related arrays of~the~context need to be updated accordingly.
 	
 	The remainder of this method sets data for the new cluster. First, $\mathcal{A}$ is~recomputed to correctly show that points of the former two clusters now belong to the new one (kernel \texttt{merge\_clusters}). Then, the new centroid is computed and stored into $\mathcal{C}$ (kernel \texttt{centroid}) and status array is updated as well (in the host code). Last, if the new cluster reaches the Mahalanobis threshold, its inverse covariance matrix is computed and stored into $\mathcal{I}$ (kernels \texttt{compute\_icov}). 
 	
 	The final statement of the context clustering method checks the whole $\mathcal{N}$  according to~the~one created and two deleted clusters and updates it when needed (kernels \texttt{update\_neighbors}).
 	
-	\begin{algorithm}
+	\begin{algorithm}[t]
 	\caption{Context clustering}
 	\label{alg03:context}
 	\begin{algorithmic}[1]
@@ -264,9 +259,9 @@ We divide the whole clustering algorithm into the top level \emph{apriori cluste
 
 \subsection{Data order}
 
-This section describes the actual process of reorganizing the cluster-related arrays provided that a cluster pair $(i,j)$ is to be merged.
+This section describes the actual order of data in the cluster-related arrays and describesthe process of reorganizing the cluster-related arrays provided that a cluster pair $(i,j)$ is to be merged.
 
-This is achieved with a help of the \texttt{cluster\_bound\_t} structure --- an implementation of the indexing structure $\mathcal{Q}$. It is a rather simple structure that describes how the cluster-based arrays organize their data. The structure distinguishes two parts of the arrays: The first part contains the data of clusters whose size have not reached the Mahalanobis threshold while the second part stores the data of the remaining clusters. Hence, it contains a pair of indices indicating beginnings of the two parts and another pair describing the sizes of~the~parts. We will respectively call them \emph{Euclidean} and \emph{Mahalanobis array parts}. Note, the~structure is uniform for each cluster-based array; meaning that a different array data of~the~same cluster resides on the same index.
+This is achieved with a help of the \texttt{cluster\_bound\_t} structure called the \emph{indexing structure}. It is a rather simple structure that describes how the cluster-related arrays organize their data. The structure distinguishes two parts of the arrays: The first part contains the data of clusters whose size have not reached the Mahalanobis threshold while the second part stores the data of the remaining clusters. Hence, it contains a pair of indices indicating beginnings of the two parts and another pair describing the sizes of~the~parts. We will respectively call them \emph{Euclidean} and \emph{Mahalanobis array parts}. Note, the~structure is uniform for each cluster-related array; meaning that a different array data of~the~same cluster resides on the same index.
 
 When a cluster pair $(i,j)$ is to be merged, the indexing structure first recognizes the parts of an array where the indices $i$, $j$ belong. Hence, it identifies the places of arrays that are no longer valid. It gets rid of the places in the two particular ways:
 \begin{itemize}
@@ -320,10 +315,16 @@ Each kernel group reads and modifies a different data array and has its own time
 
 The kernel \texttt{merge\_clusters} is responsible for a merging of clusters. As the~input, it takes the~assignment array $\mathcal{A}$, a pair of old cluster IDs (of merged clusters) and a new ID (of a created cluster). It goes through the array in a \emph{grid-stride loop} and replaces any of the old IDs with the new ID.
 
-\begin{defn}\todo{tadyto chce definovat poradne, technicky definice neni potreba, spis by byl vhodnej pseudokod nebo obrazek}
-	A \emph{grid-stride loop} iterates over all threads in the grid until the~desired number of iterations is hit. This kind of loop contrasts with the premise that a kernel grid has enough threads for the computation and does not have to iterate over the same threads multiple times (which is not always the case). 
+\begin{defn}
+	A \emph{grid-stride loop} iterates over all threads in the grid multiple times until the~desired number of iterations is hit. The following code shows an example of a 1D grid stride loop. The first assignment creates an unique thread index across a grid. The index is added a grid size until the condition fails.
 	\label{def03:grid-stride}
 \end{defn}
+
+\begin{lstlisting}
+for (auto idx = threadIdx.x + blockIdx.x * blockDim.x; 
+     idx < iters; 
+     idx += gridDim.x * blockDim.x);
+\end{lstlisting}
 
 \subsection{Centroid computation}
 
@@ -380,7 +381,7 @@ After the inversion done by the CUBLAS subroutine \texttt{cublasSmatinvBatched},
 	\item Stores the transformed matrix into $\mathcal{I}$.
 \end{enumerate}
 
-The first step is performed to get rid of redundant information and to save space as the $\mathcal{I}$ array has the greatest space complexity among the cluster-based arrays.
+The first step is performed to get rid of redundant information and to save space as the $\mathcal{I}$ array has the greatest space complexity among the cluster-related arrays.
 
 The second step is an optimization for the computation of the Mahalanobis distance equation (see eq. \ref{eq01:maha}). We can allow this optimization as the distance is a \emph{quadratic form} that can be simplified as shown in the equation \ref{eq03:form}.
 
@@ -406,16 +407,13 @@ After the loop ends, the threads of the only block perform the block reduction a
 
 \subsection{Neighbor array update}
 
-\todo{mozna by nebylo spatny tyhle vsechny popisky vysazet jako malinky algoritmy, aspon fakt hodne hodne pseudokodove. Ted to je dost neprehledny.}
-
 The host method \texttt{update\_neighbors} is a set of five kernels where each of them takes an important part in updating the neighbor array $\mathcal{N}$.
 
 First, the kernel \texttt{update} collects invalidated indices. Next, two distinct kernels \texttt{neighbors\_u} and \texttt{neighbors\_mat\_u} are run to update the~array --- the first one updates the Euclidean part while the second kernel updates the~Mahalanobis part. Then, the reduction kernel \texttt{reduce\_u} is called that reduces intermediate results generated by the previous two kernels. Last, the kernel \texttt{neighbors\_new} performs a special update of $\mathcal{N}$ for the newly created clusters.
 
 Apriori clustering layer uses the kernel set \texttt{neighbors}. This set is used for the initialization of $\mathcal{N}$; it is a modification of the currently described kernels. There, the \texttt{update} and \texttt{neighbors\_new} kernels are ignored as all elements of the array have to be updated and none of them is created. The~notation of kernel names suggests that kernels suffixed with \texttt{\_u} have a suffix-less variant that processes all elements.
 
-\todo{Ty kernely je vhodny pojmenovat rozumne `lidsky', vzor nadpisu: `Update detection kernel', v textu nekde pak `This kernel is implemented in/called `update(.cu)'. Idealne stejne u vsech ostatnich kernelu.}
-\subsubsection{Kernel \texttt{update}}
+\subsubsection{Update detection kernel}
 The kernel \texttt{update} checks the validity of the neighbors of each cluster using a grid-stride loop. The check consists of these steps:
 \begin{itemize}
 	\item If the index of the closest neighbor belongs to a cluster that was merged, remove the~neighbor.
@@ -425,7 +423,7 @@ When no neighbors are present, the particular cluster is marked for the update. 
 
 $\mathcal{U}$ to contain continuous indices of update-ready clusters, threads synchronize over the \emph{global memory} variable indicating the next available location of $\mathcal{U}$. The variable is manipuled by threads using the \emph{atomic add instruction}.
 
-\subsubsection{Kernel \texttt{neighbor\_u}}
+\subsubsection{Euclidean update kernel}
 
 The \texttt{neighbor\_u} kernel takes care of updating clusters whose size have not reached the Mahalanobis threshold (we call them \emph{Euclidean clusters} for simplicity). For that reason, the input of the kernel is $\mathcal{C}$ (to compute distances) and $\mathcal{U}$ (to target clusters for the computation).
 
@@ -441,7 +439,7 @@ The kernel ends when all clusters from $\mathcal{U}$ are visited.
 	As the Altered general distance function is symmetric, there is no need to compute a distance between all clusters and a cluster $c$ (the one that needs to~be~updated). We only need to compute distances of clusters with their indices greater than the~index of $c$. If we follow this invariant throughout the~algorithm, we can safely ignore the clusters of lower index in the computation as~during \emph{theirs} computation the~cluster $c$ was already involved. This does not hold for~newly created clusters. They need to be measured against all the remaining clusters to~hold the invariant (see the kernel \texttt{neighbors\_new}).
 \end{rem}
 
-\subsubsection{Kernel \texttt{neighbor\_mat\_u}} The \texttt{neighbor\_mat\_u} kernel is similar to the previous one. The main distinction is that this kernel updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis clusters}, for simplicity) instead of those that did not. We created the separate kernel to tailor the thread utilization for the demanding Mahalanobis distance computation.
+\subsubsection{Mahalanobis update kernel} The \texttt{neighbor\_mat\_u} kernel is similar to the previous one. The main distinction is that this kernel updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis clusters}, for simplicity) instead of those that did not. We created the separate kernel to tailor the thread utilization for the demanding Mahalanobis distance computation.
 
 In addition to $\mathcal{C}$ and $\mathcal{U}$, the kernel takes $\mathcal{I}$ as the input. It is important to access the inverse covariance matrices because they are involved in a distance computation of Mahalanobis clusters. 
 
@@ -455,9 +453,9 @@ Finally, the kernel performs the same reduction as in the previous kernel and st
 	The invariant of distance computation holds in this kernel as well. However, when a Mahalanobis cluster $c$ needs to be updated, distances between $c$ and \emph{all} Euclidean clusters must be also computed regardless the index. This is a~trade-off for having Euclidean and Mahalanobis clusters divided from themselves. However, the majority of Euclidean clusters tend to merge themselves early in the clustering.
 \end{rem}
 
-\subsubsection{Kernel \texttt{reduce\_u}} The kernel \texttt{reduce\_u} reduces the intermediate results of the updated clusters in~$\mathcal{N}'$ into the~neighbor array $\mathcal{N}$. For each updated cluster, there is as much closest neighbor entries as there were blocks in a grid of the previous kernels. As this may be a~big nuber, one \emph{warp} cooperates in the reduction of the entries for one updated cluster.
+\subsubsection{Reduction kernel} The kernel \texttt{reduce\_u} reduces the intermediate results of the updated clusters in~$\mathcal{N}'$ into the~neighbor array $\mathcal{N}$. For each updated cluster, there is as much closest neighbor entries as there were blocks in a grid of the previous kernels. As this may be a~big nuber, one \emph{warp} cooperates in the reduction of the entries for one updated cluster.
 
-\subsubsection{Kernel \texttt{neighbor\_new}} The \texttt{neighbor\_new} kernel updates $\mathcal{N}$ in the means of the newly created cluster $c$. It computes the remainder of the distances (between $c$ and the clusters of lower index) to satisfy the mentioned invariant. Hence, this kernel moves that responsibility from the kernels \texttt{neighbor\_u} and \texttt{neighbor\_mat\_u} to simplify their code and process the special measures faster. The kernel is called after the reduction kernel as it operates directly with $\mathcal{N}$. 
+\subsubsection{New cluster update kernel} The \texttt{neighbor\_new} kernel updates $\mathcal{N}$ in the means of the newly created cluster $c$. It computes the remainder of the distances (between $c$ and the clusters of lower index) to satisfy the mentioned invariant. Hence, this kernel moves that responsibility from the kernels \texttt{neighbor\_u} and \texttt{neighbor\_mat\_u} to simplify their code and process the special measures faster. The kernel is called after the reduction kernel as it operates directly with $\mathcal{N}$. 
 
 \begin{rem}
 	The time complexity of the \texttt{update\_neighbors} kernels is $O(c^2)$, where $c$ denotes the number of clusters in a clustering context. This is due to the~kernels that compute the closest neighbors. In the worst case, neighbors of~each cluster need to be recomputed resulting in the mentioned time complexity. However, this is rarely the case. More often, the number of update-needed clusters resides in a yet unpredictable but reasonable scope. Hence, when we denote the number of clusters needed to be updated as $u$, we can start reasoning about the more precise time complexity $O(uc)$.

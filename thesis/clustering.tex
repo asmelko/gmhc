@@ -185,7 +185,9 @@ Using the random vector of a cluster we can compute the covariance matrix of a c
 
 \begin{defn}[Mahalanobis distance]
 	Suppose a cluster $C$ of a vector-space dataset $\mathcal{D}\in\R^d$ and the random vector $v$ of $C$. If the $\cov(v)$ is regular, we define the \emph{Mahalanobis distance} between $u \in \R^d$ and $C$ as
-	\[d_\text{Maha}(u,C) = \sqrt{(u-\mean(C))^T\cov(v)^{-1}(u-\mean(C))}.\]
+	\begin{equation}
+	d_\text{Maha}(u,C) = \sqrt{(u-\mean(C))^T\cov(v)^{-1}(u-\mean(C))}.
+	\end{equation}\label{eq01:maha}
 \end{defn}
 
 Note that this equation computes a distance between a point and a cluster. To fully incorporate the Mahalanobis distance in a hierarchical algorithm, we need to construct a method to measure a distance between two clusters.
@@ -214,9 +216,13 @@ To illustrate the measure of the Mahalanobis distance, let us suppose we have tw
 \end{figure}
 
 
+CMD can be interpreted as an approximation substitute for FMD variant. A case when CMD variant fails to compute good approximate measure happens when centroids of measured clusters are very close to each other while their points do not lay on each others major axis (see fig.~\ref{fig01:maha_var}). Such case is rather unrealistic; therefore, we assume it is unlikely to happen in cell cytometry datasets.
 
-The \xxx{pros and cons} between FMD and CMD are \xxx{trivial}. Due to the \xxx{full point contribution}\todo{def?}, FMC can produce more precise measure than its simpler counterpart. On the~other hand, CMD compensates this with much lower time complexity.\todo{jaky je meritko ty presnosti? V jakym pripade je teda presnost potreba, a kdy neni a vyplati se to aproximovat tim prumerem?}
-
+\begin{figure}\centering
+	\includegraphics[width=10cm]{img/maha_variant}
+	\caption{An example of clusters with a big difference between FMD and CMD dissimilarity measures.}
+	\label{fig01:maha_var}
+\end{figure}
 
 To properly utilize the Mahalanobis distance variants as dissimilarity metrics in a MHCA implementation, we need the distance function to be symmetric. Originally, the Mahalanobis distance is not a symmetric function. Fortunately, we easily fix the aforementioned distance functions with the Generalized distance.
 
@@ -250,59 +256,64 @@ To solve this problem, \citet{fivser2012detection} specified a cluster size thre
 \section{Computational complexity of the hierarchical clustering algorithms}
 \label{sec01:hca}
 
-The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $O(n^3)$, which restricts its use for large datasets ($\geq10^5$ points when using the contemporary hardware)~\cite{sasirekha2013agglomerative}. \citet{day1984efficient} propose three different HCA variants based on the data structures they utilize:
+The common problem in clustering algorithms is their time complexity. In general, the time complexity of an agglomerative HCA is $\mathcal{O}(n^3)$, which restricts its use for large datasets ($\geq10^5$ points when using the contemporary hardware)~\cite{sasirekha2013agglomerative}. \citet{day1984efficient} propose three different HCA variants based on the data structures they utilize:
 \begin{itemize}
 	\item HCA with the dissimilarity matrix,
 	\item HCA with the nearest neighbor array,
 	\item HCA with priority queues.
 \end{itemize}
 
+These variants can utilize metrics from the Minkowski distance family and a specified list of linkage criteria. To measure a dissimilarity between two clusters, they use the Lance and Williams recurring formula~\cite{lance1967general,lance1967general2}. 
+
+The formula can be used only with suitable linkage criteria. For a dissimilarity measure $d$, it specifies a measurement between a new cluster $c$ merged from clusters $(i,j)$ and any other cluster $k$ as a recurring formula
+$$ d(c,k) = \alpha_i\cdot d(i,k) + \alpha_j\cdot d(j,k) + \beta \cdot d(i,j) + \gamma|d(i,k)-d(j,k)|.$$
+For each linkage criterion, a specific values for constants $\alpha_i$, $\alpha_j$, $\beta$ and $\gamma$ are defined. 
+
 \subsection{HCA with the dissimilarity matrix}
 
 The first variant caches the dissimilarity measurements in the \emph{dissimilarity matrix} $M$.
 
 \begin{defn}[Dissimilarity matrix]
-	Having a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity, we define the~\emph{dissimilarity matrix} $M$ as a $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
+	Having a vector-space dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity, we define the~\emph{dissimilarity matrix} $M$ as a $m\times m$ matrix where $M_{ij} = d(C_i,C_j)$.
 	\label{def01:dismat}
 \end{defn}
 
-Unless there remains only one cluster, this algorithm searches $M$ for the most similar pair of clusters (represented by the matrix minimum), stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}). The main cycle on line $3$ repeats $n = |\mathcal{D}|$ times; in each iteration, the number of clusters is reduced by 1. The search on line $4$ is bounded by $O(n^2)$ time, with maximal complexity in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measurements for the new cluster (bounded by $O(n)$ during the first iteration as well). As there are total $n$~iterations performed, this results in the overall time complexity of $O(n^3)$. 
+Unless there remains only one cluster, this algorithm searches $M$ for the most similar pair of clusters (represented by the matrix minimum), stores the pair and updates $M$ (see alg.~\ref{alg01:dismat}). The initialization on line $2$ computes the Minkowski distance between all $n$ points. As the time complexity of the distance is proportional to the point dimensionality, the initialization time is $\mathcal{O}(d\cdot n^2)$.
+
+The main cycle on line $3$ repeats $n = |\mathcal{D}|$ times; in each iteration, the number of clusters is reduced by 1. The search on line $4$ is bounded by $\mathcal{O}(n^2)$ time, with maximal complexity in the first iteration when $k=n$. The update in~line~$6$ reflects the deletion of clusters $i$ and $j$ and the addition of the new one. Hence, it needs to perform $k$ new dissimilarity measurements for the new cluster. Using the recurring formula and cached measurements in $M$, this step can be performed in $\mathcal{O}(k)$ time (bounded by $\mathcal{O}(n)$ during the first iteration as well). As there are total $n$~iterations performed, this results in the overall time complexity of $\mathcal{O}(n^3+d\cdot n^2)$. 
 
 \begin{algorithm}[t]
 	\caption{HCA with dissimilarity matrix}
 	\label{alg01:dismat}
 	\begin{algorithmic}[1]
 		\Procedure{dismat}{$\mathcal{D} \subset \R^d$}
-		\State initialize the dissimilarity matrix $M$
+		\State initialize $M$ \Comment{time: $\mathcal{O}(d\cdot|\mathcal{D}|^2)$}
 		\For{$k=|\mathcal{D}| \dots 1$}
-		\State search $M$ for the closest pair $(i,j)$ \Comment{time: $O(k^2)$}
-		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
-		\State update $M$ \Comment{time: $O(k)$}
+		\State search $M$ for the closest pair $(i,j)$ \Comment{time: $\mathcal{O}(k^2)$}
+		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $\mathcal{O}(1)$}
+		\State update $M$ \Comment{time: $\mathcal{O}(k)$}
 		\EndFor
 		\State \textbf{return} list of merged clusters
 		\EndProcedure
 	\end{algorithmic}
 \end{algorithm}
 
-The space required to store $M$ is $O(n^2)$. As there is no other non-trivial requirement, the overall space complexity is $O(n^2)$ as well.
-
-\todo{Z tech poznamek udelej oddeleny algoritmy, kdyz uz maj uplne jinou slozitost tak je dobry to videt explicitne. Zaroven se tim definuje ten `In-place HCA' kterej mas v tabulce ale tady neni nikde videt.}
-\begin{rem}
-	Note that this algorithm does not have to store the dissimilarity matrix in the memory. We can decide to measure a cluster dissimilarity \emph{in-place}. Line $6$ would become redundant and the time complexity of line $4$ would increase by a constant multiplicative factor; hence, the overall time complexity remains the same while the~space complexity becomes $O(n)$. We will refer to this variant as the \emph{in-place HCA}.
-\end{rem}
-
+The space required to store $M$ is $\mathcal{O}(n^2)$. As there is no other non-trivial requirement, the overall space complexity is $\mathcal{O}(n^2)$ as well.
 
 \subsection{HCA with the nearest neighbor array}
-This algorithm introduces the array of the nearest neighbors.
+
+In addition to the dissimilarity matrix, this algorithm introduces the array of the nearest neighbors.
 
 \begin{defn}[Nearest neighbor array]
-	Suppose a dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the~\emph{nearest neighbor array} $N$ is a $m$-element array of indices $\{1,\dots,m\}$ such that for each element $N_i$ holds
+	Suppose a vector-space dataset $\mathcal{D}$ divided into clusters $C_1,\dots,C_m$ and a function $d$ as a measure of dissimilarity. Then, the~\emph{nearest neighbor array} $N$ is a $m$-element array of indices $\{1,\dots,m\}$ such that for each element $N_i$ holds
 	$$d(C_i,C_{N_i}) = \min\{d(C_i,C_j) : j \in \{1,\dots,m\} \setminus \{i\}\}$$
 	\label{def01:neigh}
 \end{defn}
 
-Instead of the dissimilarity matrix, each cluster is assigned the index pointing to~its closest neighboring cluster. 
-Compared with the previous algorithm, this algorithm trades the expensive \emph{closest pair search} with the expensive \emph{structure update}  (see alg.~\ref{alg01:neigh}). On line $4$, each closest pair search can be performed in $O(n)$ time as the~array length does not exceeds $n$ elements. However on line $6$, the worst case update of $N$ happens when each cluster resides in the closest neighborhood with the clusters that are being merged (clusters $i$  and $j$). In this case, the~whole array has to be recomputed, which corresponds to~the~computation of the whole dissimilarity matrix. Hence, the time complexity for~this step is $O(n^2)$. To sum up, the overall time complexity is $O(n^3)$ and~the~space complexity is $O(n)$ because $N$ does not have more than linear space requirements.
+Each cluster is assigned the index pointing to its closest neighboring cluster in the dissimilarity matrix. 
+Compared with the previous algorithm, this algorithm trades the expensive \emph{closest pair search} with the expensive \emph{structure update}  (see alg.~\ref{alg01:neigh}). On line $2$ and $3$, $M$ and $N$ are initialized. To initialize $N$, whole $M$ is searched for the closest neighbor of each point. 
+
+On line $5$, each closest pair search can be performed in $\mathcal{O}(n)$ time as the array length does not exceeds $n$ elements. Line $7$ does dot differ from the previous variant. Line $8$ updates $N$. The worst case update of $N$ happens when each cluster resides in the closest neighborhood with the clusters that are being merged (clusters $i$  and $j$). In this case, whole dissimilarity matrix has to be searched. Hence, the time complexity for this step is $\mathcal{O}(n^2)$. To sum up, the overall time complexity is $\mathcal{O}(n^3+d\cdot n^2)$ and the space complexity is $\mathcal{O}(n^2)$ because we add $N$ that does not have more than linear space requirements.
 
 
 
@@ -311,18 +322,20 @@ Compared with the previous algorithm, this algorithm trades the expensive \emph{
 	\label{alg01:neigh}
 	\begin{algorithmic}[1]
 		\Procedure{neighbor}{$\mathcal{D} \subset \R^d$}
-		\State initialize $N$
+		\State initialize $M$ \Comment{time: $\mathcal{O}(d\cdot|\mathcal{D}|^2)$}
+		\State initialize $N$ \Comment{time: $\mathcal{O}(|\mathcal{D}|^2)$}
 		\For{$k=|\mathcal{D}|\dots 1$}
-		\State search $N$ for the closest pair $(i,j)$ \Comment{time: $O(k)$}
-		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
-		\State update $N$ \Comment{time: $O(k^2)$}
+		\State search $N$ for the closest pair $(i,j)$ \Comment{time: $\mathcal{O}(k)$}
+		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $\mathcal{O}(1)$}
+		\State update $M$ \Comment{time: $\mathcal{O}(k)$}
+		\State update $N$ \Comment{time: $\mathcal{O}(k^2)$}
 		\EndFor
 		\State \textbf{return} list of merged clusters
 		\EndProcedure
 	\end{algorithmic}
 \end{algorithm}
 
-Despite the equal time complexities, this algorithm may outperform the previous one because in the majority of situations the update step on line $6$ does not require the whole array to be recomputed. Moreover, if the~number of elements to be updated remains constant each iteration, the overall algorithm time complexity may be $O(n^2)$. 
+Despite the equal time complexities, this algorithm may outperform the previous one because in the majority of situations the update step on line $8$ does not require the whole array to be recomputed. Moreover, if the~number of elements to be updated remains constant each iteration, the overall algorithm time complexity may be $\mathcal{O}(d\cdot n^2)$. 
 
 \subsection{HCA with priority queues}
 
@@ -334,25 +347,51 @@ Each object from a dataset is assigned a~priority queue constructed from the rem
  	\label{alg01:queue}
  	\begin{algorithmic}[1]
  		\Procedure{queues}{$\mathcal{D} \subset \R^d$}
+ 		\State initialize $M$ \Comment{time: $\mathcal{O}(d\cdot|\mathcal{D}|^2)$}
  		\ForAll{$o \in \mathcal{D}$}
- 		\State initialize a priority queue from $\mathcal{D} \setminus \{o\}$
+ 		\State initialize a priority queue from $\mathcal{D} \setminus \{o\}$ \Comment{time: $\mathcal{O}(|\mathcal{D}|)$}
  		\EndFor
  		\For{$k=|\mathcal{D}|\dots 1$}
- 		\State search $k$ queues for the closest pair $(i,j)$ \Comment{time: $O(k)$}
- 		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $O(1)$}
- 		\State update $k-1$ priority queues \Comment{time: $O(k\log{k})$}
+ 		\State search $k$ queues for the closest pair $(i,j)$ \Comment{time: $\mathcal{O}(k)$}
+ 		\State store cluster pair $(i,j)$ into the merge list \Comment{time: $\mathcal{O}(1)$}
+ 		\State update $M$ \Comment{time: $\mathcal{O}(k)$}
+ 		\State update $k-1$ priority queues \Comment{time: $\mathcal{O}(k\cdot\log{k})$}
  		\EndFor
  		\State \textbf{return} list of merged clusters
  		\EndProcedure
  	\end{algorithmic}
 \end{algorithm}
 
-When a priority queue is implemented as a heap, its time complexity can be $O(1)$ for the minimum retrieval and $O(log(n))$ for the insertion and deletion of an element~\cite{fredman1987fibonacci}.
-Therefore, in alg.~\ref{alg01:queue}, the search step on line $4$ takes $O(k)$ time (bounded by~$O(n)$ during the first iteration). Next on line $6$, we need two delete and one insert operations (corresponding to deleting two merged clusters and inserting one new). We can perform such update on $n$~queues in $O(n\log{n})$ time.
+When a priority queue is implemented as a heap, its time complexity can be $\mathcal{O}(1)$ for the minimum retrieval, $\mathcal{O}(n)$ for initialization and $\mathcal{O}(\log n)$ for the insertion and deletion of an element~\cite{fredman1987fibonacci}.
 
-To sum up, the overall time complexity is $O(n^2\log{n})$. The space complexity is $O(n^2)$ because all $n$ queues have the linear space requirements.
+Therefore, in alg.~\ref{alg01:queue}, the search step on line $7$ takes $\mathcal{O}(k)$ time (bounded by~$\mathcal{O}(n)$ during the first iteration). Next on line $10$, we need two delete and one insert operations (corresponding to deleting two merged clusters and inserting one new). We can perform such update on $n$~queues in $\mathcal{O}(n\cdot\log{n})$ time.
 
-\vspace{0.5cm}
+To sum up, the overall time complexity is $\mathcal{O}(n^2\cdot\log{n}+d\cdot n^2)$. The space complexity is $\mathcal{O}(n^2)$ because all $n$ queues have the linear space requirements.
+
+
+\subsection{In-place HCA}
+
+For some linkage criteria, we can remove the dissimilarity matrix from the aforementioned HCA variants to decrease the space complexity while preserving the same asymptotic time complexity.
+
+We propose two variations for centroid linkage with Minkowski distance:
+
+\begin{description}
+	\item[In-place HCA] removes the matrix from the HCA with dissimilarity matrix. To find the most similar cluster pair, it computes the dissimilarities in-place. 
+	
+	To speed the dissimilarity measurements, an array of centroids is maintained. With the centroids precomputed, the dissimilarity measure complexity is dependent only on the Minkowski distance; hence, it can be performed in $\mathcal{O}(d)$.
+	
+	Deduced from the original variant, the time complexity is $\mathcal{O}(d\cdot n^3)$ and the space complexity is $\mathcal{O}(n)$
+	
+	\item[In-place HCA with the nearest neighbor array] adds the neighbor array to the in-place HCA. 
+	
+	As the array has linear space complexity, the overall space complexity is $\mathcal{O}(n)$. The time complexity for $N$ search is the same as the original variant and the $N$ update complexity increases by the factor of $d$.
+	
+	Therefore, the time complexity is $\mathcal{O}(d\cdot n^3)$. Same as in the original variant, this variant promises the time complexity  $\mathcal{O}(d\cdot n^2)$ if the number of the nearest neighbors to update remains constant. More specifically, we can denote the number of neighbors to update by $u$ and write $\mathcal{O}(du\cdot n^2)$.
+\end{description}
+
+We did not include the in-place HCA with priority queues as we can not reduce the space complexity to subquadratic without removing the queue structures.
+
+\vspace{0.5cm} 
 
 We summarize the time and space complexity of the mentioned algorithms in the table~\ref{tab01:hca}.
 
@@ -360,27 +399,28 @@ We summarize the time and space complexity of the mentioned algorithms in the ta
 	\centering
 	\begin{tabular}{lcc}
 		\toprule
-		 & \textbf{Time} & \textbf{Space} \\
-		 \pulrad{\textbf{HCA variant}} & \textbf{complexity} & \textbf{complexity} \\
-		\midrule
-		HCA with dissimilarity matrix & $O(n^3)$ & $O(n^2)$ \xxx{mathcal O!}\\
-		in-place HCA & $O(n^3)$ & $O(n)$ \\
-		HCA with the nearest neighbor array & $O(n^3)$ & $O(n)$ \\
-		HCA with priority queues & $O(n^2\log(n))$ & $O(n^2)$ \\
-		\bottomrule
+		                                             &       \textbf{Time}       &   \textbf{Space}    \\
+		\pulrad{\textbf{HCA variant}}                &    \textbf{complexity}    & \textbf{complexity} \\ \midrule
+		HCA with dissimilarity matrix                &    $\mathcal{O}(n^3+d\cdot n^2)$     & $\mathcal{O}(n^2)$  \\
+		HCA with the nearest neighbor array          &    $\mathcal{O}(n^3+d\cdot n^2)$     &  $\mathcal{O}(n^2)$   \\
+		HCA with priority queues                     & $\mathcal{O}(n^2\log(n)+d\cdot n^2)$ & $\mathcal{O}(n^2)$  \\
+		in-place HCA                                 & $\mathcal{O}(d\cdot n^3)$ &  $\mathcal{O}(n)$  \\
+		in-place HCA with the neighbor array & $\mathcal{O}(d\cdot n^3)$ &  $\mathcal{O}(n)$  \\ \bottomrule
 	\end{tabular}
-	\caption{The summary of time and space complexity for the HCA variants. \xxx{Tohle je trochu nepresny --- neni v tom videt zavislost na slozitosti vypoctu ty disimilarity (tj. efektivne na dimenzionalite toho datasetu). Doporucuju to udelat aspon pro ty minkowskiho vzdalenosti tim ze tam pridas vliv ty dimenze. Konkretne v prvnim radku ma bejt $\mathcal{O}(n\cdot(n^2 + nd))$ (coz ma vyhodu pro obrovsky $d>>>n$) a v druhym to je na ferovku $\mathcal{O}(n^3\cdot d)$}}
+	\caption{The summary of time and space complexity for the HCA variants.}
 	\label{tab01:hca}
 \end{table}
 
-To show an example of the big algorithm complexity, we tested the limits of a dissimilarity matrix variant implementation. We measured the R language library function \texttt{hclust}; a frequently used implementation of HCA. It computes the centroid linkage with the euclidean distance and uses the dissimilarity matrix. 
+To show an example of the big algorithm complexity, we tested the limits of a dissimilarity matrix variant implementation. We measured the R language library function \texttt{hclust}; a frequently used implementation of HCA. It computes the single linkage with the euclidean distance and uses the dissimilarity matrix. 
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=10cm]{img/hclust}
+	\caption{Time complexity of \texttt{hclust} with respect to the size of a dataset.}
+	\label{fig01:hclust}
+\end{figure}
 
 Fig. \ref{fig01:hclust} supports the above stated polynomial time complexity of the implementation. Moreover, it stopped at a dataset size of 47K because the testing machine \footnote{Intel Core i9-8950HK, 32GB RAM} ran out of memory.
 
 In conclusion, the space complexity of HCA can be even more restrictive in the means of the overall algorithm usability than its time complexity. The performance and usability of the HCA variants depends on many factors and the programmer needs to find a balance between their tradeoffs. The metric function is one of them. For example, when the Minkowski distance is used, we can prefer the in-place HCA over the HCA with dissimilarity matrix for a lower space complexity while retaining the same asymptotic time complexity. However, if the distance metric is more complex, one may prefer to store the measures in the memory.
 
-\begin{figure}\centering
-	\includegraphics[width=10cm]{img/hclust}
-	\caption{Time complexity of \texttt{hclust} with respect to the size of a dataset.}
-	\label{fig01:hclust}
-\end{figure}
