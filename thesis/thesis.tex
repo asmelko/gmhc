@@ -98,7 +98,7 @@ Dedication.
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-During a clustering of a flow-cytometry data, the Mahalanobis distance function is used to form elliptical clusters naturally. However, reasonably computable dataset sizes are restricted to a factor of 100K points due to~the~polynomial time and space complexity of the current algorithm. In this thesis, we researched possible ways of implementing clustering algorithms and proposed an~implementation of Mahalanobis-based hierarchical clustering analysis accelerated on a single GPU. Using CUDA platform we achieved the performance increase of up to 5000-times on single-point datasets and 40-times on apriori datasets compared to a serial CPU counterpart. With this contribution, the size of flow cytometry datasets can increase to millions of points.
+In cytometry, researchers use the agglomerative hierarchical clustering with the Mahalanobis distance to cluster flow and mass cytometry datasets. The current implementation restricts the applicable size of clustering input to a factor of 100,000 cells. This thesis proposes the implementation accelerated on a single CUDA-enabled GPU. The improved performance and linear space complexity of the algorithm results in 5000x speedup for single-point datasets and 20x for apriori-datasets. With the accelerated algorithm, the applicable size of clustering input is increased to millions of cells.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces

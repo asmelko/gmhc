@@ -3,6 +3,7 @@
 This chapter focuses on the implementation of the Mahalanobis-average hierarchical clustering analysis. First, we summarize the most important parts of the CUDA parallel platform. Next, we describe the algorithm and the~high level look on the implementation. Last, we thoroughly describe the~most important functions.
 
 \section{CUDA programming model overview}
+\label{sec02:cuda}
 
 The problem this thesis aims to solve is to implement an algorithm that is able to provide a hierarchical clustering of very large datasets while retaining a reasonable computation time --- the time required to compute a magnitude smaller datasets with current HCA algorithms.
 In an effort of achieving this performance, we used a combination of C++ programming language and \emph{CUDA}\footnote{Compute Unified Device Architecture} API.
