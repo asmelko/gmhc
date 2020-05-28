@@ -28,7 +28,7 @@ The testing datasets were divided into these two categories:
 	\item[Apriori datasets] These datasets are clustered with the apriori clustering me\-thod. 
 	They do not represent any measured data (alternatively, we could use single-point data\-sets pre-clustered with k-means). The apriori datasets contain small gaussian clusters; each of them is marked as an apriori cluster. The datasets contain lot of these clusters located on a different place. 
 	
-	The describing parameters of~apriori datasets comprise \emph{apriori cluster size}, the \emph{apriori cluster count} and the \emph{point dimensionality} (see tab.~\ref{tab04:apriori}). To find the apriori clusters, they need not be pre-computed by another clustering algorithm (such as k-means) as~all the~points are already stored with respect to the apriori clusters.
+	The describing parameters of~apriori datasets comprise \emph{apriori cluster size}, the \emph{apriori cluster count} and the \emph{point dimensionality} (see tab.~\ref{tab04:apriori}).
 	
 	\begin{table}
 		\centering
@@ -90,7 +90,7 @@ As seen from the figure \ref{fig04:single_perf}, the~performance difference incr
 \subsection{Speedup on apriori datasets}
 \label{sec04:apr_perf}
 
-In contrast to the single-point datasets, the CPU implementation managed to~compute apriori datasets of big sizes. It is a consequence of the wisely chosen apriori clusters.
+In contrast to the single-point datasets, the CPU implementation managed to compute apriori datasets of big sizes. It is a consequence of the wisely chosen apriori clusters.
 
 When the algorithm is inputed with apriori clusters, it does not compute the~whole dataset at once --- it clusters each apriori cluster first. This fact reduces the overall time complexity significantly, allowing the CPU algorithm to compute big datasets in a short amount of time.
 
@@ -158,7 +158,7 @@ When all apriori clusters were processed, the GPU and CPU measures of dissimilar
 
 \begin{figure}\centering
 	\includegraphics[width=\linewidth]{img/apriori_result}
-	\caption{Plotted point heights of \texttt{gmhclust} and \texttt{mhclust} clusterings of~the~selected apriori datasets. The Mahalanobis threshold was set to apriori cluster size.}
+	\caption{Plotted point heights of \texttt{gmhclust} and \texttt{mhclust} clusterings of~the~selected apriori datasets. The Mahalanobis threshold was set to apriori cluster size. The results correlate almost perfectly.}
 	\label{fig04:apriori_result}
 \end{figure}
 

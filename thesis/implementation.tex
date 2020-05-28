@@ -52,7 +52,7 @@ Moreover, as warp threads execute concurrently, CUDA offers \emph{warp shuffle i
 
 To greatly utilize a CUDA-enabled GPU and achieve a great performance, a program code must be written with respect to the GPU architecture. These guidelines help us in this task:
 
-A GPU task has to be split to many small data dependent sub-tasks (i.e.~a computation of one element in a dissimilarity matrix). Threads must not perform many different tasks. Rather, they must perform the same task with a different data. Satisfying this condition, we follow the model of the SIMT architecture.
+A GPU task has to be split to many small data dependent sub-tasks (e.g.~a computation of one element in a dissimilarity matrix). Threads must not perform many different tasks. Rather, they must perform the same task with a different data. Satisfying this condition, we follow the model of the SIMT architecture.
 
 The next step is to maximize the memory throughput. The programmer should minimize data transfers with low bandwidth such as copying data between CPU and GPU. This can be accomplished by creating and operating with structures directly in a GPU without mapping it to the CPU memory.
 
@@ -87,7 +87,7 @@ Additionally, we decided to implement the CMD variant of the Mahalanobis distanc
 As already mentioned, the present HCA algorithms can hardly cluster datasets of big sizes. This can be improved by implementing the apriori clustering method.
 
 \begin{defn}[Apriori clustering]
-	Given a dataset $\mathcal{D}$ and a HCA algorithm $\mathcal{A}$, we define the \emph{apriori clusters} of $\mathcal{A}$ as a partitioning of  $\mathcal{D}$ into non-empty subsets $\mathcal{D}_1,\dots,\mathcal{D}_k$    if these conditions hold:
+	Given a dataset $\mathcal{D}$ and a HCA algorithm $\mathcal{A}$, we define the apriori clusters of $\mathcal{A}$ as a partitioning of  $\mathcal{D}$ into non-empty subsets $\mathcal{D}_1,\dots,\mathcal{D}_k$    if these conditions hold:
 	\begin{enumerate}
 		\item $\mathcal{A}$ performs clustering of each subset separately; meaning that clusters from different subsets can not be merged.
 		\item When each subset is clustered into the only cluster, $\mathcal{A}$ clusters the resulting clusters as if they were in one subset.
@@ -158,18 +158,18 @@ The~class overloads \texttt{initialize} method so that it sets three additional 
 Next follows the main responsibility of the \texttt{initialize} method --- device and host data allocation and initialization. They are \emph{point}, \emph{assignment}, \emph{centroid}, \emph{inverse covariance}, \emph{neighbor} and \emph{status arrays} $\mathcal{P}$, $\mathcal{A}$, $\mathcal{C}$, $\mathcal{I}$, $\mathcal{N}$, $\mathcal{S}$. 
 
 \begin{defn}[Point array]
-	Suppose a dataset $\mathcal{D}$ that contains objects represented by $k$-di\-men\-si\-onal ponts. We define \emph{point array} $\mathcal{P}$ as an array that contains consecutive sequence of all objects in $\mathcal{D}$.
+	Suppose a dataset $\mathcal{D}$ that contains objects represented by $k$-di\-men\-si\-onal points. We define point array $\mathcal{P}$ as an array that contains consecutive sequence of all objects in $\mathcal{D}$.
 	\label{def03:point}
 \end{defn}
 
 \begin{defn}[Assignment array]
-	Suppose a partitioning of a point array $\mathcal{P}$ into~clusters $c_1,\dots,c_k$ where each cluster $c_i$ is defined by its unique ID $id_i$ and a set of indices $I_i$ that state which points from $\mathcal{P}$ belong to the cluster. The array of length $|\mathcal{P}|$ is the \emph{assignments array} $\mathcal{A}$ when for each cluster $c_i$ the following equation holds:
+	Suppose a partitioning of a point array $\mathcal{P}$ into~clusters $c_1,\dots,c_k$ where each cluster $c_i$ is defined by its unique ID $id_i$ and a set of indices $I_i$ that state which points from $\mathcal{P}$ belong to the cluster. The array of length $|\mathcal{P}|$ is the assignments array $\mathcal{A}$ when for each cluster $c_i$ the following equation holds:
 	$${\forall j \in I_i : \mathcal{A}_j = id_i}$$
 	\label{def03:assign}
 \end{defn}
 
 \begin{defn}[Cluster-related arrays]
-	Given a dataset $\mathcal{D}$, its clusters $c_1,\dots,c_k$, a~Mahalanobis threshold $T_M$ and a positive number $m \le |\mathcal{D}|$, we define the following \emph{cluster-related arrays}:
+	Given a dataset $\mathcal{D}$, its clusters $c_1,\dots,c_k$, a~Mahalanobis threshold $T_M$ and a positive number $m \le |\mathcal{D}|$, we define the following cluster-related arrays:
 	\begin{itemize}
 		\item the centroid array $\mathcal{C}$ as an array that contains centroids of all $k$ clusters,
 		\item the inverse covariance array $\mathcal{I}$ as an array that contains inverse covariance matrices of all clusters that reached $T_M$,
@@ -187,7 +187,7 @@ All but the status array are device arrays. Device arrays are used within kernel
 The clustering algorithm resides in the method \texttt{run}. This method utilizes the~array of \texttt{clustering\_context\_t} objects --- instances of a \emph{clustering context} --- that divide the dataset according to the provided apriori clusters (see fig.~\ref{fig03:clust_ctx}).
 
 \begin{defn}[Clustering context]
-	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-related array tuple $(\mathcal{C}, \mathcal{I}, \mathcal{N}, \mathcal{S})$, we define the \emph{clustering context} of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'}, \mathcal{A'}, \mathcal{C'}, \mathcal{I'}, \mathcal{N'}, \mathcal{S'})$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$.
+	Given a dataset $\mathcal{D}$, its point array $\mathcal{P}$, assignment array $\mathcal{A}$ and cluster-related array tuple $(\mathcal{C}, \mathcal{I}, \mathcal{N}, \mathcal{S})$, we define the clustering context of $\mathcal{D}' \subset \mathcal{D}$ as a tuple $(\mathcal{P'}, \mathcal{A'}, \mathcal{C'}, \mathcal{I'}, \mathcal{N'}, \mathcal{S'})$. In the tuple, each array is a sub-array of the corresponding array of $\mathcal{D}$. Each sub-array contains data of points and clusters created within $\mathcal{D}'$.
 	\label{def03:context}
 \end{defn}
 
@@ -319,7 +319,7 @@ Each kernel group reads and modifies a different data array and has its own time
 The kernel \texttt{merge\_clusters} is responsible for a merging of clusters. As the~input, it takes the~assignment array $\mathcal{A}$, a pair of old cluster IDs (of merged clusters) and a new ID (of a created cluster). It goes through the array in a \emph{grid-stride loop} and replaces any of the old IDs with the new ID.
 
 \begin{defn}
-	A \emph{grid-stride loop} iterates over all threads in the grid multiple times until the~desired number of iterations is hit. The following code shows an example of a 1D grid stride loop. The first assignment creates an unique thread index across a grid. The index is added a grid size until the condition fails.
+	A grid-stride loop iterates over all threads in the grid multiple times until the~desired number of iterations is hit. The following code shows an example of a 1D grid stride loop. The first assignment creates an unique thread index across a grid. The index is added a grid size until the condition fails.
 	\label{def03:grid-stride}
 \end{defn}
 
@@ -439,7 +439,7 @@ Then, the threads perform the block reduction and create the block-local closest
 The kernel ends when all clusters from $\mathcal{U}$ are visited.
 
 \begin{rem}
-	As the Altered general distance function is symmetric, there is no need to compute a distance between all clusters and a cluster $c$ (the one that needs to~be~updated). We only need to compute distances of clusters with their indices greater than the~index of $c$. If we follow this invariant throughout the~algorithm, we can safely ignore the clusters of lower index in the computation as~during \emph{theirs} computation the~cluster $c$ was already involved. This does not hold for~newly created clusters. They need to be measured against all the remaining clusters to~hold the invariant (see the kernel \texttt{neighbors\_new}).
+	As the Non-singular Mahalanobis distance function is symmetric, there is no need to compute a distance between all clusters and a cluster $c$ (the one that needs to~be~updated). We only need to compute distances of clusters with their indices greater than the~index of $c$. If we follow this invariant throughout the~algorithm, we can safely ignore the clusters of lower index in the computation as~during \emph{theirs} computation the~cluster $c$ was already involved. This does not hold for~newly created clusters. They need to be measured against all the remaining clusters to~hold the invariant (see the kernel \texttt{neighbors\_new}).
 \end{rem}
 
 \subsubsection{Mahalanobis update kernel} The \texttt{neighbor\_mat\_u} kernel is similar to the previous one. The main distinction is that this kernel updates clusters that reached the Mahalanobis threshold (\emph{Mahalanobis clusters}, for simplicity) instead of those that did not. We created the separate kernel to tailor the thread utilization for the demanding Mahalanobis distance computation.
@@ -456,7 +456,7 @@ Finally, the kernel performs the same reduction as in the previous kernel and st
 	The invariant of distance computation holds in this kernel as well. However, when a Mahalanobis cluster $c$ needs to be updated, distances between $c$ and \emph{all} Euclidean clusters must be also computed regardless the index. This is a~trade-off for having Euclidean and Mahalanobis clusters divided from themselves. However, the majority of Euclidean clusters tend to merge themselves early in the clustering.
 \end{rem}
 
-\subsubsection{Reduction kernel} The kernel \texttt{reduce\_u} reduces the intermediate results of the updated clusters in~$\mathcal{N}'$ into the~neighbor array $\mathcal{N}$. For each updated cluster, there is as much closest neighbor entries as there were blocks in a grid of the previous kernels. As this may be a~big nuber, one \emph{warp} cooperates in the reduction of the entries for one updated cluster.
+\subsubsection{Reduction kernel} The kernel \texttt{reduce\_u} reduces the intermediate results of the updated clusters in~$\mathcal{N}'$ into the~neighbor array $\mathcal{N}$. For each updated cluster, there is as much closest neighbor entries as there were blocks in a grid of the previous kernels. As this may be a~big number, one \emph{warp} cooperates in the reduction of the entries for one updated cluster.
 
 \subsubsection{New cluster update kernel} The \texttt{neighbor\_new} kernel updates $\mathcal{N}$ in the means of the newly created cluster $c$. It computes the remainder of the distances (between $c$ and the clusters of lower index) to satisfy the mentioned invariant. Hence, this kernel moves that responsibility from the kernels \texttt{neighbor\_u} and \texttt{neighbor\_mat\_u} to simplify their code and process the special measures faster. The kernel is called after the reduction kernel as it operates directly with $\mathcal{N}$. 
 

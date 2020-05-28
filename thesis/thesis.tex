@@ -58,8 +58,6 @@
 \usepackage[textsize=tiny, linecolor=red!50!black, backgroundcolor=yellow!30]{todonotes}
 \setlength{\marginparwidth}{6em}
 \setuptodonotes{fancyline}
-\newcommand{\xxx}[1]{\textcolor{red}{#1}}
-\newcommand{\clen}{\textcolor{violet}{\tiny\fbox{člen?}}}
 
 %%% Basic information on the thesis
 
@@ -81,7 +79,7 @@
 \def\DeptType{Department}
 
 % Thesis supervisor: name, surname and titles
-\def\Supervisor{RNDr. Miroslav Kratochvil}
+\def\Supervisor{RNDr. Miroslav Kratochvíl}
 
 % Supervisor's department (again according to Organizational structure of MFF)
 \def\SupervisorsDepartment{Department of Software Engineering}
@@ -93,7 +91,13 @@
 % An optional dedication: you can thank whomever you wish (your supervisor,
 % consultant, a person who lent the software, etc.)
 \def\Dedication{%
-Dedication.
+	
+	
+I would like to thank my family and friends for their support.
+
+I would like to thank my supervisor Mirek Kratochvíl for his expertise,very fast replies and patience.
+
+I thank GPULAB cluster for the performed experiments.
 }
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
@@ -186,8 +190,14 @@ The \texttt{gmhclust} executable has three command line parameters:
 	\item \emph{Apriori assignments file path} -- An optional path to an apriori assignments file --- a file with space separated 4B unsigned integers (assignment numbers). The number of integers is the same as the number of points in the dataset; it sequentially assigns each point in the dataset file an assignment number. Then simply, if the $i$-th and the $j$-th assignment numbers are equal, then the $i$-th and $j$-th points are assigned the same apriori cluster. 
 \end{enumerate}
 
-The executable writes the clustering process to the standard output. Each line contains an ID pair of merged clusters with their merge distance as well.
+The executable writes the clustering process to the standard output. Each line contains an ID pair of merged clusters with their merge distance as well. 
 
+The command, that executes the program \texttt{gmhclust} to cluster \texttt{data} dataset with the apriori assignment file \texttt{asgns} and the threshold 100 is 
+\begin{lstlisting}
+./gmhclust data 100 asgns
+\end{lstlisting}
+
+A more complex examples can be seen in the \texttt{benchmark} directory of the enclosed CD. See \texttt{README.txt} for the complete guide.
 
 \chapter{Enclosed CD}
 
