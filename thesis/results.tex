@@ -2,7 +2,7 @@
 
 The last chapter of the thesis describes the experiments that were performed to~provide a clear result of the MHCA implementation performance. The aim of~the~thesis was to create the MHCA implementation that is capable of clustering datasets of hundred thousands and millions of points in a reasonable amount of~time.
 
-The results were compared with a different implementation of Mahalanobis-average hierarchical clustering \cite{fivser2012detection}. It is a R language implementation with performance critical parts written in C language. It provides both FMD and CMD measures of dissimilarity and the apriori clusters computation as well. It performs a~serial CPU computation. For brevity, we denote the thesis GPU implementation by \texttt{gmhclust} and the serial CPU version by \texttt{mhclust}.
+The results were compared with the existing implementation of Mahalanobis-average hierarchical clustering \cite{fivser2012detection}. The implementation is written in R language with performance critical parts written in C. For linear algebra computation, it uses a BLAS library. It provides both FMD and CMD measures of dissimilarity and the apriori clusters computation as well. It performs a~serial CPU computation. For brevity, we denote the thesis GPU implementation by \texttt{gmhclust} and the serial CPU version by \texttt{mhclust}.
 
 The testing datasets were divided into these two categories:
 
@@ -24,7 +24,10 @@ The testing datasets were divided into these two categories:
 	\label{tab04:single}
 	\end{table}
 
-	\item[Apriori datasets] These datasets are clustered with apriori clusters. They do not represent any measured data. Rather, for each dataset, a set of distinct clusters was artificially created for this purpose. Each cluster was randomly generated as a set of $d$-dimensional points with the normal distribution and evenly scattered among the dataset. The describing parameters of~apriori datasets are the \emph{apriori cluster size}, the \emph{apriori cluster count} and the \emph{point dimensionality} (see tab.~\ref{tab04:apriori}). To find the apriori clusters, they need not be pre-computed by another clustering algorithm (such as k-means) as~all the~points are already stored with respect to the apriori clusters.
+	\item[Apriori datasets] These datasets are clustered with the apriori clustering me\-thod. 
+	They do not represent any measured data (alternatively, we could use single-point data\-sets pre-clustered with k-means). The apriori datasets contain small gaussian clusters; each of them is marked as an apriori cluster. The datasets contain lot of these clusters located on a different place. 
+	
+	The describing parameters of~apriori datasets comprise \emph{apriori cluster size}, the \emph{apriori cluster count} and the \emph{point dimensionality} (see tab.~\ref{tab04:apriori}). To find the apriori clusters, they need not be pre-computed by another clustering algorithm (such as k-means) as~all the~points are already stored with respect to the apriori clusters.
 	
 	\begin{table}
 		\centering
@@ -40,7 +43,9 @@ The testing datasets were divided into these two categories:
 	
 \end{description}
 
-All experiments were run on the same machine (Intel Xeon Silver 4110, 256 GB RAM, NVIDIA Tesla V100 PCIe 16 GB). The performance related experiments were performed several times. As there were negligible performance differences in the separate runs, all the following plots depicting performance show their arithmetic means. 
+\subsection{Benchmarking setup}
+
+All experiments were run on the same machine (Intel Xeon Silver 4110, 256 GB RAM, NVIDIA Tesla V100 PCIe 16 GB). The performance-related experiments were performed five times to detect possible anomalies. As there were negligible performance differences in the separate runs, all the following plots depicting performance show their arithmetic means. 
 
 \section{The closest neighbor parameter}
 
@@ -54,23 +59,23 @@ We assumed that \emph{two} closest neighbors will achieve the best performance a
 	\label{fig04:neigh}
 \end{figure}
 
-As can be seen from the figure \ref{fig04:neigh}, the variant of 1 closest neighbor achieved the~best performance. It may be caused by the fact that the lower number of cluster updates did not overcome the increased time for each update. Alternatively, it may be caused by the composition of tested datasets; datasets that naturally form cluster of other than elliptical shape may benefit better from another closest neighbor number variant.
+As seen from the figure \ref{fig04:neigh}, the variant of 1 closest neighbor achieved the~best performance. This may be caused by the fact that the lower number of cluster updates did not overcome the increased time for each update. Alternatively, it may be caused by the composition of tested datasets; datasets that naturally form cluster of other than elliptical shape may benefit better from another closest neighbor number variant.
 
 The forthcoming experiments will be performed with the 1 closest neighbor variant.
 
-\section{Performance speedup}
+\section{Clustering speedup}
 
-The next set of experiments determines the performance speedup of~the~GPU implementation over the CPU implementation. The performance comparison was performed on single-point and apriori datasets separately.
+The following set of experiments determines the performance speedup of the GPU implementation over the CPU implementation. The performance comparison was performed on single-point and apriori datasets separately.
 
 Unfortunately, during the single-point testing, we reached the computational limits of the CPU implementation. Even for the smallest dataset, the computation took nearly 14 hours. Due to the polynomial time complexity and extremely increasing memory requirements (193GB for Levine\_32), we decided that in order to test the datasets, we need to down-sample them. We uniformly randomly selected a fraction of the dataset points to create a smaller dataset. Note that these consequences are necessary (yet unforeseen) as the larger datasets require such big amount of time and space resources that they are by no means practically computable (see fig.~\ref{fig04:fract_comp}).
 
 \begin{figure}\centering
 	\includegraphics[width=\linewidth]{img/mixed_perf_comp}
-	\caption{An example of a poor performance of \texttt{mhclust} compared with \texttt{gmhclust} on single-point datasets. Datasets of \texttt{mhclust} were down-sampled to the fraction of $\frac{1}{10}$ while \texttt{gmhclust} datasets were not changed. For Samusik\_all dataset, neither the fraction of $\frac{1}{10}$ did help to finish the computation within a 24 hours mark.}
+	\caption{An example of better performance of \texttt{gmhclust} compared with \texttt{mhclust} on single-point datasets. Datasets of \texttt{mhclust} were down-sampled to the fraction of $\frac{1}{10}$ while \texttt{gmhclust} datasets were not changed. For Samusik\_all dataset, neither the fraction of $\frac{1}{10}$ did help to finish the computation within a 24 hours mark.}
 	\label{fig04:fract_comp}
 \end{figure}
 
-\subsection{Single-point datasets performance speedup}
+\subsection{Speedup on single-point datasets}
 
 To determine the performance increase, we decided to down-sample Nillson\_rare dataset (as it is the smallest one). We created 10 samples with their sizes corresponding to 10\% of the dataset up to 100\%.
 As seen from the figure \ref{fig04:single_perf}, the~performance difference increases as the~dataset size increases. It is a common consequence of~the~fact that there is less work to parallelize in smaller datasets than in~bigger datasets. In the dataset of size around 4K, the performance of \texttt{gmhclust} is 60-times greater. This scales up to 5000-times faster time for the full Nilsson\_rare dataset.
@@ -81,9 +86,10 @@ As seen from the figure \ref{fig04:single_perf}, the~performance difference incr
 	\label{fig04:single_perf}
 \end{figure}
 
-\subsection{Apriori datasets performance speedup}
+\subsection{Speedup on apriori datasets}
+\label{sec04:apr_perf}
 
-In contrast with the single-point datasets, the CPU implementation managed to~compute apriori datasets of big sizes. It is a consequence of the wisely chosen apriori clusters.
+In contrast to the single-point datasets, the CPU implementation managed to~compute apriori datasets of big sizes. It is a consequence of the wisely chosen apriori clusters.
 
 When the algorithm is inputed with apriori clusters, it does not compute the~whole dataset at once --- it clusters each apriori cluster first. This fact reduces the overall time complexity significantly, allowing the CPU algorithm to compute big datasets in a short amount of time.
 
@@ -125,13 +131,11 @@ Next, we will compare the clustering results of the GPU and CPU implementation t
 
 We can easily imagine point height using a dendrogram. The point height represents the distance from the bottom of the dendrogram (starting in the~corresponding point) to the top.
 
-To compare two clusterings, we compute the height of each point in both clusterings. Then we take the two distances of each point as its coordinates and put them on the two-dimensional plane. If they create a straight increasing line, it means that the correlation between point heights of two clusterings is equal to~1 and that clusterings formed very similar clusters. When points are scattered among the whole plane, different clusters were created and the overall clusterings differ.
+To compare two clusterings, we compute the height of each point in both clusterings. Then we take the two distances of each point as its coordinates and plot a scatterplot. When the correlation between point heights of two clusterings is equal to~1, clusterings formed very similar clusters. The scatterplot shows this as a straight increasing line. When different clusters were created, points are scattered among the whole plot.
 
-An another approach for comparing hierarchical clusterings is to compare a selected parts of their dendrograms. Dendrograms are \emph{cut} to expose a small amount of clusters (i.e.~10). Then, they are directly compared using similarity measures like the F-score.
+An alternative approach for comparing hierarchical clusterings would be to compare a selected parts of their dendrograms. Dendrograms are \emph{cut} to expose a small amount of clusters (i.e.~10). Then, they are directly compared using similarity measures like the F-score.
 
-However, a MHCA algorithm tends to create small clusters that are propagated to~the~very top of the dendrogram. They usually consist of noise; Mahalanobis distance makes them dissimilar to the rest and they are merged in the late clustering stages. This can be a problem for the direct cluster comparison as these noise clusters can easily skew the results. In compared clusterings, they may be composed of different points or form different amount of cluster; all this can worsen the result of potentially similar clusterings. 
-
-Hence, we preferred the first method for comparing two clusterings as it takes the whole dendrogram into the account rather than a selected part.
+However, the MHCA algorithm tends to create small clusters that are propagated to~the~very top of the dendrogram. They usually consist of noise because Mahalanobis distance makes noise clusters dissimilar to the rest and they are merged in the late clustering stages. This can be a problem for the direct cluster-by-cluster comparison as these noise clusters can easily skew the results. In compared clusterings, they may be composed of different points or form different amount of cluster; all this can worsen the result of potentially similar clusterings. 
 
 \subsection{Single-point dataset results comparison}
 
