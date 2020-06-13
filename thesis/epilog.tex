@@ -9,10 +9,11 @@ Regarding the comparison of clustering results, the clusterings differed for sin
 
 \subsection*{Future work}
 
+Although the implementation in this thesis is useful and provides good results, there are many minor improvements that can be added.
 The main concern of the future work is to implement the remainder of the functionalities of the current MHCA algorithm.
 
-The first step is to implement the dissimilarity measure that can provide better clustering of small clusters. We can transform a covariance matrix of  these clusters to make it regular. Then it can be properly inverted and used in the Mahalanobis distance formula.
+Most importantly, the dissimilarity measure that can provide better clustering of small clusters can be implemented. We can transform a covariance matrix of  these clusters to make it regular. Then it can be properly inverted and used in the Mahalanobis distance formula.
 
 Next, a covariance matrix can be normalized by dividing each element by its discriminant. When used in the distance formula, this transformation outputs the combination of the Mahalanobis and Euclidean distance. The determinant can be computed as a side product of the Cholesky decomposition that can be used to compute the inverse of a covariance matrix.
 
-The work can be further expanded by implementing the Full Mahalanobis distance (see def.~\ref{def01:fmd}). It can cover the cases when CMD does not provide precise dissimilarity measure which can lead to a better clustering results. Naturally, it would come for the price of~a~greater overall time complexity. 
+Although we do not expect it to provide any substantial improvement on reasonable datasets, the work can be further expanded by implementing the Full Mahalanobis distance (see def.~\ref{def01:fmd}). It can cover the cases when CMD does not provide precise dissimilarity measure which can lead to a better clustering results. Naturally, it would come for the price of~a~greater overall time complexity. 

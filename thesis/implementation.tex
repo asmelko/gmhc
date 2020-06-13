@@ -50,11 +50,11 @@ Moreover, as warp threads execute concurrently, CUDA offers \emph{warp shuffle i
 
 \subsection{GPU performance and optimization concerns}
 
-To greatly utilize a CUDA-enabled GPU and achieve a great performance, a program code must be written with respect to the GPU architecture. These guidelines help us in this task:
+To greatly utilize a CUDA-enabled GPU and achieve a good performance, a program code must be written with respect to the GPU architecture. These guidelines help us in this task:
 
 A GPU task has to be split to many small data dependent sub-tasks (e.g.~a computation of one element in a dissimilarity matrix). Threads must not perform many different tasks. Rather, they must perform the same task with a different data. Satisfying this condition, we follow the model of the SIMT architecture.
 
-The next step is to maximize the memory throughput. The programmer should minimize data transfers with low bandwidth such as copying data between CPU and GPU. This can be accomplished by creating and operating with structures directly in a GPU without mapping it to the CPU memory.
+The programmer should minimize data transfers with low bandwidth such as copying data between CPU and GPU. This can be accomplished by creating and operating with structures directly in a GPU without mapping it to the CPU memory.
 
 
 On-chip shared memory should be utilized. It is equivalent to the user-ma\-na\-ged cache and provides much higher data throughput than the global memory. 
@@ -283,7 +283,7 @@ The reason why we organize the data in such way is to maintain continuously dist
 	Naturally, there are other ways to maintain continuously distributed data within arrays. We can move the data in such way that the new cluster will always reside at the beginning of the corresponding part of an array. This approach could decrease the complexity of several kernels. On the other hand, it requires at most a linear time to move the data instead of a constant time.
 \end{rem}
 
-\section{Kernels}
+\section{CUDA Kernels}
 
 Kernels handle the computation critical parts of the algorithm. They are divided into several groups:
 
