@@ -48,25 +48,26 @@
 
 \begin{frame}{Mahalanobis-average clustering}
 	
-	Originally developed by Fišer et al. for the purpose of monitoring
+	\begin{itemize}
+		\item Originally developed by Fišer et al. for the purpose of monitoring
 	minimal residual disease in patients with leukemia.
-	
-	Naturally forms elliptic clusters.
+	\item Captures elliptic clusters that are formed naturally.
 	
 	\begin{figure}
 		\includegraphics[width=7cm]{img/mhca}
 	\end{figure}
+	\item Extremely suitable for single-cell cytometry datasets.
 	
-	Extremely suitable for single-cell cytometry datasets.
+	\end{itemize}
 	
 \end{frame}
 
 \begin{frame}{Motivation}
-
-	Seriously restricted by performance and complexity to \textbf{$\pm$100K} cells on a common HW
+	\begin{itemize}
+		\item The Mahalanobis clustering is seriously restricted by performance and complexity to \textbf{$\pm$100K} cells on a common hardware.
 	
-	Modern cytometers produce \textbf{millions} \dots
-	
+		\item Modern cytometers produce datasets of \textbf{several million} cells~\dots
+	\end{itemize}
 	\begin{figure}
 	\includegraphics[width=8cm]{img/scalability}
 	\end{figure}
@@ -75,14 +76,14 @@
 
 \begin{frame}{Challenges}
 	
-	Design an implementation with respect to:
+	Design an implementation of the Mahalanobis clustering that optimizes:
 	\begin{itemize}
-		\item \emph{Performance}
+		\item \textbf{Performance}
 		
 		Solved by utilizing computing power of a GPU device.
-		\item \emph{Huge input size}
+		\item \textbf{Huge input size}
 		
-		Polynomial space complexity is sub-optimal because the algorithm needs to cluster millions of points.
+		Quadratic space complexity is sub-optimal because the algorithm needs to cluster millions of points.
 	\end{itemize}
 	
 \end{frame}
@@ -91,13 +92,13 @@
 	
 	Performance increase:
 	\begin{itemize}
-		\item 60 to 5000 times for single-point datasets
-		\item 8 to 20 times for apriori datasets
+		\item 60\texttimes\ to 5000\texttimes\ for single-point datasets.
+		\item 8\texttimes\ to 20\texttimes\ for datasets with apriori clusters.
 	\end{itemize}
 
-	Reduction of quadratic space complexity to linear.
+	Reduction of quadratic space complexity to linear; no dissimilarity measurements are stored.
 	
-	\textbf{Test machine}: Intel Xeon Silver 4110, 256 GB
+	Test machine: Intel Xeon Silver 4110, 256 GB
 	RAM, NVIDIA Tesla V100 PCIe 16 GB
 	
 \end{frame}
@@ -110,6 +111,36 @@
 	\begin{figure}
 		\includegraphics[width=7cm]{../img/single_perf_comp}
 	\end{figure}
+	
+\end{frame}
+
+\begin{frame}{Results comparison}
+	
+	\begin{block}{Clusterings comparisons of single-point dataset}
+		
+		\begin{columns}
+			\column{\linewidth-7cm}
+			
+			Generally similar
+			
+			\column{7cm}
+			\includegraphics[width=7cm]{img/single_result}
+			
+		\end{columns}
+	\end{block}
+	
+	\begin{block}{Clusterings comparisons of datasets with apriori clusters}
+		\begin{columns}
+			\column{\linewidth-7cm}
+			
+			
+			Practically no difference
+			
+			\column{7cm}
+			\includegraphics[width=7cm]{../img/apriori_result}
+			
+		\end{columns}
+	\end{block}
 	
 \end{frame}
 
@@ -136,16 +167,11 @@
 
 \begin{frame}{Implementation details}
 	
-	Used HCA variant: \textbf{Nearest neighbor HCA}
+	Used HCA variant: \emph{Nearest neighbor HCA}
 	\begin{itemize}
-		\item Promises cubic time complexity (with possible enhancements) using linear space.
+		\item $\mathcal{O}(u\cdot n^2)$ time complexity using linear space where $u$ is the upper bound for the number of clusters to update each iteration (the worst case $\mathcal{O}(n^3)$).
+		\item The number of cached closest neighbors can be tweaked.
 	\end{itemize}
-	
-	Future work:
-	\begin{itemize}
-		\item Switch to \textbf{Dissimilarity matrix HCA} when dataset is clustered to small size.
-	\end{itemize}
-
 
 	\begin{figure}
 		\includegraphics[width=7cm]{../img/neighbor_compare}
@@ -153,47 +179,30 @@
 	
 \end{frame}
 
-\begin{frame}{Clusterings comparison}
+\begin{frame}{Future work}
 	
-	\begin{block}{Single-point dataset clusterings comparisons}
-		
-		\begin{columns}
-			\column{\linewidth-7cm}
-			
-			Notable difference
-			
-			\column{7cm}
-			\includegraphics[width=7cm]{img/single_result}
-			
-		\end{columns}
-	\end{block}
-
-	\begin{block}{Apriori dataset clusterings comparisons}
-		\begin{columns}
-			\column{\linewidth-7cm}
-			
-			
-			Practically no difference
-			
-			\column{7cm}
-			\includegraphics[width=7cm]{../img/apriori_result}
-			
-		\end{columns}
-	\end{block}
+	Future work: 
+	\begin{itemize}
+		\item Improve the dissimilarity measure for a better clustering
+		of small clusters.
+		\item Improve parallelism in presence of apriori clusters.
+		\item Switch to \emph{Dissimilarity matrix HCA} when a small amount of clusters remains.
+	\end{itemize}
 	
 \end{frame}
 
 \begin{frame}{Conclusion}
 	
-	Using CUDA framework, we have implemented GPU accelerated Mahalanobis-average hierarchical clustering.
-	
-	We have decreased memory requirements and increased speedup of the clustering.
-	
-	Datasets with millions of points can be clustered efficiently. 
+	\begin{itemize}
+		\item Novel implementation of the Mahalanobis clustering algorithm on GPU.
+		\item Speedup up to 5000\texttimes\ on practical datasets.
+		\item MHCA performance now practical for common datasets with millions of data points.
+	\end{itemize}
 	
 \end{frame}
 
 \begin{frame}[standout]
+	
   Thank you for attention.
 
 \end{frame}
