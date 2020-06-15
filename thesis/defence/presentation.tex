@@ -36,21 +36,12 @@
 \begin{frame}{Mahalanobis distance}
 	
 	Measures a distance between a point and a distribution of points.
-	\begin{block}{}
-		\begin{columns}
-			\column{0.5\linewidth}
-			Distances to the cluster:
-			\begin{table}
-				\begin{tabular}{lcc}
-					& \textbf{A} & \textbf{B}\\
-					\textbf{Euclidean} & 7 & 12 \\
-					\textbf{Mahalanobis} & 27 & 25 \\
-				\end{tabular}
-			\end{table}
-			\column{0.5\linewidth}
-			\includegraphics[width=5cm]{img/maha_dist}
-		\end{columns}
-	\end{block}
+	
+	\begin{figure}
+		\includegraphics[width=8cm]{img/maha_dist}
+		
+		\small{Euclidean (left) and Mahalanobis (right) distance comparison.}
+	\end{figure}
 
 	Computes the covariance matrix of a distribution which re-scales the axes.
 		
@@ -77,7 +68,7 @@
 	\begin{itemize}
 		\item The Mahalanobis clustering is seriously restricted by performance and complexity to \textbf{$\pm$100K} cells on a common hardware.
 	
-		\item Modern cytometers produce datasets of \textbf{several million} cells~\dots
+		\item Modern cytometers produce datasets of \textbf{several million} cells.
 	\end{itemize}
 	\begin{figure}
 	\includegraphics[width=8cm]{img/scalability}
@@ -91,10 +82,10 @@
 	\begin{itemize}
 		\item \textbf{Performance}
 		
-		Solved by utilizing computing power of a GPU device.
+		Solved by utilizing a heavy computing power of a GPU device.
 		\item \textbf{Huge input size}
 		
-		Quadratic space complexity is sub-optimal because the algorithm needs to cluster millions of points.
+		Quadratic space complexity (baseline in HCAs) is sub-optimal because the algorithm needs to cluster millions of points.
 	\end{itemize}
 	
 \end{frame}
@@ -180,8 +171,8 @@
 	
 	Used HCA variant: \emph{Nearest neighbor HCA}
 	\begin{itemize}
-		\item $\mathcal{O}(u\cdot n^2)$ time complexity using linear space where $u$ is the upper bound for the number of clusters to update each iteration (the worst case $\mathcal{O}(n^3)$).
-		\item The number of cached closest neighbors can be tweaked.
+		\item $\mathcal{O}(u\cdot n^2)$ time complexity using linear space where $u$ is the upper bound for the number of clusters to update in one iteration (the worst case $\mathcal{O}(n^3)$).
+		\item The number of cached closest neighbors can be adjusted.
 	\end{itemize}
 
 	\begin{figure}
