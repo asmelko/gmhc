@@ -36,10 +36,21 @@
 \begin{frame}{Mahalanobis distance}
 	
 	Measures a distance between a point and a distribution of points.
-	
-	\begin{figure}
-		\includegraphics[width=7cm]{img/maha_dist}
-	\end{figure}
+	\begin{block}{}
+		\begin{columns}
+			\column{0.5\linewidth}
+			Distances to the cluster:
+			\begin{table}
+				\begin{tabular}{lcc}
+					& \textbf{A} & \textbf{B}\\
+					\textbf{Euclidean} & 7 & 12 \\
+					\textbf{Mahalanobis} & 27 & 25 \\
+				\end{tabular}
+			\end{table}
+			\column{0.5\linewidth}
+			\includegraphics[width=5cm]{img/maha_dist}
+		\end{columns}
+	\end{block}
 
 	Computes the covariance matrix of a distribution which re-scales the axes.
 		
@@ -96,7 +107,7 @@
 		\item 8\texttimes\ to 20\texttimes\ for datasets with apriori clusters.
 	\end{itemize}
 
-	Reduction of quadratic space complexity to linear; no dissimilarity measurements are stored.
+	Reduction of quadratic space complexity to linear; heavy dissimilarity measurements recomputation.
 	
 	Test machine: Intel Xeon Silver 4110, 256 GB
 	RAM, NVIDIA Tesla V100 PCIe 16 GB
@@ -106,38 +117,38 @@
 \begin{frame}{Results summary}
 	
 	\begin{tabular}{cc}
-		\includegraphics[width=6cm]{../img/mixed_perf_comp} & \includegraphics[width=4.4cm]{../img/apriori_perf_comp} \\
+		\includegraphics[width=6cm]{img/mixed_perf_comp} & \includegraphics[width=4.4cm]{img/apriori_perf_comp} \\
 	\end{tabular}
 	\begin{figure}
-		\includegraphics[width=7cm]{../img/single_perf_comp}
+		\includegraphics[width=7cm]{img/single_perf_comp}
 	\end{figure}
 	
 \end{frame}
 
 \begin{frame}{Results comparison}
 	
-	\begin{block}{Clusterings comparisons of single-point dataset}
+	\begin{block}{Clusterings comparison of single-point dataset}
 		
 		\begin{columns}
-			\column{\linewidth-7cm}
+			\column{\linewidth-6cm}
 			
 			Generally similar
 			
-			\column{7cm}
-			\includegraphics[width=7cm]{img/single_result}
+			\column{6cm}
+			\includegraphics[width=6cm]{img/single_result}
 			
 		\end{columns}
 	\end{block}
 	
-	\begin{block}{Clusterings comparisons of datasets with apriori clusters}
+	\begin{block}{Clusterings comparison of datasets with apriori clusters}
 		\begin{columns}
-			\column{\linewidth-7cm}
+			\column{\linewidth-6cm}
 			
 			
 			Practically no difference
 			
-			\column{7cm}
-			\includegraphics[width=7cm]{../img/apriori_result}
+			\column{6cm}
+			\includegraphics[width=6cm]{../img/apriori_result}
 			
 		\end{columns}
 	\end{block}
@@ -185,6 +196,7 @@
 	\begin{itemize}
 		\item Improve the dissimilarity measure for a better clustering
 		of small clusters.
+		\item Implement other Mahalanobis linkage criteria.
 		\item Improve parallelism in presence of apriori clusters.
 		\item Switch to \emph{Dissimilarity matrix HCA} when a small amount of clusters remains.
 	\end{itemize}
