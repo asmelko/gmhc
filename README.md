@@ -36,8 +36,21 @@ number. Then simply, if the *i*-th and the *j*-th assignment numbers are
 equal, then the *i*-th and *j*-th points are assigned the same apriori cluster.
 
 
-The executable writes the clustering process to the standard output. Each
-line contains an ID pair of merged clusters with their merge distance as well.  
 The command, that executes the program `gmhclust` to cluster `data` dataset
 with the apriori assignment file `asgns` and the threshold 100 is  
 ```./gmhclust data 100 asgns```
+
+### Output
+
+The executable writes the clustering process to the standard output in a text format. Each
+line contains an ID pair of merged clusters with their merge distance as well.  
+IDs are assigned as follows:
+1. Initial dataset points are assigned nonnegative integers (`[0, n-1]`).
+2. Merged clusters are assigned the next possible ID (`[n, 2n-1]`).  
+
+An example output for 4 points in a dataset would look like this:
+```
+0 2 0.65
+1 4 1.2
+3 5 0.1
+```
