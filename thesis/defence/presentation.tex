@@ -85,7 +85,7 @@
 		Solved by utilizing a heavy computing power of a GPU device.
 		\item \textbf{Huge input size}
 		
-		Quadratic space complexity (baseline in HCAs) is sub-optimal because the algorithm needs to cluster millions of points.
+		Quadratic space complexity (usual in HCAs) is restrictive because the algorithm needs to cluster millions of points.
 	\end{itemize}
 	
 \end{frame}
@@ -181,25 +181,15 @@
 	
 \end{frame}
 
-\begin{frame}{Future work}
+\begin{frame}{Conclusion}
+	
+	The speedup increases the practical MHCA capacity by several hundred times; we can explore many new complicated datasets.
 	
 	Future work: 
 	\begin{itemize}
-		\item Improve the dissimilarity measure for a better clustering
-		of small clusters.
+		\item Optimize the dissimilarity measure for better clustering of small clusters.
 		\item Implement other Mahalanobis linkage criteria.
-		\item Improve parallelism in presence of apriori clusters.
-		\item Switch to \emph{Dissimilarity matrix HCA} when a small amount of clusters remains.
-	\end{itemize}
-	
-\end{frame}
-
-\begin{frame}{Conclusion}
-	
-	\begin{itemize}
-		\item Novel implementation of the Mahalanobis clustering algorithm on GPU.
-		\item Speedup up to 5000\texttimes\ on practical datasets.
-		\item MHCA performance now practical for common datasets with millions of data points.
+		\item Explore switching to other HCA implementations dynamically.
 	\end{itemize}
 	
 \end{frame}
