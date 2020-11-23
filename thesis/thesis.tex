@@ -58,7 +58,6 @@
 \usepackage[textsize=tiny, linecolor=red!50!black, backgroundcolor=yellow!30]{todonotes}
 \setlength{\marginparwidth}{6em}
 \setuptodonotes{fancyline}
-\newcommand{\xxx}[1]{\textcolor{red}{#1}}
 
 %%% Basic information on the thesis
 
@@ -80,7 +79,7 @@
 \def\DeptType{Department}
 
 % Thesis supervisor: name, surname and titles
-\def\Supervisor{RNDr. Miroslav Kratochvil}
+\def\Supervisor{RNDr. Miroslav Kratochvíl}
 
 % Supervisor's department (again according to Organizational structure of MFF)
 \def\SupervisorsDepartment{Department of Software Engineering}
@@ -92,12 +91,19 @@
 % An optional dedication: you can thank whomever you wish (your supervisor,
 % consultant, a person who lent the software, etc.)
 \def\Dedication{%
-Dedication.
+\noindent
+I dedicate this to my parents, for their kindness and support.
+
+\noindent
+I would like to thank my supervisor Mirek Kratochvíl for his expertise, very fast replies, time and patience.
+
+\noindent
+I thank GPULAB cluster for the performed experiments.
 }
 
 % Abstract (recommended length around 80-200 words; this is not a copy of your thesis assignment!)
 \def\Abstract{%
-During a clustering of a flow-cytometry data, the Mahalanobis distance function is used to form elliptical clusters naturally. However, reasonably computable dataset sizes are restricted to a factor of 100K points due to~the~polynomial time and space complexity of the current algorithm. In this thesis, we researched possible ways of implementing clustering algorithms and proposed an~implementation of Mahalanobis-based hierarchical clustering analysis accelerated on a single GPU. Using CUDA platform we achieved the performance increase of up to 5000-times on single-point datasets and 40-times on apriori datasets compared to a serial CPU counterpart. With this contribution, the size of flow cytometry datasets can increase to millions of points.
+Hierarchical clustering algorithms are common tools for simplifying, exploring and analyzing datasets in many areas of research. For flow cytometry, a specific variant of agglomerative clustering has been proposed, that uses cluster linkage based on Mahalanobis distance to produce results better suited for the domain. Applicability of this clustering algorithm is currently limited by its relatively high computational complexity, which does not allow it to scale to common cytometry datasets. This thesis describes a specialized, GPU-accelerated version of the Mahalanobis-average linked hierarchical clustering, which improves the algorithm performance by several orders of magnitude, thus allowing it to scale to much larger datasets. The thesis provides an overview of current hierarchical clustering algorithms, and details the construction of the variant used on GPU. The result is benchmarked on publicly available high-dimensional data from mass cytometry.
 }
 
 % 3 to 5 keywords (recommended), each enclosed in curly braces
@@ -126,7 +132,6 @@ During a clustering of a flow-cytometry data, the Mahalanobis distance function 
 \include{preface}
 
 \include{clustering}
-\include{cuda}
 \include{implementation}
 \include{results}
 
@@ -162,7 +167,7 @@ During a clustering of a flow-cytometry data, the Mahalanobis distance function 
 
 \section{Build guide}
 
-The Mahalanobis-based hierarchical clustering project was developed with the CMake build tool. To build the executable, use CMake configure and build commands in a build directory. Then, the directory \texttt{para} will contain \texttt{gmhclust} executable. The executable can be built on Linux and Windows as well. The only dependency is the CUDA compiler (\texttt{nvcc}). See the following steps:
+The Mahalanobis-average hierarchical clustering project was developed with the CMake build tool. To build the executable, use CMake configure and build commands in a build directory. Then, the directory \texttt{para} will contain \texttt{gmhclust} executable. The only dependency is the CUDA compiler (\texttt{nvcc}). The executable should be portable to all platforms supporting \texttt{nvcc}; it was successfully tested on Ubuntu 18.04 and Windows 10. See the following steps:
 
 \begin{lstlisting}
 cd gmhc
@@ -172,7 +177,7 @@ cmake --build .
 ls para/gmhclust
 \end{lstlisting}
 
-\section{Executable CLI}
+\section{Running the program}
 
 The \texttt{gmhclust} executable has three command line parameters:
 \begin{enumerate}
@@ -180,22 +185,29 @@ The \texttt{gmhclust} executable has three command line parameters:
 	\begin{enumerate}
 		\item 4B unsigned integer $D$ -- point \emph{dimension}
 		\item 4B unsigned integer $N$ -- \emph{number} of points
-		\item $N*D$ 4B floats -- $N$ single-precision $D$-dimensional points stored one after another
+		\item $N\cdot D$ 4B floats -- $N$ single-precision $D$-dimensional points stored one after another
 	\end{enumerate}
 	\item \emph{Mahalanobis threshold} -- An absolute positive number that states the Mahalanobis threshold. It is the mandatory parameter.
 	\item \emph{Apriori assignments file path} -- An optional path to an apriori assignments file --- a file with space separated 4B unsigned integers (assignment numbers). The number of integers is the same as the number of points in the dataset; it sequentially assigns each point in the dataset file an assignment number. Then simply, if the $i$-th and the $j$-th assignment numbers are equal, then the $i$-th and $j$-th points are assigned the same apriori cluster. 
 \end{enumerate}
 
-The executable writes the clustering process to the standard output. Each line contains an ID pair of merged clusters with their merge distance as well.
+The executable writes the clustering process to the standard output. Each line contains an ID pair of merged clusters with their merge distance as well. 
+
+The command, that executes the program \texttt{gmhclust} to cluster \texttt{data} dataset with the apriori assignment file \texttt{asgns} and the threshold 100 is 
+\begin{lstlisting}
+./gmhclust data 100 asgns
+\end{lstlisting}
+
+A more complex examples can be seen in the \texttt{benchmark} directory of the enclosed CD. See \texttt{README.txt} for the complete guide.
 
 \chapter{Enclosed CD}
 
-The enclosed CD contais this folders:
+The enclosed CD contais three folders:
 
 \begin{itemize}
 	\item \texttt{gmhc} contains the source code of the implementation.
-	\item \texttt{data} contains dataset files used during experiments.
-	\item \texttt{docs} contains the programmer documentation of the implementation.
+	\item \texttt{benchmark} contains scripts and a guide how to reproduce some of the performed experiments.
+	\item \texttt{docs} contains the program documentation.
 \end{itemize} 
 
 

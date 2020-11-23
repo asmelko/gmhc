@@ -29,6 +29,9 @@ out/
 *.cb
 *.cb2
 .*.lb
+*.nav
+*.snm
+*.vrb
 
 ## Bibliography auxiliary files (bibtex/biblatex/biber):
 *.bbl
@@ -48,3 +51,4 @@ out/
 
 thesis/thesis.pdf
 thesis/pdfa.xmpi
+thesis/defence/presentation.pdf

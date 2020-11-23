@@ -18,7 +18,6 @@ struct csize2
 	clustering::csize_t x, y;
 };
 
-
 //structure describing a clusters id and size
 struct cluster_data_t
 {
