@@ -75,6 +75,7 @@ class gmhc : public hierarchical_clustering<float>
 	float* cu_apriori_icov_;
 
 public:
+	//result type for the run method
 	using res_t = pasgnd_t<float>;
 
 	bool initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments = nullptr, validator* vld = nullptr);
@@ -84,8 +85,11 @@ public:
 	virtual void free() override;
 
 private:
+	//method sets fields of apriori clusters
 	void set_apriori(clustering_context_t& cluster, csize_t offset, csize_t size, validator* vld);
+	//method that reads apriori assigmnets array and initializes all apriori clusters
 	void initialize_apriori(const asgn_t* apriori_assignments, validator* vld);
+	//method that creates final context
 	void move_apriori(csize_t eucl_size, csize_t maha_size);
 };
 

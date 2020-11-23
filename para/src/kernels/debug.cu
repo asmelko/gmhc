@@ -127,7 +127,7 @@ __global__ void print_ne(neighbor_t* neighbors, csize_t nei_number, csize_t coun
 	}
 }
 
-void print_nei(neighbor_t* neighbors, csize_t nei_number, csize_t count)
+void run_print_nei(neighbor_t* neighbors, csize_t nei_number, csize_t count)
 {
 	print_ne << <1, 1 >> > (neighbors, nei_number, count);
 }
