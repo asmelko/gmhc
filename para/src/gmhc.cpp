@@ -8,12 +8,12 @@ using namespace clustering;
 
 bool gmhc::initialize(const float* data_points, csize_t data_points_size, csize_t data_point_dim, csize_t mahalanobis_threshold, const asgn_t* apriori_assignments, validator* vld)
 {
-	if (point_dim > MAX_DIM)
+	if (data_point_dim > MAX_DIM)
 	{
 		std::cerr << "currently allowed maximum dimension is 50" << std::endl;
 		return false;
 	}
-	else if (point_dim < 1)
+	else if (data_point_dim < 1)
 	{
 		std::cerr << "dimension should be at least 2" << std::endl;
 		return false;
@@ -201,7 +201,7 @@ void gmhc::move_apriori(csize_t eucl_size, csize_t maha_size)
 std::vector<gmhc::res_t> gmhc::run()
 {
 	std::vector<res_t> ret;
-	clustering_context_t& last = apr_ctxs_.front();
+	clustering_context_t& final = apr_ctxs_.front();
 
 	//compute apriori
 	if (apriori_count_)
@@ -232,12 +232,12 @@ std::vector<gmhc::res_t> gmhc::run()
 	}
 
 	run_neighbors<shared_apriori_data_t::neighbors_size>(
-		last.compute_data, last.cu_tmp_neighbors, last.cu_neighbors, last.bounds, last.starting_info);
+		final.compute_data, final.cu_tmp_neighbors, final.cu_neighbors, final.bounds, final.starting_info);
 
 	//compute rest
-	while (last.cluster_count > 1)
+	while (final.cluster_count > 1)
 	{
-		auto tmp = last.iterate();
+		auto tmp = final.iterate();
 		ret.push_back(tmp);
 	}
 

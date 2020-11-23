@@ -10,7 +10,9 @@
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
 #define BUCH(x) cuBLAS_check(x, __FILE__, __LINE__)
 
+//check that halts the program if there was a cuda error
 void cuda_check(cudaError_t code, const char* file, int line);
+//check that halts the program if there was a cublas error
 void cuBLAS_check(cublasStatus_t code, const char* file, int line);
 
 #ifdef __INTELLISENSE__
@@ -24,49 +26,65 @@ template <typename T>
 T atomicAdd(T* address, T val) {}
 #endif
 
-struct csize2
-{
-	clustering::csize_t x, y;
-};
-
+//constant that states the maximal allowed dimension of a point
 constexpr clustering::csize_t MAX_DIM = 50;
+//constant that represents infinity
 constexpr float FLT_INF = std::numeric_limits<float>::infinity();
 
 chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
 void run_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info);
 chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chunk_size, kernel_info info);
 
-void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cetroid_id, clustering::csize_t cluster_size, kernel_info info);
+//computes centroid of a cluster
+void run_centroid(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cluster_id, clustering::csize_t cluster_size, kernel_info info);
 
+//assigns data from an array of specific size to constant storage
 void assign_constant_storage(const float* value, clustering::csize_t size, cudaMemcpyKind kind);
-void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t centroid_id, kernel_info info);
+
+//computes covariance of a cluster
+void run_covariance(const input_t in, const clustering::asgn_t* assignments, float* out, clustering::asgn_t cluster_id, kernel_info info);
+//runs finish_covariance kernel
 void run_finish_covariance(const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
+//runs store_covariance kernel
 void run_store_icovariance(float* dest, const float* src, clustering::csize_t dim);
 
+//updates assignment array to merge clusters
 void run_merge_clusters(clustering::asgn_t* assignments, clustering::csize_t point_size, clustering::asgn_t old_A, clustering::asgn_t old_B, clustering::asgn_t new_C, kernel_info info);
 
+//initializes the neighbor array
 template <clustering::csize_t N>
 void run_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, cluster_bound_t sizes, kernel_info info);
 
+//retrieves the minimum from a neighbor array
 template <clustering::csize_t N>
 chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result);
 
+//updates neighbor array
 template <clustering::csize_t N>
 void run_update_neighbors(centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, cluster_bound_t sizes, update_data_t upd_data, kernel_info info);
 
+//sets identity matrix
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
+//sets initial assignments
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
-void run_set_default_neigh(neighbor_t* neighbors, clustering::csize_t count, kernel_info info);
 
-//debug kernels
-void print_nei(neighbor_t* neighbors, clustering::csize_t nei_number, clustering::csize_t count);
+//debug kernel - prints neighbor array
+void run_print_nei(neighbor_t* neighbors, clustering::csize_t nei_number, clustering::csize_t count);
+//debug kernel - prints assignment array
 void run_print_assg(clustering::asgn_t* assignments, clustering::csize_t point_size);
+//debug kernel - prints centroid array
 void run_print_centroid(const float* centroid, clustering::csize_t dim, clustering::csize_t count);
+//debug kernel - prints update array
 void run_print_up(clustering::csize_t* updated, clustering::csize_t* eucl_count, clustering::csize_t maha_begin, clustering::csize_t* maha_count);
+//debug kernel - computes euclidean distance
 float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, clustering::csize_t dim);
+//debug kernel - computes maha distance
 float run_point_maha(const float* lhs_centroid, const float* rhs_centroid, clustering::csize_t dim, const float* lhs_icov, const float* rhs_icov);
+//debug kernel - compares two neighbor arrays - only updated part
 void run_compare_nei_u(const neighbor_t* lhs, const neighbor_t* rhs, const clustering::csize_t* update, const clustering::csize_t* small_size, const clustering::csize_t* big_size, clustering::csize_t big_begin, clustering::csize_t new_idx);
+//debug kernel - compares two neighbor arrays
 void run_compare_nei(const neighbor_t* lhs, const neighbor_t* rhs, const clustering::csize_t small_size, clustering::csize_t big_begin, clustering::csize_t big_size, clustering::csize_t new_idx);
+//debug kernel - trivial minimum retrieval algorithm
 chunk_t run_simple_min(const float* clusters, clustering::csize_t dim, clustering::csize_t count, chunk_t* out);
 
 #endif
