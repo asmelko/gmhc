@@ -1,8 +1,6 @@
 #ifndef APRIORI_HPP
 #define APRIORI_HPP
 
-#include "cublas_v2.h"
-
 #include "clustering.hpp"
 #include "validator.hpp"
 #include "structures.hpp"

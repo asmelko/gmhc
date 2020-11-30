@@ -47,7 +47,7 @@ bool gmhc::initialize(const float* data_points, csize_t data_points_size, csize_
 	CUCH(cudaMalloc(&common_.cu_write_icov, sizeof(float*)));
 	CUCH(cudaMalloc(&common_.cu_info, sizeof(int)));
 	CUCH(cudaMalloc(&common_.cu_pivot, sizeof(int) * data_point_dim));
-	BUCH(cublasCreate(&common_.cublas_handle));
+	SOCH(cusolverDnCreate(&common_.cusolver_handle));
 
 	if (apriori_assignments)
 		initialize_apriori(apriori_assignments, vld);
@@ -264,7 +264,7 @@ void gmhc::free()
 	CUCH(cudaFree(common_.cu_write_icov));
 	CUCH(cudaFree(common_.cu_info));
 	CUCH(cudaFree(common_.cu_pivot));
-	BUCH(cublasDestroy(common_.cublas_handle));
+	SOCH(cusolverDnDestroy(common_.cusolver_handle));
 
 	if (apriori_count_)
 	{

@@ -172,26 +172,42 @@ void clustering_context_t::compute_icov(csize_t pos)
 	//compute inverse
 	{
 		CUCH(cudaDeviceSynchronize());
-		CUCH(cudaMemcpy(shared.cu_read_icov, &shared.cu_tmp_icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
-		CUCH(cudaMemcpy(shared.cu_write_icov, &icov, sizeof(float*), cudaMemcpyKind::cudaMemcpyHostToDevice));
-
-		if (point_dim <= 32)
-			BUCH(cublasSmatinvBatched(shared.cublas_handle, (int)point_dim, shared.cu_read_icov, (int)point_dim, shared.cu_write_icov, (int)point_dim, shared.cu_info, 1));
-		else
-		{
-			BUCH(cublasSgetrfBatched(shared.cublas_handle, (int)point_dim, shared.cu_read_icov, (int)point_dim, shared.cu_pivot, shared.cu_info, 1));
-			BUCH(cublasSgetriBatched(shared.cublas_handle, (int)point_dim, shared.cu_read_icov, (int)point_dim, shared.cu_pivot, shared.cu_write_icov, (int)point_dim, shared.cu_info, 1));
-		}
-
-		CUCH(cudaDeviceSynchronize());
 
 		int info;
+		int workspace_size;
+
+		SOCH(cusolverDnSpotrf_bufferSize(shared.cusolver_handle, cublasFillMode_t::CUBLAS_FILL_MODE_LOWER, point_dim, shared.cu_tmp_icov, point_dim, &workspace_size));
+		CUCH(cudaDeviceSynchronize());
+
+		float* cu_workspace;
+		CUCH(cudaMalloc(&cu_workspace, sizeof(float) * workspace_size));
+
+		SOCH(cusolverDnSpotrf(shared.cusolver_handle, cublasFillMode_t::CUBLAS_FILL_MODE_LOWER, point_dim, shared.cu_tmp_icov, point_dim, cu_workspace, workspace_size, shared.cu_info));
+
+		CUCH(cudaDeviceSynchronize());
+		CUCH(cudaFree(cu_workspace));
 		CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
 		if (info != 0)
-			run_set_default_inverse(icov, point_dim);
+			run_set_default_inverse(shared.cu_tmp_icov, point_dim);
+		else
+		{
+			SOCH(cusolverDnSpotri_bufferSize(shared.cusolver_handle, cublasFillMode_t::CUBLAS_FILL_MODE_LOWER, point_dim, shared.cu_tmp_icov, point_dim, &workspace_size));
+			CUCH(cudaDeviceSynchronize());
 
-		run_store_icovariance(cu_inverses + pos * icov_size, icov, point_dim);
+			CUCH(cudaMalloc(&cu_workspace, sizeof(float) * workspace_size));
+
+			SOCH(cusolverDnSpotri(shared.cusolver_handle, cublasFillMode_t::CUBLAS_FILL_MODE_LOWER, point_dim, shared.cu_tmp_icov, point_dim, cu_workspace, workspace_size, shared.cu_info));
+
+			CUCH(cudaDeviceSynchronize());
+			CUCH(cudaFree(cu_workspace));
+			CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+			if (info != 0)
+				run_set_default_inverse(shared.cu_tmp_icov, point_dim);
+		}
+
+		run_store_icovariance(cu_inverses + pos * icov_size, shared.cu_tmp_icov, point_dim);
 	}
 
 	//test inverse
@@ -199,7 +215,11 @@ void clustering_context_t::compute_icov(csize_t pos)
 	{
 		vld->icov_v.resize(point_dim * point_dim);
 		CUCH(cudaDeviceSynchronize());
-		CUCH(cudaMemcpy(vld->icov_v.data(), icov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+		CUCH(cudaMemcpy(vld->icov_v.data(), shared.cu_tmp_icov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+		for (size_t i = 0; i < point_dim; i++) 
+			for (size_t j = i + 1; j < point_dim; j++) 
+				vld->icov_v[i + point_dim * j] = vld->icov_v[j + point_dim * i];
 	}
 }
 

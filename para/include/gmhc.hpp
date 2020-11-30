@@ -1,6 +1,8 @@
 #ifndef GMHC_HPP
 #define GMHC_HPP
 
+#include "cusolverDN.h"
+
 #include "apriori.hpp"
 
 namespace clustering
@@ -30,8 +32,13 @@ struct shared_apriori_data_t
 	//number of closest neighbors for each cluster
 	static constexpr csize_t neighbors_size = 1;
 
-	//handle to CUBLAS library
-	cublasHandle_t cublas_handle;
+	//handle to CUSOLVER library
+	cusolverDnHandle_t cusolver_handle;
+};
+
+enum class subthreshold_handling_kind
+{
+	MAHAL, EUCLID, MAHAL0, EUCLID_MAHAL
 };
 
 //Mahalanobis hierarchical clustering class

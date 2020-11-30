@@ -17,41 +17,12 @@ void cuda_check(cudaError_t code, const char* file, int line)
 	}
 }
 
-void cuBLAS_check(cublasStatus_t code, const char* file, int line)
+void cuSOLVER_check(cusolverStatus_t code, const char* file, int line)
 {
 	if (code != CUBLAS_STATUS_SUCCESS)
 	{
-		switch (code)
-		{
-		case CUBLAS_STATUS_NOT_INITIALIZED:
-			std::cerr << "CUBLAS_STATUS_NOT_INITIALIZED" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_ALLOC_FAILED:
-			std::cerr << "CUBLAS_STATUS_ALLOC_FAILED" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_INVALID_VALUE:
-			std::cerr << "CUBLAS_STATUS_INVALID_VALUE" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_ARCH_MISMATCH:
-			std::cerr << "CUBLAS_STATUS_ARCH_MISMATCH" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_MAPPING_ERROR:
-			std::cerr << "CUBLAS_STATUS_MAPPING_ERROR" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_EXECUTION_FAILED:
-			std::cerr << "CUBLAS_STATUS_EXECUTION_FAILED" << " at " << file << ":" << line;
-			return;
-
-		case CUBLAS_STATUS_INTERNAL_ERROR:
-			std::cerr << "CUBLAS_STATUS_INTERNAL_ERROR" << " at " << file << ":" << line;
-			return;
-		}
-		std::cerr << "Unknown cuBLAS error" << " at " << file << ":" << line;
+		std::cerr << "cuSOLVER error" << " at " << file << ":" << line;
+		exit(1);
 	}
 }
 
