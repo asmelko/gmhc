@@ -1,6 +1,7 @@
 #include <cfloat>
 #include <device_launch_parameters.h>
 
+#include "common_kernels.cuh"
 #include "kernels.cuh"
 
 using namespace clustering;
@@ -11,12 +12,15 @@ __global__ void set_default_asgn(asgn_t* __restrict__ asgns, csize_t size)
         asgns[i] = i;
 }
 
-__global__ void set_default_icovs(float* __restrict__ icovs, csize_t size, csize_t icov_size)
+__global__ void set_default_icovs(float* __restrict__ icovs, csize_t size, csize_t point_dim)
 {
+    auto icov_size = ((point_dim + 1) * point_dim) / 2;
     for (csize_t i = blockIdx.x * blockDim.x + threadIdx.x; i < size * icov_size; i += gridDim.x * blockDim.x)
     {
-        auto icov_idx = i / icov_size;
         auto cell_idx = i % icov_size;
+        auto coords = compute_coordinates(point_dim, cell_idx);
+        if (coords.x == coords.y)
+            icovs[i] = 1;
     }
 }
 
@@ -42,4 +46,9 @@ __global__ void set_default_neigh(neighbor_t* neighbors, csize_t count)
 void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info info)
 {
     set_default_neigh<<<info.grid_dim, info.block_dim>>>(neighbors, count);
+}
+
+void run_set_default_icovs(float* __restrict__ icovs, csize_t size, csize_t point_dim, kernel_info info)
+{
+    set_default_icovs<<<info.grid_dim, info.block_dim>>>(icovs, size, point_dim);
 }

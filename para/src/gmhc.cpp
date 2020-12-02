@@ -57,6 +57,8 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_pivot, sizeof(int) * data_point_dim));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
 
+    run_set_default_icovs(cu_icov_, data_points_size, data_point_dim);
+
     if (apriori_assignments)
         initialize_apriori(apriori_assignments, vld);
     else

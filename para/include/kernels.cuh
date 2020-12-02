@@ -21,8 +21,12 @@ void __syncthreads() {}
 void __syncwarp() {}
 unsigned __ballot_sync(unsigned mask, bool predicate);
 unsigned __activemask() {}
-template<typename T> T __shfl_down_sync(unsigned mask, T var, unsigned int delta, int width = warpSize) {}
-template<typename T> T atomicAdd(T* address, T val) {}
+template<typename T>
+T __shfl_down_sync(unsigned mask, T var, unsigned int delta, int width = warpSize)
+{}
+template<typename T>
+T atomicAdd(T* address, T val)
+{}
 #endif
 
 // constant that states the maximal allowed dimension of a point
@@ -90,6 +94,10 @@ void run_update_neighbors(centroid_data_t data,
 void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
 // sets initial assignments
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
+// sets initial inverse covariances
+void run_set_default_icovs(
+    float* __restrict__ icovs, clustering::csize_t size, clustering::csize_t point_dim, kernel_info info);
+
 
 // debug kernel - prints neighbor array
 void run_print_nei(neighbor_t* neighbors, clustering::csize_t nei_number, clustering::csize_t count);
