@@ -97,6 +97,9 @@ void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
 // sets initial inverse covariances
 void run_set_default_icovs(
     float* __restrict__ icovs, clustering::csize_t size, clustering::csize_t point_dim, kernel_info info);
+// sets initial multiplication factors of icovs
+void run_set_default_icov_mfs(float* __restrict__ mfs, clustering::csize_t size, kernel_info info);
+
 
 
 // debug kernel - prints neighbor array

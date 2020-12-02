@@ -38,6 +38,8 @@ struct clustering_context_t
     float* cu_centroids;
     // device inverse array
     float* cu_inverses;
+    // device multiplication factor array
+    float* cu_mfactors;
 
     // device assignments array
     asgn_t* cu_point_asgns;

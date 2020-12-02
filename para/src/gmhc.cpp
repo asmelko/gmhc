@@ -33,7 +33,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
     maha_threshold_ = mahalanobis_threshold;
-    starting_info_ = kernel_info(80, 512);
+    starting_info_ = kernel_info(6, 512);
 
     CUCH(cudaSetDevice(0));
 
@@ -57,7 +57,8 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_pivot, sizeof(int) * data_point_dim));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
 
-    run_set_default_icovs(cu_icov_, data_points_size, data_point_dim);
+    run_set_default_icovs(cu_icov_, data_points_size, data_point_dim, starting_info_);
+    run_set_default_icov_mfs(cu_icov_, data_points_size, starting_info_);
 
     if (apriori_assignments)
         initialize_apriori(apriori_assignments, vld);
@@ -104,6 +105,7 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
     cluster.cu_points = cu_points_ + offset * point_dim;
     cluster.cu_centroids = cu_centroids_ + offset * point_dim;
     cluster.cu_inverses = cu_icov_ + offset * icov_size;
+    cluster.cu_mfactors = cu_icov_mf_+ offset;
 
     cluster.cu_point_asgns = cu_point_asgns_ + offset;
 

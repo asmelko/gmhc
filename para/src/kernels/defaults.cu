@@ -24,9 +24,7 @@ __global__ void set_default_icovs(float* __restrict__ icovs, csize_t size, csize
     }
 }
 
-void run_set_default_asgn(asgn_t* asgns, csize_t N) { set_default_asgn<<<50, 1024>>>(asgns, N); }
-
-__global__ void set_default(float* __restrict__ icov_matrix, csize_t size)
+__global__ void set_default_inverse(float* __restrict__ icov_matrix, csize_t size)
 {
     for (csize_t i = threadIdx.x; i < size * size; i += blockDim.x)
         if (i / size == i % size)
@@ -35,12 +33,24 @@ __global__ void set_default(float* __restrict__ icov_matrix, csize_t size)
             icov_matrix[i] = 0;
 }
 
-void run_set_default_inverse(float* icov_matrix, csize_t size) { set_default<<<1, size * size>>>(icov_matrix, size); }
-
 __global__ void set_default_neigh(neighbor_t* neighbors, csize_t count)
 {
     for (csize_t i = blockIdx.x * blockDim.x + threadIdx.x; i < count; i += gridDim.x * blockDim.x)
         neighbors[i].distance = FLT_INF;
+}
+
+__global__ void set_default_icov_mfs(float* __restrict__ mfs, csize_t size)
+{
+    for (csize_t i = blockIdx.x * blockDim.x + threadIdx.x; i < size; i += gridDim.x * blockDim.x)
+        mfs[i] = 1;
+}
+
+
+void run_set_default_asgn(asgn_t* asgns, csize_t N) { set_default_asgn<<<50, 1024>>>(asgns, N); }
+
+void run_set_default_inverse(float* icov_matrix, csize_t size)
+{
+    set_default_inverse<<<1, size * size>>>(icov_matrix, size);
 }
 
 void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info info)
@@ -51,4 +61,9 @@ void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info inf
 void run_set_default_icovs(float* __restrict__ icovs, csize_t size, csize_t point_dim, kernel_info info)
 {
     set_default_icovs<<<info.grid_dim, info.block_dim>>>(icovs, size, point_dim);
+}
+
+void run_set_default_icov_mfs(float* __restrict__ mfs, csize_t size, kernel_info info)
+{
+    set_default_icov_mfs<<<info.grid_dim, info.block_dim>>>(mfs, size);
 }

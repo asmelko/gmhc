@@ -50,8 +50,10 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_points_;
     // device centroid array
     float* cu_centroids_;
-    // device inverse array
+    // device inverse covariance matrix array
     float* cu_icov_;
+    // device multiplication factor of inverse covariance matrix array
+    float* cu_icov_mf_;
     // device assignments array
     asgn_t* cu_point_asgns_;
 
