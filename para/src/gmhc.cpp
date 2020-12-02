@@ -12,6 +12,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t data_points_size,
     csize_t data_point_dim,
     csize_t mahalanobis_threshold,
+    subthreshold_handling_kind subthreshold_kind,
     const asgn_t* apriori_assignments,
     validator* vld)
 {
@@ -27,6 +28,8 @@ bool gmhc::initialize(const float* data_points,
     }
 
     hierarchical_clustering::initialize(data_points, data_points_size, data_point_dim);
+
+    subthreshold_kind_ = subthreshold_kind;
 
     common_.id = (asgn_t)data_points_size;
     common_.cluster_count = data_points_size;
@@ -90,6 +93,8 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
 {
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
+    cluster.subthreshold_kind = subthreshold_kind_;
+
     cluster.point_size = size;
     cluster.point_dim = point_dim;
     cluster.icov_size = icov_size;
@@ -105,7 +110,7 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
     cluster.cu_points = cu_points_ + offset * point_dim;
     cluster.cu_centroids = cu_centroids_ + offset * point_dim;
     cluster.cu_inverses = cu_icov_ + offset * icov_size;
-    cluster.cu_mfactors = cu_icov_mf_+ offset;
+    cluster.cu_mfactors = cu_icov_mf_ + offset;
 
     cluster.cu_point_asgns = cu_point_asgns_ + offset;
 

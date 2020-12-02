@@ -7,11 +7,21 @@
 
 namespace clustering {
 
+enum class subthreshold_handling_kind
+{
+    MAHAL,
+    EUCLID,
+    MAHAL0,
+    EUCLID_MAHAL
+};
+
 struct shared_apriori_data_t;
 
 // structure that describes a dataset to cluster
 struct clustering_context_t
 {
+    subthreshold_handling_kind subthreshold_kind;
+
     // number of points
     csize_t point_size;
     // point dimension

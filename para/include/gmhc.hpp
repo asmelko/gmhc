@@ -35,17 +35,11 @@ struct shared_apriori_data_t
     cusolverDnHandle_t cusolver_handle;
 };
 
-enum class subthreshold_handling_kind
-{
-    MAHAL,
-    EUCLID,
-    MAHAL0,
-    EUCLID_MAHAL
-};
-
 // Mahalanobis hierarchical clustering class
 class gmhc : public hierarchical_clustering<float>
 {
+    subthreshold_handling_kind subthreshold_kind_;
+
     // device point array
     float* cu_points_;
     // device centroid array
@@ -93,6 +87,7 @@ public:
         csize_t data_points_size,
         csize_t data_point_dim,
         csize_t mahalanobis_threshold,
+        subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL, 
         const asgn_t* apriori_assignments = nullptr,
         validator* vld = nullptr);
 

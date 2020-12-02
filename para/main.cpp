@@ -33,9 +33,11 @@ std::vector<clustering::asgn_t> create_apriori_assigns(const char* file_name, si
 
 int main(int argc, char** argv)
 {
-    if (argc != 3 && argc != 4)
+    if (argc != 4 && argc != 5)
     {
-        std::cout << "bad input" << std::endl << "usage: mhclust file_name maha_threshold [apriori_file]" << std::endl;
+        std::cout << "bad input" << std::endl
+                  << "usage: mhclust file_name maha_threshold (MAHAL|MAHAL0|EUCLID|EUCLID_MAHAL) [apriori_file]"
+                  << std::endl;
         return 1;
     }
 
@@ -53,9 +55,25 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (argc == 4)
+    clustering::subthreshold_handling_kind kind;
+    std::string input_kind(argv[3]);
+    if (input_kind == "MAHAL")
+        kind = clustering::subthreshold_handling_kind::MAHAL;
+    else if (input_kind == "MAHAL0")
+        kind = clustering::subthreshold_handling_kind::MAHAL0;
+    else if (input_kind == "EUCLID")
+        kind = clustering::subthreshold_handling_kind::EUCLID;
+    else if (input_kind == "EUCLID_MAHAL")
+        kind = clustering::subthreshold_handling_kind::EUCLID_MAHAL;
+    else
     {
-        apriori_assignments = create_apriori_assigns(argv[3], data.points);
+        std::cerr << "bad subthreshold kind, MAHAL used";
+        kind = clustering::subthreshold_handling_kind::MAHAL;
+    }
+
+    if (argc == 5)
+    {
+        apriori_assignments = create_apriori_assigns(argv[4], data.points);
         if (apriori_assignments.empty())
             return 1;
         apr_asgn = apriori_assignments.data();
@@ -67,6 +85,7 @@ int main(int argc, char** argv)
         (clustering::csize_t)data.points,
         (clustering::csize_t)data.dim,
         (clustering::csize_t)thresh,
+        kind,
         apr_asgn);
 
     if (!init)
