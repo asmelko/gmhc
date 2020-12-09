@@ -106,7 +106,11 @@ __global__ void finish_covariance(
     }
 }
 
-__global__ void store_icov(float* __restrict__ dest, const float* __restrict__ src, asgn_t dim)
+__global__ void store_icov_data(float* __restrict__ icov_dest,
+    float* __restrict__ mf_dest,
+    const float* __restrict__ icov_src,
+    const float mf_src,
+    clustering::csize_t dim)
 {
     csize_t cov_size = ((dim + 1) * dim) / 2;
 
@@ -115,11 +119,102 @@ __global__ void store_icov(float* __restrict__ dest, const float* __restrict__ s
         auto coords = compute_coordinates(dim, idx);
 
         if (coords.x == coords.y)
-            dest[idx] = src[coords.x + coords.y * dim];
+            icov_dest[idx] = icov_src[coords.x + coords.y * dim];
         else
-            dest[idx] = 2 * src[coords.x + coords.y * dim];
+            icov_dest[idx] = 2 * icov_src[coords.x + coords.y * dim];
+    }
+
+    if (threadIdx.x == 0 && mf_dest)
+        *mf_dest = mf_src;
+}
+
+__device__ void reduce_mul_warp(float* __restrict__ point)
+{
+    for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
+        *point *= __shfl_down_sync(__activemask(), *point, offset);
+}
+
+__device__ void reduce_mul_block(float* __restrict__ point, float* __restrict__ shared_mem)
+{
+    reduce_mul_warp(point);
+
+    auto lane_id = threadIdx.x % warpSize;
+    auto warp_id = threadIdx.x / warpSize;
+
+    if (lane_id == 0)
+        memcpy(shared_mem + warp_id, point, sizeof(float));
+
+    __syncthreads();
+
+    if (threadIdx.x < blockDim.x / warpSize)
+        memcpy(point, shared_mem + threadIdx.x, sizeof(float));
+    else
+        memset(point, 1, sizeof(float));
+
+    reduce_mul_warp(point);
+}
+
+__global__ void transform_cov(float* __restrict__ matrix,
+    csize_t dim,
+    float weight_factor,
+    bool use_cholesky,
+    const float* __restrict__ cholesky_decomp,
+    const int* __restrict__ cholesky_success)
+{
+    __shared__ float shared[32];
+
+    float mf = 1.f;
+
+    if (use_cholesky && *cholesky_success == 0)
+    {
+        for (csize_t idx = threadIdx.x; idx < dim; idx += blockDim.x)
+            mf *= cholesky_decomp[idx * (dim + 1)];
+
+        __syncthreads();
+
+        reduce_mul_block(&mf, shared);
+
+        if (threadIdx.x == 0)
+        {
+            mf = powf(mf, 2.f / dim);
+            shared[0] = mf;
+        }
+        __syncthreads();
+
+        mf = shared[0];
+    }
+
+    csize_t cov_size = ((dim + 1) * dim) / 2;
+
+    for (csize_t idx = threadIdx.x; idx < cov_size; idx += blockDim.x)
+    {
+        auto coords = compute_coordinates(dim, idx);
+
+        matrix[coords.x + coords.y * dim] =
+            weight_factor * matrix[coords.x + coords.y * dim] + (1 - weight_factor) * mf * (coords.x == coords.y);
     }
 }
+
+__global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, const float* __restrict__ cholesky_decomp)
+{
+    __shared__ float shared[32];
+
+    float icmf = 1.f;
+
+    for (csize_t idx = threadIdx.x; idx < dim; idx += blockDim.x)
+        icmf *= cholesky_decomp[idx * (dim + 1)];
+
+    __syncthreads();
+
+    reduce_mul_block(&icmf, shared);
+
+    if (threadIdx.x == 0)
+    {
+        auto tmp = powf(icmf, -2.f / dim);
+        *dest = tmp;
+    }
+}
+
 
 void run_covariance(const input_t in, const asgn_t* assignments, float* out, asgn_t centroid_id, kernel_info info)
 {
@@ -137,7 +232,24 @@ void run_finish_covariance(const float* in_cov_matrix, csize_t divisor, csize_t 
     finish_covariance<<<1, ((dim + 1) * dim) / 2>>>(in_cov_matrix, divisor, dim, out_cov_matrix);
 }
 
-void run_store_icovariance(float* dest, const float* src, csize_t dim)
+void run_store_icovariance_data(
+    float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim)
 {
-    store_icov<<<1, ((dim + 1) * dim) / 2>>>(dest, src, dim);
+    store_icov_data<<<1, ((dim + 1) * dim) / 2>>>(icov_dest, mf_dest, icov_src, mf_src, dim);
+}
+
+void run_transform_cov(float* matrix,
+    csize_t dim,
+    float weight_factor,
+    bool use_cholesky,
+    const float* cholesky_decomp,
+    const int* cholesky_success)
+{
+    transform_cov<<<1, ((dim + 1) * dim) / 2>>>(
+        matrix, dim, weight_factor, use_cholesky, cholesky_decomp, cholesky_success);
+}
+
+void run_compute_store_icov_mf(float* dest, csize_t dim, const float* cholesky_decomp)
+{
+    compute_store_icov_mf<<<1, dim>>>(dest, dim, cholesky_decomp);
 }

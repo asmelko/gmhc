@@ -60,6 +60,24 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_pivot, sizeof(int) * data_point_dim));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
 
+    int workspace_size_f, workspace_size_i;
+    SOCH(cusolverDnSpotrf_bufferSize(common_.cusolver_handle,
+        cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+        point_dim,
+        nullptr,
+        point_dim,
+        &workspace_size_f));
+    SOCH(cusolverDnSpotri_bufferSize(common_.cusolver_handle,
+        cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+        point_dim,
+        nullptr,
+        point_dim,
+        &workspace_size_i));
+    CUCH(cudaDeviceSynchronize());
+
+    common_.workspace_size = std::max(workspace_size_f, workspace_size_i);
+    CUCH(cudaMalloc(&common_.cu_workspace, sizeof(float) * common_.workspace_size));
+
     run_set_default_icovs(cu_icov_, data_points_size, data_point_dim, starting_info_);
     run_set_default_icov_mfs(cu_icov_, data_points_size, starting_info_);
 

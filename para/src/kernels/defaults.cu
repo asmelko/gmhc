@@ -24,13 +24,10 @@ __global__ void set_default_icovs(float* __restrict__ icovs, csize_t size, csize
     }
 }
 
-__global__ void set_default_inverse(float* __restrict__ icov_matrix, csize_t size)
+__global__ void set_unit_matrix(float* __restrict__ matrix, csize_t size)
 {
     for (csize_t i = threadIdx.x; i < size * size; i += blockDim.x)
-        if (i / size == i % size)
-            icov_matrix[i] = 1;
-        else
-            icov_matrix[i] = 0;
+        matrix[i] = i / size == i % size ? 1 : 0;
 }
 
 __global__ void set_default_neigh(neighbor_t* neighbors, csize_t count)
@@ -48,10 +45,7 @@ __global__ void set_default_icov_mfs(float* __restrict__ mfs, csize_t size)
 
 void run_set_default_asgn(asgn_t* asgns, csize_t N) { set_default_asgn<<<50, 1024>>>(asgns, N); }
 
-void run_set_default_inverse(float* icov_matrix, csize_t size)
-{
-    set_default_inverse<<<1, size * size>>>(icov_matrix, size);
-}
+void run_set_unit_matrix(float* matrix, csize_t size) { set_unit_matrix<<<1, size * size>>>(matrix, size); }
 
 void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info info)
 {

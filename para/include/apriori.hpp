@@ -88,8 +88,11 @@ private:
     void move_clusters(csize_t i, csize_t j, bool maha);
     // updates data for new cluster
     void update_iteration(const cluster_data_t* merged);
-    // coputes inverse covariance matrix for new cluster
+    // computes inverse covariance matrix for new cluster
     void compute_icov(csize_t pos);
+
+    // computes covariance matrix for new cluster
+    void compute_covariance(csize_t pos);
 
     // verifies the iteration
     void verify(pasgn_t id_pair, float dist);

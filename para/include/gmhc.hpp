@@ -22,6 +22,8 @@ struct shared_apriori_data_t
     float* cu_tmp_icov;
     int* cu_info;
     int* cu_pivot;
+    float* cu_workspace;
+    int workspace_size;
 
     // overall cluster count
     csize_t cluster_count;

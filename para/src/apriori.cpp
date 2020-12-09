@@ -157,109 +157,119 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
         cluster_data[new_idx].size,
         KERNEL_INFO);
 
+    CUCH(cudaDeviceSynchronize());
+
     // compute new inverse of covariance matrix
-    if (cluster_data[new_idx].size >= maha_threshold)
+    compute_icov(new_idx);
+}
+
+void clustering_context_t::compute_covariance(csize_t pos)
+{
+    float* tmp_cov = shared.cu_tmp_icov + point_dim * point_dim;
+    float* cov = shared.cu_tmp_icov;
+
+    float wf;
+
+    if (cluster_data[pos].size == 2)
     {
-        CUCH(cudaDeviceSynchronize());
-        compute_icov(new_idx);
+        run_set_unit_matrix(cov, point_dim);
+        wf = 0;
     }
+    else
+    {
+        assign_constant_storage(
+            cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
+
+        run_covariance(input_t { cu_points, point_size, point_dim }, cu_point_asgns, tmp_cov, shared.id, KERNEL_INFO);
+
+        run_finish_covariance(tmp_cov, cluster_data[pos].size, point_dim, cov);
+
+        wf = std::max(cluster_data[pos].size / (float)maha_threshold, 1.f);
+    }
+
+    if (wf < 1)
+    {
+        if (subthreshold_kind != subthreshold_handling_kind::MAHAL0)
+        {
+            CUCH(cudaMemcpy(
+                tmp_cov, cov, sizeof(float) * point_dim * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
+            SOCH(cusolverDnSpotrf(shared.cusolver_handle,
+                cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+                (int)point_dim,
+                tmp_cov,
+                (int)point_dim,
+                shared.cu_workspace,
+                shared.workspace_size,
+                shared.cu_info));
+        }
+
+        run_transform_cov(
+            cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
+    }
+}
+
+bool euclidean_based_kind(subthreshold_handling_kind kind)
+{
+    return kind == subthreshold_handling_kind::EUCLID || kind == subthreshold_handling_kind::EUCLID_MAHAL;
 }
 
 void clustering_context_t::compute_icov(csize_t pos)
 {
-    float* icov = shared.cu_tmp_icov + point_dim * point_dim;
+    auto wf = std::max(cluster_data[pos].size / (float)maha_threshold, 1.f);
 
-    // compute covariance
-    assign_constant_storage(
-        cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
-    run_covariance(input_t { cu_points, point_size, point_dim }, cu_point_asgns, icov, shared.id, KERNEL_INFO);
-    run_finish_covariance(icov, cluster_data[pos].size, point_dim, shared.cu_tmp_icov);
-
-    // test covariance
-    if (vld)
+    if (euclidean_based_kind(subthreshold_kind) && wf < 1)
     {
-        vld->cov_v.resize((point_dim + 1) * point_dim / 2);
-        CUCH(cudaDeviceSynchronize());
-        CUCH(cudaMemcpy(vld->cov_v.data(),
-            icov,
-            ((point_dim + 1) * point_dim / 2) * sizeof(float),
-            cudaMemcpyKind::cudaMemcpyDeviceToHost));
+        run_set_unit_matrix(shared.cu_tmp_icov, point_dim);
+        run_store_icovariance_data(cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim);
+        return;
     }
 
-    // compute inverse
+    compute_covariance(pos);
+
+    auto cov = shared.cu_tmp_icov;
+
+    int info;
+
+    SOCH(cusolverDnSpotrf(shared.cusolver_handle,
+        cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+        (int)point_dim,
+        cov,
+        (int)point_dim,
+        shared.cu_workspace,
+        shared.workspace_size,
+        shared.cu_info));
+
+    CUCH(cudaDeviceSynchronize());
+    CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    if (info != 0)
     {
-        CUCH(cudaDeviceSynchronize());
-
-        int info;
-        int workspace_size;
-
-        SOCH(cusolverDnSpotrf_bufferSize(shared.cusolver_handle,
-            cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
-            point_dim,
-            shared.cu_tmp_icov,
-            point_dim,
-            &workspace_size));
-        CUCH(cudaDeviceSynchronize());
-
-        float* cu_workspace;
-        CUCH(cudaMalloc(&cu_workspace, sizeof(float) * workspace_size));
-
-        SOCH(cusolverDnSpotrf(shared.cusolver_handle,
-            cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
-            point_dim,
-            shared.cu_tmp_icov,
-            point_dim,
-            cu_workspace,
-            workspace_size,
-            shared.cu_info));
-
-        CUCH(cudaDeviceSynchronize());
-        CUCH(cudaFree(cu_workspace));
-        CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-        if (info != 0)
-            run_set_default_inverse(shared.cu_tmp_icov, point_dim);
-        else
-        {
-            SOCH(cusolverDnSpotri_bufferSize(shared.cusolver_handle,
-                cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
-                point_dim,
-                shared.cu_tmp_icov,
-                point_dim,
-                &workspace_size));
-            CUCH(cudaDeviceSynchronize());
-
-            CUCH(cudaMalloc(&cu_workspace, sizeof(float) * workspace_size));
-
-            SOCH(cusolverDnSpotri(shared.cusolver_handle,
-                cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
-                point_dim,
-                shared.cu_tmp_icov,
-                point_dim,
-                cu_workspace,
-                workspace_size,
-                shared.cu_info));
-
-            CUCH(cudaDeviceSynchronize());
-            CUCH(cudaFree(cu_workspace));
-            CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-            if (info != 0)
-                run_set_default_inverse(shared.cu_tmp_icov, point_dim);
-        }
-
-        run_store_icovariance(cu_inverses + pos * icov_size, shared.cu_tmp_icov, point_dim);
+        run_set_unit_matrix(shared.cu_tmp_icov, point_dim);
+        run_store_icovariance_data(cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim);
+        return;
     }
+
+    run_compute_store_icov_mf(cu_mfactors + pos, point_dim, cov);
+
+    SOCH(cusolverDnSpotri(shared.cusolver_handle,
+        cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+        (int)point_dim,
+        cov,
+        (int)point_dim,
+        shared.cu_workspace,
+        shared.workspace_size,
+        shared.cu_info));
+
+    run_store_icovariance_data(cu_inverses + pos * icov_size, nullptr, cov, 0, point_dim);
 
     // test inverse
     if (vld)
     {
         vld->icov_v.resize(point_dim * point_dim);
         CUCH(cudaDeviceSynchronize());
-        CUCH(cudaMemcpy(vld->icov_v.data(),
-            shared.cu_tmp_icov,
-            point_dim * point_dim * sizeof(float),
-            cudaMemcpyKind::cudaMemcpyDeviceToHost));
+        CUCH(cudaMemcpy(
+            vld->icov_v.data(), cov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
         for (size_t i = 0; i < point_dim; i++)
             for (size_t j = i + 1; j < point_dim; j++)

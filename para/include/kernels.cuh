@@ -59,7 +59,13 @@ void run_covariance(const input_t in,
 void run_finish_covariance(
     const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
 // runs store_covariance kernel
-void run_store_icovariance(float* dest, const float* src, clustering::csize_t dim);
+void run_store_icovariance_data(
+    float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim);
+
+void run_transform_cov(float* matrix, clustering::csize_t dim, float weight_factor, bool use_cholesky, const float* cholesky_decomp, const int* cholesky_success);
+
+void run_compute_store_icov_mf(float* dest, clustering::csize_t dim, const float* cholesky_decomp);
+
 
 // updates assignment array to merge clusters
 void run_merge_clusters(clustering::asgn_t* assignments,
@@ -91,7 +97,7 @@ void run_update_neighbors(centroid_data_t data,
     kernel_info info);
 
 // sets identity matrix
-void run_set_default_inverse(float* icov_matrix, clustering::csize_t size);
+void run_set_unit_matrix(float* matrix, clustering::csize_t size);
 // sets initial assignments
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
 // sets initial inverse covariances
