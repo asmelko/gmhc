@@ -38,21 +38,10 @@ __inline__ __device__ void point_reduce(
 
 
 template<csize_t N>
-__global__ void reduce(const neighbor_t* __restrict__ neighbors,
-    neighbor_t* __restrict__ reduced,
-    csize_t small_count,
-    csize_t big_begin,
-    csize_t big_count,
-    csize_t to_reduce)
+__global__ void reduce(
+    const neighbor_t* __restrict__ neighbors, neighbor_t* __restrict__ reduced, csize_t count, csize_t to_reduce)
 {
-    csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-
-    for (; idx < small_count * warpSize; idx += blockDim.x * gridDim.x)
-        point_reduce<N>(neighbors, to_reduce, reduced, idx / warpSize);
-
-    idx += (big_begin - small_count) * warpSize;
-
-    for (; idx < (big_begin + big_count) * warpSize; idx += blockDim.x * gridDim.x)
+    for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
         point_reduce<N>(neighbors, to_reduce, reduced, idx / warpSize);
 }
 
@@ -60,25 +49,11 @@ template<csize_t N>
 __global__ void reduce_u(const neighbor_t* __restrict__ neighbors,
     neighbor_t* __restrict__ reduced,
     const csize_t* __restrict__ updated,
-    const csize_t* __restrict__ eucl_upd_size,
-    csize_t maha_begin,
-    const csize_t* __restrict__ maha_upd_size,
+    const csize_t* __restrict__ upd_size,
     csize_t to_reduce)
 {
-    auto eucl_count = *eucl_upd_size;
+    auto count = *upd_size;
 
-    csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-    for (; idx < eucl_count * warpSize; idx += blockDim.x * gridDim.x)
-    {
+    for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
         point_reduce<N>(neighbors, to_reduce, reduced, updated[idx / warpSize]);
-    }
-
-    auto maha_count = *maha_upd_size - maha_begin;
-
-    idx += (maha_begin - eucl_count) * warpSize;
-
-    for (; idx < (maha_begin + maha_count) * warpSize; idx += blockDim.x * gridDim.x)
-    {
-        point_reduce<N>(neighbors, to_reduce, reduced, updated[idx / warpSize]);
-    }
 }

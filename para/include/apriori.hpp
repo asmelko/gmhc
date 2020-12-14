@@ -59,9 +59,6 @@ struct clustering_context_t
     // host status array
     cluster_data_t* cluster_data;
 
-    // host indexing structure
-    cluster_bound_t bounds;
-
     // helper structures for passing parameters
     centroid_data_t compute_data;
     update_data_t update_data;
@@ -83,9 +80,9 @@ public:
 
 private:
     // removes cluster at idx
-    bool remove(csize_t idx);
+    void remove(csize_t idx);
     // reorders data according to the merged clusters i and j
-    void move_clusters(csize_t i, csize_t j, bool maha);
+    void move_clusters(csize_t i, csize_t j);
     // updates data for new cluster
     void update_iteration(const cluster_data_t* merged);
     // computes inverse covariance matrix for new cluster

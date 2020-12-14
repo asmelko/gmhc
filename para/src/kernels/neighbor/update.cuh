@@ -8,24 +8,16 @@ using namespace clustering;
 template<csize_t N>
 __global__ void update(neighbor_t* __restrict__ neighbors_a,
     csize_t* __restrict__ updated,
-    csize_t* __restrict__ small_work_idx,
-    csize_t* __restrict__ big_work_idx,
-    csize_t small_size,
-    csize_t big_begin,
-    csize_t big_size,
-    pasgn_t move_a,
-    pasgn_t move_b,
-    csize_t new_idx)
+    csize_t* __restrict__ work_idx,
+    csize_t size,
+    csize_t old_a,
+    csize_t old_b)
 {
-    for (csize_t idx = threadIdx.x + blockDim.x * blockIdx.x; idx < small_size + big_size;
-         idx += blockDim.x * gridDim.x)
+    for (csize_t idx = threadIdx.x + blockDim.x * blockIdx.x; idx < size; idx += blockDim.x * gridDim.x)
     {
-        if (idx >= small_size)
-            idx += big_begin - small_size;
-
-        if (idx == move_a.first || idx == move_b.first || idx == new_idx)
+        if (idx == old_a || idx == old_b)
         {
-            csize_t store_idx = atomicAdd(idx < small_size ? small_work_idx : big_work_idx, 1);
+            csize_t store_idx = atomicAdd(work_idx, 1);
 
             updated[store_idx] = idx;
             continue;
@@ -41,14 +33,12 @@ __global__ void update(neighbor_t* __restrict__ neighbors_a,
             if (tmp_nei[i].distance == FLT_INF)
                 break;
 
-            if (tmp_nei[i].idx == move_a.first || tmp_nei[i].idx == move_b.first)
+            if (tmp_nei[i].idx == old_a || tmp_nei[i].idx == old_b)
                 tmp_nei[i].distance = FLT_INF;
             else
             {
-                if (tmp_nei[i].idx == move_a.second)
-                    tmp_nei[i].idx = move_a.first;
-                else if (tmp_nei[i].idx == move_b.second)
-                    tmp_nei[i].idx = move_b.first;
+                if (tmp_nei[i].idx == size)
+                    tmp_nei[i].idx = old_b;
 
                 tmp_nei[last_empty++] = tmp_nei[i];
             }
@@ -59,14 +49,11 @@ __global__ void update(neighbor_t* __restrict__ neighbors_a,
 
         if (tmp_nei[0].distance == FLT_INF)
         {
-            csize_t store_idx = atomicAdd(idx < small_size ? small_work_idx : big_work_idx, 1);
+            csize_t store_idx = atomicAdd(work_idx, 1);
 
             updated[store_idx] = idx;
         }
 
         memcpy(neighbors_a + idx * N, tmp_nei, sizeof(neighbor_t) * N);
-
-        if (idx >= small_size)
-            idx -= big_begin - small_size;
     }
 }

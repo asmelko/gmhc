@@ -44,29 +44,14 @@ struct input_t
 // input structure for update kernel
 struct update_data_t
 {
-    // new cluster
-    clustering::csize_t new_idx;
-    // first and second place for index that have to be changed due to a cluster move
-    clustering::pasgn_t move_a;
-    clustering::pasgn_t move_b;
+    // merged cluster indices
+    clustering::csize_t old_a;
+    clustering::csize_t old_b;
 
     // update array
     clustering::csize_t* to_update;
-    // variable describing top of euclidean part
-    clustering::csize_t* eucl_update_size;
-    // variable describing top of mahalanobis part
-    clustering::csize_t* maha_update_size;
-};
-
-// indexing strucutre
-struct cluster_bound_t
-{
-    // size of euclidean part (start is at 0)
-    clustering::csize_t eucl_size;
-    // start of mahalanobis part
-    clustering::csize_t maha_begin;
-    // size of mahalanobis part
-    clustering::csize_t maha_size;
+    // variable describing write top of to_update array
+    clustering::csize_t* update_size;
 };
 
 // input data for kernels

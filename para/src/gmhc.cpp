@@ -52,8 +52,7 @@ bool gmhc::initialize(const float* data_points,
 
     CUCH(cudaMalloc(&common_.cu_min, sizeof(chunk_t)));
     CUCH(cudaMalloc(&common_.cu_tmp_icov, 2 * data_point_dim * data_point_dim * sizeof(float)));
-    CUCH(cudaMalloc(&common_.cu_eucl_upd_size, sizeof(csize_t)));
-    CUCH(cudaMalloc(&common_.cu_maha_upd_size, sizeof(csize_t)));
+    CUCH(cudaMalloc(&common_.cu_upd_size, sizeof(csize_t)));
     CUCH(cudaMalloc(&common_.cu_read_icov, sizeof(float*)));
     CUCH(cudaMalloc(&common_.cu_write_icov, sizeof(float*)));
     CUCH(cudaMalloc(&common_.cu_info, sizeof(int)));
@@ -193,60 +192,35 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
         apr_ctxs_.emplace_back(std::move(cluster));
     }
     apriori_count_ = (csize_t)sizes.size();
-
-    // initialize apriori merging structures
-    csize_t icov_size = (point_dim + 1) * point_dim / 2;
-    apriori_cluster_data_ = new cluster_data_t[sizes.size()];
-    CUCH(cudaMalloc(&cu_apriori_centroids_, sizes.size() * point_dim * sizeof(float)));
-    CUCH(cudaMalloc(&cu_apriori_icov_, sizes.size() * icov_size * sizeof(float)));
 }
 
-void gmhc::move_apriori(csize_t eucl_size, csize_t maha_size)
+void gmhc::move_apriori()
 {
-    assert(common_.cluster_count == eucl_size + maha_size);
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
-
-    auto eucl_idx = 0;
-    auto maha_idx = eucl_size;
 
     for (size_t i = 0; i < apriori_count_; ++i)
     {
-        auto ctx = apr_ctxs_[i];
-        csize_t to, from;
+        const auto& ctx = apr_ctxs_[i];
 
-        if (ctx.bounds.eucl_size)
-        {
-            to = eucl_idx++;
-            from = 0;
-        }
-        else
-        {
-            to = maha_idx++;
-            from = ctx.bounds.maha_begin;
-        }
+        cluster_data_[i] = ctx.cluster_data[0];
 
-        apriori_cluster_data_[to] = ctx.cluster_data[from];
-        CUCH(cudaMemcpy(cu_apriori_centroids_ + to * point_dim,
-            ctx.cu_centroids + from * point_dim,
+        CUCH(cudaMemcpy(cu_centroids_ + i * point_dim,
+            ctx.cu_centroids,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-        if (ctx.bounds.maha_size)
-            CUCH(cudaMemcpy(cu_apriori_icov_ + to * icov_size,
-                ctx.cu_inverses + from * icov_size,
-                icov_size * sizeof(float),
-                cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
+        CUCH(cudaMemcpy(cu_icov_ + i * icov_size,
+            ctx.cu_inverses,
+            icov_size * sizeof(float),
+            cudaMemcpyKind::cudaMemcpyDeviceToDevice));
     }
 
-    apr_ctxs_.front().cluster_data = apriori_cluster_data_;
-    apr_ctxs_.front().cu_centroids = cu_apriori_centroids_;
-    apr_ctxs_.front().cu_inverses = cu_apriori_icov_;
+    apr_ctxs_.front().cluster_data = cluster_data_;
+    apr_ctxs_.front().cu_centroids = cu_centroids_;
+    apr_ctxs_.front().cu_inverses = cu_icov_;
     apr_ctxs_.front().point_size = points_size;
     apr_ctxs_.front().cluster_count = common_.cluster_count;
     apr_ctxs_.front().initialize();
-
-    apr_ctxs_.front().bounds.eucl_size = eucl_size;
-    apr_ctxs_.front().bounds.maha_begin = eucl_size;
-    apr_ctxs_.front().bounds.maha_size = maha_size;
 }
 
 std::vector<gmhc::res_t> gmhc::run()
@@ -257,33 +231,25 @@ std::vector<gmhc::res_t> gmhc::run()
     // compute apriori
     if (apriori_count_)
     {
-        csize_t eucl_size = 0;
-        csize_t maha_size = 0;
-
         for (size_t i = 0; i < apriori_count_; ++i)
         {
             auto& ctx = apr_ctxs_[i];
 
             run_neighbors<shared_apriori_data_t::neighbors_size>(
-                ctx.compute_data, ctx.cu_tmp_neighbors, ctx.cu_neighbors, ctx.bounds, ctx.starting_info);
+                ctx.compute_data, ctx.cu_tmp_neighbors, ctx.cu_neighbors, ctx.cluster_count, ctx.starting_info);
 
             while (ctx.cluster_count > 1)
             {
                 auto tmp = ctx.iterate();
                 ret.push_back(tmp);
             }
-
-            if (ctx.bounds.eucl_size)
-                ++eucl_size;
-            else
-                ++maha_size;
         }
 
-        move_apriori(eucl_size, maha_size);
+        move_apriori();
     }
 
     run_neighbors<shared_apriori_data_t::neighbors_size>(
-        final.compute_data, final.cu_tmp_neighbors, final.cu_neighbors, final.bounds, final.starting_info);
+        final.compute_data, final.cu_tmp_neighbors, final.cu_neighbors, final.cluster_count, final.starting_info);
 
     // compute rest
     while (final.cluster_count > 1)
@@ -309,18 +275,10 @@ void gmhc::free()
 
     CUCH(cudaFree(common_.cu_min));
     CUCH(cudaFree(common_.cu_tmp_icov));
-    CUCH(cudaFree(common_.cu_eucl_upd_size));
-    CUCH(cudaFree(common_.cu_maha_upd_size));
+    CUCH(cudaFree(common_.cu_upd_size));
     CUCH(cudaFree(common_.cu_read_icov));
     CUCH(cudaFree(common_.cu_write_icov));
     CUCH(cudaFree(common_.cu_info));
     CUCH(cudaFree(common_.cu_pivot));
     SOCH(cusolverDnDestroy(common_.cusolver_handle));
-
-    if (apriori_count_)
-    {
-        CUCH(cudaFree(cu_apriori_centroids_));
-        CUCH(cudaFree(cu_apriori_icov_));
-        delete[] apriori_cluster_data_;
-    }
 }

@@ -62,7 +62,12 @@ void run_finish_covariance(
 void run_store_icovariance_data(
     float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim);
 
-void run_transform_cov(float* matrix, clustering::csize_t dim, float weight_factor, bool use_cholesky, const float* cholesky_decomp, const int* cholesky_success);
+void run_transform_cov(float* matrix,
+    clustering::csize_t dim,
+    float weight_factor,
+    bool use_cholesky,
+    const float* cholesky_decomp,
+    const int* cholesky_success);
 
 void run_compute_store_icov_mf(float* dest, clustering::csize_t dim, const float* cholesky_decomp);
 
@@ -80,19 +85,19 @@ template<clustering::csize_t N>
 void run_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
     neighbor_t* act_neighbors,
-    cluster_bound_t sizes,
+    clustering::csize_t size,
     kernel_info info);
 
 // retrieves the minimum from a neighbor array
 template<clustering::csize_t N>
-chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result);
+chunk_t run_neighbors_min(const neighbor_t* neighbors, clustering::csize_t size, chunk_t* result);
 
 // updates neighbor array
 template<clustering::csize_t N>
 void run_update_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
     neighbor_t* act_neighbors,
-    cluster_bound_t sizes,
+    clustering::csize_t size,
     update_data_t upd_data,
     kernel_info info);
 

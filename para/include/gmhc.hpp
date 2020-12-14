@@ -14,8 +14,7 @@ struct shared_apriori_data_t
     chunk_t* cu_min;
 
     // device variables for update kernel
-    csize_t* cu_eucl_upd_size;
-    csize_t* cu_maha_upd_size;
+    csize_t* cu_upd_size;
 
     // device variables to compute inverse matrix
     float **cu_read_icov, **cu_write_icov;
@@ -76,11 +75,6 @@ class gmhc : public hierarchical_clustering<float>
     // number of apriori clusters
     csize_t apriori_count_;
 
-    // arrays for the final context
-    cluster_data_t* apriori_cluster_data_;
-    float* cu_apriori_centroids_;
-    float* cu_apriori_icov_;
-
 public:
     // result type for the run method
     using res_t = pasgnd_t<float>;
@@ -103,7 +97,7 @@ private:
     // method that reads apriori assigmnets array and initializes all apriori clusters
     void initialize_apriori(const asgn_t* apriori_assignments, validator* vld);
     // method that creates final context
-    void move_apriori(csize_t eucl_size, csize_t maha_size);
+    void move_apriori();
 };
 
 } // namespace clustering

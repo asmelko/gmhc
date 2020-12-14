@@ -7,21 +7,15 @@
 using namespace clustering;
 
 template<csize_t N>
-__global__ void neighbor_min(const neighbor_t* __restrict__ neighbors,
-    csize_t small_count,
-    csize_t big_begin,
-    csize_t big_count,
-    chunk_t* __restrict__ result)
+__global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t count, chunk_t* __restrict__ result)
 {
     static __shared__ chunk_t shared_mem[32];
 
     chunk_t tmp;
     tmp.min_dist = FLT_INF;
-    for (csize_t idx = threadIdx.x; idx < small_count + big_count; idx += blockDim.x)
-    {
-        if (idx >= small_count)
-            idx += big_begin - small_count;
 
+    for (csize_t idx = threadIdx.x; idx < count; idx += blockDim.x)
+    {
         if (tmp.min_dist > neighbors[idx * N].distance)
         {
             tmp.min_dist = neighbors[idx * N].distance;
@@ -45,86 +39,45 @@ template<csize_t N>
 void run_update_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
     neighbor_t* act_neighbors,
-    cluster_bound_t sizes,
+    csize_t size,
     update_data_t upd_data,
     kernel_info info)
 {
-    csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbor_t) * N;
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
-    CUCH(cudaMemset(upd_data.eucl_update_size, 0, sizeof(csize_t)));
-    CUCH(cudaMemcpy(
-        upd_data.maha_update_size, &sizes.maha_begin, sizeof(csize_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
+    CUCH(cudaMemset(upd_data.update_size, 0, sizeof(csize_t)));
 
-    update<N><<<info.grid_dim, info.block_dim>>>(act_neighbors,
-        upd_data.to_update,
-        upd_data.eucl_update_size,
-        upd_data.maha_update_size,
-        sizes.eucl_size,
-        sizes.maha_begin,
-        sizes.maha_size,
-        upd_data.move_a,
-        upd_data.move_b,
-        upd_data.new_idx);
+    update<N><<<info.grid_dim, info.block_dim>>>(
+        act_neighbors, upd_data.to_update, upd_data.update_size, size, upd_data.old_a, upd_data.old_b);
 
-    if (sizes.eucl_size)
-        neighbors_u<N><<<info.grid_dim, info.block_dim, shared>>>(
-            data.centroids, tmp_neighbors, upd_data.to_update, upd_data.eucl_update_size, data.dim, sizes.eucl_size);
+    neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
+        data.centroids, data.inverses, tmp_neighbors, upd_data.to_update, upd_data.update_size, data.dim, size);
 
-    if (sizes.maha_size)
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids,
-            data.inverses,
-            tmp_neighbors,
-            upd_data.to_update,
-            upd_data.maha_update_size,
-            data.dim,
-            sizes.eucl_size,
-            sizes.maha_begin,
-            sizes.maha_size);
+    reduce_u<N><<<info.grid_dim, info.block_dim>>>(
+        tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
 
-    reduce_u<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors,
-        act_neighbors,
-        upd_data.to_update,
-        upd_data.eucl_update_size,
-        sizes.maha_begin,
-        upd_data.maha_update_size,
-        info.grid_dim);
-
-    neighbors_new<N><<<info.grid_dim, info.block_dim, shared_new>>>(data.centroids,
-        data.inverses,
-        act_neighbors,
-        data.dim,
-        sizes.eucl_size,
-        sizes.maha_begin,
-        sizes.maha_size,
-        upd_data.new_idx);
+    neighbors_new<N><<<info.grid_dim, info.block_dim, shared_new>>>(
+        data.centroids, data.inverses, act_neighbors, data.dim, size, upd_data.old_a);
 }
 
 template<csize_t N>
 void run_neighbors(
-    centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, cluster_bound_t sizes, kernel_info info)
+    centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, csize_t size, kernel_info info)
 {
-    csize_t shared = data.dim * sizeof(float) + 32 * sizeof(neighbor_t) * N;
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
-    if (sizes.eucl_size)
-        neighbors<N>
-            <<<info.grid_dim, info.block_dim, shared>>>(data.centroids, data.dim, sizes.eucl_size, tmp_neighbors);
+    neighbors_mat<N>
+        <<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids, data.inverses, tmp_neighbors, data.dim, size);
 
-    if (sizes.maha_size)
-        neighbors_mat<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
-            data.centroids, data.inverses, tmp_neighbors, data.dim, sizes.eucl_size, sizes.maha_begin, sizes.maha_size);
-
-    reduce<N><<<info.grid_dim, info.block_dim>>>(
-        tmp_neighbors, act_neighbors, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, info.grid_dim);
+    reduce<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors, act_neighbors, size, info.grid_dim);
 }
 
 template<csize_t N>
-chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result)
+chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* result)
 {
-    neighbor_min<N><<<1, 1024>>>(neighbors, sizes.eucl_size, sizes.maha_begin, sizes.maha_size, result);
+    neighbor_min<N><<<1, 1024>>>(neighbors, size, result);
 
     CUCH(cudaDeviceSynchronize());
 
@@ -138,16 +91,13 @@ chunk_t run_neighbors_min(const neighbor_t* neighbors, cluster_bound_t sizes, ch
 }
 
 #define INIT_TEMPLATES(N)                                                                                              \
-    template void run_neighbors<N>(centroid_data_t data,                                                               \
-        neighbor_t * tmp_neighbors,                                                                                    \
-        neighbor_t * act_neighbors,                                                                                    \
-        cluster_bound_t sizes,                                                                                         \
-        kernel_info info);                                                                                             \
-    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, cluster_bound_t sizes, chunk_t* result);        \
+    template void run_neighbors<N>(                                                                                    \
+        centroid_data_t data, neighbor_t * tmp_neighbors, neighbor_t * act_neighbors, csize_t size, kernel_info info); \
+    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, csize_t size, chunk_t* result);                 \
     template void run_update_neighbors<N>(centroid_data_t data,                                                        \
         neighbor_t * tmp_neighbors,                                                                                    \
         neighbor_t * act_neighbors,                                                                                    \
-        cluster_bound_t sizes,                                                                                         \
+        csize_t size,                                                                                                  \
         update_data_t upd_data,                                                                                        \
         kernel_info info);
 

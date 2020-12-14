@@ -38,7 +38,6 @@ __inline__ __device__ void point_neighbors_mat_warp(const float* __restrict__ ce
     const float* __restrict__ this_centroid,
     const float* __restrict__ this_icov,
     csize_t dim,
-    csize_t big_begin,
     csize_t idx)
 {
     float dist = 0;
@@ -51,13 +50,8 @@ __inline__ __device__ void point_neighbors_mat_warp(const float* __restrict__ ce
 
     __syncwarp();
 
-    if (idx < big_begin)
-        dist += euclidean_norm(curr_centroid + warp_id * dim, dim);
-    else
-    {
-        auto icov_size = (dim + 1) * dim / 2;
-        dist += maha_dist(curr_centroid + warp_id * dim, inverses + idx * icov_size, dim, lane_id);
-    }
+    auto icov_size = (dim + 1) * dim / 2;
+    dist += maha_dist(curr_centroid + warp_id * dim, inverses + idx * icov_size, dim, lane_id);
 
     dist += maha_dist(curr_centroid + warp_id * dim, this_icov, dim, lane_id);
 
@@ -75,9 +69,7 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
     neighbor_t* __restrict__ neighbors,
     float* __restrict__ shared_mem,
     csize_t dim,
-    csize_t small_count,
-    csize_t big_begin,
-    csize_t big_count,
+    csize_t count,
     csize_t x)
 {
     float* this_centroid = shared_mem;
@@ -101,34 +93,11 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
 
     __syncthreads();
 
-    csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
-
-    for (; idx < small_count * warpSize; idx += blockDim.x * gridDim.x)
+    for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x + (x + 1) * warpSize; idx < count * warpSize;
+         idx += blockDim.x * gridDim.x)
     {
-        point_neighbors_mat_warp<N>(centroids,
-            inverses,
-            local_neighbors,
-            curr_centroid,
-            this_centroid,
-            this_icov,
-            dim,
-            big_begin,
-            idx / warpSize);
-    }
-
-    idx += (x - small_count + 1) * warpSize;
-
-    for (; idx < (big_begin + big_count) * warpSize; idx += blockDim.x * gridDim.x)
-    {
-        point_neighbors_mat_warp<N>(centroids,
-            inverses,
-            local_neighbors,
-            curr_centroid,
-            this_centroid,
-            this_icov,
-            dim,
-            big_begin,
-            (idx / warpSize));
+        point_neighbors_mat_warp<N>(
+            centroids, inverses, local_neighbors, curr_centroid, this_centroid, this_icov, dim, idx / warpSize);
     }
 
     __syncthreads();
@@ -146,14 +115,12 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     neighbor_t* __restrict__ neighbors,
     csize_t dim,
-    csize_t small_count,
-    csize_t big_begin,
-    csize_t big_count)
+    csize_t count)
 {
     extern __shared__ float shared_mem[];
 
-    for (csize_t x = big_begin; x < big_begin + big_count; ++x)
-        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, small_count, big_begin, big_count, x);
+    for (csize_t x = 0; x < count; ++x)
+        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, count, x);
 }
 
 template<csize_t N>
@@ -163,17 +130,12 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     csize_t* __restrict__ updated,
     const csize_t* __restrict__ upd_count,
     csize_t dim,
-    csize_t small_count,
-    csize_t big_begin,
-    csize_t big_count)
+    csize_t count)
 {
     extern __shared__ float shared_mem[];
 
-    auto count = *upd_count - big_begin;
+    auto update_count = *upd_count;
 
-    for (csize_t i = 0; i < count; ++i)
-    {
-        auto x = updated[i + big_begin];
-        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, small_count, big_begin, big_count, x);
-    }
+    for (csize_t i = 0; i < update_count; ++i)
+        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, count, updated[i]);
 }
