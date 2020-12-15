@@ -6,6 +6,7 @@
 #include <map>
 
 #include "../tests/serial_impl.hpp"
+#include "kernels.cuh"
 
 using namespace clustering;
 
@@ -30,6 +31,8 @@ void validator::create_clusters(const asgn_t* apriori_assignments)
         for (csize_t j = 0; j < point_dim_; j++)
             c.centroid.push_back(points_[i * point_dim_ + j]);
 
+        c.icov = unit_matrix_;
+
         it->second.emplace_back(std::move(c));
     }
 
@@ -45,16 +48,22 @@ void validator::initialize(const float* data_points,
     csize_t data_points_size,
     csize_t data_point_dim,
     csize_t maha_threshold,
+    subthreshold_handling_kind subthreshold_kind,
     const asgn_t* apriori_assignments)
 {
     points_ = data_points;
     point_count_ = data_points_size;
     point_dim_ = data_point_dim;
     maha_threshold_ = maha_threshold;
+    subthreshold_kind_ = subthreshold_kind;
     error_ = false;
 
     id_ = (asgn_t)point_count_;
     cluster_count_ = point_count_;
+
+    unit_matrix_ = std::vector<float>(point_dim_ * point_dim_, 0.f);
+    for (csize_t j = 0; j < point_dim_; j++)
+        unit_matrix_[j * (point_dim_ + 1)] = 1.f;
 
     if (apriori_assignments)
         create_clusters(apriori_assignments);
@@ -63,9 +72,12 @@ void validator::initialize(const float* data_points,
         {
             cluster c;
             c.id = (asgn_t)i;
+            c.size = (csize_t)1;
 
             for (csize_t j = 0; j < point_dim_; j++)
                 c.centroid.push_back(data_points[i * point_dim_ + j]);
+
+            c.icov = unit_matrix_;
 
             clusters_.emplace_back(std::move(c));
         }
@@ -119,25 +131,20 @@ std::vector<float> minus(const float* lhs, const float* rhs, csize_t size)
 float compute_distance(const float* lhs_v, const float* lhs_m, const float* rhs_v, const float* rhs_m, csize_t size)
 {
     float dist = 0;
-    if (lhs_m)
+
     {
         auto diff = minus(lhs_v, rhs_v, size);
         auto tmp = mat_vec(lhs_m, diff.data(), size);
         auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
         dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
     }
-    else
-        dist += eucl_dist(lhs_v, rhs_v, size);
 
-    if (rhs_m)
     {
         auto diff = minus(lhs_v, rhs_v, size);
         auto tmp = mat_vec(rhs_m, diff.data(), size);
         auto tmp_dist = std::sqrt(dot(tmp.data(), diff.data(), size));
         dist += isnan(tmp_dist) ? eucl_dist(lhs_v, rhs_v, size) : tmp_dist;
     }
-    else
-        dist += eucl_dist(lhs_v, rhs_v, size);
 
     if (isinf(dist) || isnan(dist))
         return FLT_MAX;
@@ -184,30 +191,6 @@ std::vector<float> compute_centroid(
     return tmp_sum;
 }
 
-std::vector<float> compute_covariance(
-    const float* points, csize_t dim, csize_t size, const asgn_t* assignments, const float* centroid, asgn_t cid)
-{
-    std::vector<float> cov;
-
-    for (csize_t i = 0; i < dim; ++i)
-        for (csize_t j = i; j < dim; ++j)
-        {
-            float res = 0;
-            csize_t count = 0;
-            for (csize_t k = 0; k < size; ++k)
-            {
-                if (assignments[k] != cid)
-                    continue;
-
-                ++count;
-
-                res += (points[k * dim + i] - centroid[i]) * (points[k * dim + j] - centroid[j]);
-            }
-            cov.push_back(res / count);
-        }
-    return cov;
-}
-
 void print_pairs(csize_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
 {
     std::cerr << "Iteration " << iteration << ": pairs do not match: " << lhs.first << ", " << lhs.second
@@ -227,7 +210,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
     printf("\r%d ", iteration_);
     fflush(stderr);
 
-    auto [min_pair, new_clust, min_dist, cluster_count] = iterate(std::make_pair(pair_v, dist_v), recompute);
+    auto [min_pair, new_clust, min_dist] = iterate(std::make_pair(pair_v, dist_v), recompute);
 
     if (min_pair != pair_v)
     {
@@ -258,41 +241,160 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
     for (csize_t i = 0; i < point_dim_; i++)
         clusters_[new_clust].centroid[i] = centroid_v[i];
 
-    if (cluster_count >= maha_threshold_)
+    auto this_cov = compute_covariance(clusters_[new_clust]);
+
+    if ((this_cov.empty() && cov_.empty()) || float_diff(this_cov.data(), cov_.data(), point_dim_ * point_dim_))
     {
-        if (!cov_v.size() || !icov_v.size())
-        {
-            std::cerr << "Iteration " << iteration_ << ": expected matrices" << std::endl;
-            error_ = true;
-            return false;
-        }
+        print_arrays(iteration_, "covariances do not match", point_dim_ * point_dim_, this_cov.data(), cov_.data());
 
-        csize_t cov_size = (point_dim_ + 1) * point_dim_ / 2;
-        for (csize_t i = 0; i < cov_size; i++)
-            cov_v[i] /= cluster_count;
-
-        auto this_cov = compute_covariance(points_,
-            point_dim_,
-            point_count_,
-            point_asgns_.data(),
-            clusters_[new_clust].centroid.data(),
-            clusters_[new_clust].id);
-
-        if (float_diff(this_cov.data(), cov_v.data(), cov_size))
-        {
-            print_arrays(iteration_, "covariances do not match", cov_size, this_cov.data(), cov_v.data());
-
-            error_ = true;
-            return false;
-        }
+        error_ = true;
+        return false;
     }
 
-    cov_v.resize(0);
-    icov_v.resize(0);
+    check_inverse(clusters_[new_clust]);
+
+    if (error_)
+        return false;
+
+    mf_ = 0;
+    icmf_ = 0;
+    cov_.resize(0);
+    icov_.resize(0);
     return true;
 }
 
+std::vector<float> validator::compute_covariance(const cluster& c)
+{
+    auto wf = std::min(1.f, c.size / (float)maha_threshold_);
+
+    if ((subthreshold_kind_ == subthreshold_handling_kind::EUCLID
+            || subthreshold_kind_ == subthreshold_handling_kind::EUCLID_MAHAL)
+        && wf < 1)
+    {
+        return {};
+    }
+
+    std::vector<float> cov;
+    cov.resize(point_dim_ * point_dim_);
+
+    if (c.size == 2)
+        return unit_matrix_;
+    else
+    {
+        for (csize_t i = 0; i < point_dim_; ++i)
+            for (csize_t j = i; j < point_dim_; ++j)
+            {
+                float res = 0;
+                csize_t count = 0;
+                for (csize_t k = 0; k < point_count_; ++k)
+                {
+                    if (point_asgns_[k] != c.id)
+                        continue;
+
+                    ++count;
+
+                    res +=
+                        (points_[k * point_dim_ + i] - c.centroid[i]) * (points_[k * point_dim_ + j] - c.centroid[j]);
+                }
+                cov[i + point_dim_ * j] = (res / count);
+                cov[j + point_dim_ * i] = (res / count);
+            }
+    }
+
+    if (wf < 1)
+    {
+        for (csize_t i = 0; i < point_dim_ * point_dim_; i++)
+            cov[i] = wf * cov[i] + (1 - wf) * mf_ * unit_matrix_[i];
+    }
+
+    return cov;
+}
+
+void validator::check_inverse(const cluster& c)
+{
+    auto wf = std::min(1.f, c.size / (float)maha_threshold_);
+
+    if ((subthreshold_kind_ == subthreshold_handling_kind::EUCLID
+            || subthreshold_kind_ == subthreshold_handling_kind::EUCLID_MAHAL)
+        && wf < 1)
+    {
+        if (icmf_ != 1)
+        {
+            std::cerr << "Iteration " << iteration_ << ": icmf should be 1." << std::endl;
+
+            error_ = true;
+            return;
+        }
+        if (float_diff(icov_.data(), unit_matrix_.data(), point_dim_ * point_dim_))
+        {
+            print_arrays(
+                iteration_, "covariance iverses do not match", point_dim_ * point_dim_, icov_.data(), cov_.data());
+
+            error_ = true;
+            return;
+        }
+    }
+    else
+    {
+        if (subthreshold_kind_ == subthreshold_handling_kind::MAHAL0 && mf_ != 1)
+        {
+            std::cerr << "Iteration " << iteration_ << ": mf should be 1." << std::endl;
+
+            error_ = true;
+            return;
+        }
+    }
+}
+
 bool validator::has_error() const { return error_; }
+
+void validator::set_cov(const float* arr)
+{
+    cov_.resize(point_dim_ * point_dim_);
+
+    CUCH(cudaMemcpy(cov_.data(), arr, sizeof(float) * point_dim_ * point_dim_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    for (size_t i = 0; i < point_dim_; i++)
+        for (size_t j = i + 1; j < point_dim_; j++)
+            icov_[i + point_dim_ * j] = icov_[j + point_dim_ * i];
+}
+
+void validator::set_icov(const float* arr)
+{
+    icov_.resize(point_dim_ * point_dim_);
+
+    CUCH(cudaMemcpy(icov_.data(), arr, sizeof(float) * point_dim_ * point_dim_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    for (size_t i = 0; i < point_dim_; i++)
+        for (size_t j = i + 1; j < point_dim_; j++)
+            icov_[i + point_dim_ * j] = icov_[j + point_dim_ * i];
+}
+
+void validator::set_mf(bool is_one, const float* cu_cholesky, const int* cu_info)
+{
+    int info;
+    CUCH(cudaMemcpy(&info, cu_info, sizeof(info), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    if (is_one || info != 0)
+        mf_ = 1.f;
+
+    std::vector<float> cholesky;
+    cholesky.resize(point_dim_ * point_dim_);
+
+    CUCH(cudaMemcpy(
+        cholesky.data(), cu_cholesky, sizeof(float) * point_dim_ * point_dim_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+
+    mf_ = 1.f;
+    for (csize_t i = 0; i < point_dim_; i++)
+        mf_ *= cholesky[i * (point_dim_ + 1)];
+
+    mf_ = std::pow(mf_, 2.f / point_dim_);
+}
+
+void validator::set_icmf(const float* value)
+{
+    CUCH(cudaMemcpy(&icmf_, value, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+}
 
 void validator::get_min(const pasgn_t& expected,
     pasgn_t& min_pair,
@@ -346,7 +448,7 @@ void validator::get_min(const pasgn_t& expected,
     }
 }
 
-std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<float>& expected, recompute_f recompute)
+std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& expected, recompute_f recompute)
 {
     pasgn_t min_pair;
     std::pair<csize_t, csize_t> min_idx, expected_idx;
@@ -365,22 +467,23 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<f
 
         if (good)
         {
-            std::cout << "cluster branching" << std::endl;
+            std::cout << "validator branching" << std::endl;
             min_pair = expected.first;
             min_dist = expected.second;
             min_idx = expected_idx;
         }
     }
 
-    csize_t cluster_count = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
+    csize_t cluster_size = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
 
     cluster c;
     c.id = id_;
+    c.size = cluster_size;
     c.centroid = compute_centroid(points_, point_dim_, point_count_, point_asgns_.data(), id_);
 
-    if (icov_v.size())
+    if (icov_.size())
         for (csize_t i = 0; i < point_dim_ * point_dim_; i++)
-            c.icov.push_back(icov_v[i]);
+            c.icov.push_back(icov_[i]);
 
     clusters_.erase(clusters_.begin() + min_idx.second);
     clusters_[min_idx.first] = std::move(c);
@@ -392,7 +495,7 @@ std::tuple<pasgn_t, csize_t, float, csize_t> validator::iterate(const pasgnd_t<f
     if (apr_idx_ != apr_sizes_.size())
         --apr_sizes_[apr_idx_];
 
-    return std::tie(min_pair, min_idx.first, min_dist, cluster_count);
+    return std::tie(min_pair, min_idx.first, min_dist);
 }
 
 bool validator::float_diff(float a, float b, float d) { return float_diff(&a, &b, 1, d); }

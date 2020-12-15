@@ -3,9 +3,10 @@
 
 #include "clustering.hpp"
 #include "structures.hpp"
-#include "validator.hpp"
 
 namespace clustering {
+
+class validator;
 
 enum class subthreshold_handling_kind
 {

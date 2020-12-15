@@ -26,8 +26,19 @@ TEST(para, apriori_small)
     for (csize_t i = 0; i < data.points; i++)
         apriori_asgn.push_back(i / thresh);
 
-    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());
-    para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
+    vld.initialize(data.data.data(),
+        (csize_t)data.points,
+        (csize_t)data.dim,
+        thresh,
+        subthreshold_handling_kind::MAHAL,
+        apriori_asgn.data());
+    para.initialize(data.data.data(),
+        (csize_t)data.points,
+        (csize_t)data.dim,
+        thresh,
+        subthreshold_handling_kind::MAHAL,
+        apriori_asgn.data(),
+        &vld);
 
     auto res = para.run();
     para.free();
@@ -49,8 +60,19 @@ TEST(para, apriori_big)
     for (csize_t i = 0; i < data.points; i++)
         apriori_asgn.push_back(rand() % thresh);
 
-    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data());
-    para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, apriori_asgn.data(), &vld);
+    vld.initialize(data.data.data(),
+        (csize_t)data.points,
+        (csize_t)data.dim,
+        thresh,
+        subthreshold_handling_kind::MAHAL,
+        apriori_asgn.data());
+    para.initialize(data.data.data(),
+        (csize_t)data.points,
+        (csize_t)data.dim,
+        thresh,
+        subthreshold_handling_kind::MAHAL,
+        apriori_asgn.data(),
+        &vld);
 
     auto res = para.run();
     para.free();
@@ -74,8 +96,9 @@ TEST(para, small)
     gmhc para;
     validator vld;
 
-    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5);
-    para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, nullptr, &vld);
+    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, subthreshold_handling_kind::MAHAL);
+    para.initialize(
+        data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, subthreshold_handling_kind::MAHAL, nullptr, &vld);
 
     auto res = para.run();
     para.free();
@@ -92,8 +115,15 @@ TEST(para, nilsson)
 
     auto thresh = 44;
 
-    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh);
-    para.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, nullptr, &vld);
+    vld.initialize(
+        data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_handling_kind::MAHAL);
+    para.initialize(data.data.data(),
+        (csize_t)data.points,
+        (csize_t)data.dim,
+        thresh,
+        subthreshold_handling_kind::MAHAL,
+        nullptr,
+        &vld);
 
     auto res = para.run();
     para.free();

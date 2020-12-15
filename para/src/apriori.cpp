@@ -4,6 +4,7 @@
 
 #include "gmhc.hpp"
 #include "kernels.cuh"
+#include "validator.hpp"
 
 #define KERNEL_INFO kernel_info(80, 1024)
 
@@ -177,7 +178,13 @@ void clustering_context_t::compute_covariance(csize_t pos)
 
         run_transform_cov(
             cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
+
+        if (vld)
+            vld->set_mf(subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
     }
+
+    if (vld)
+        vld->set_cov(cov);
 }
 
 bool euclidean_based_kind(subthreshold_handling_kind kind)
@@ -233,24 +240,14 @@ void clustering_context_t::compute_icov(csize_t pos)
         shared.cu_info));
 
     run_store_icovariance_data(cu_inverses + pos * icov_size, nullptr, cov, 0, point_dim);
-
-    // test inverse
-    if (vld)
-    {
-        vld->icov_v.resize(point_dim * point_dim);
-        CUCH(cudaDeviceSynchronize());
-        CUCH(cudaMemcpy(
-            vld->icov_v.data(), cov, point_dim * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
-
-        for (size_t i = 0; i < point_dim; i++)
-            for (size_t j = i + 1; j < point_dim; j++)
-                vld->icov_v[i + point_dim * j] = vld->icov_v[j + point_dim * i];
-    }
 }
 
 void clustering_context_t::verify(pasgn_t id_pair, float dist)
 {
     CUCH(cudaDeviceSynchronize());
+
+    vld->set_icov(shared.cu_tmp_icov);
+    vld->set_icmf(cu_mfactors + update_data.old_a);
 
     // copy centroid
     std::vector<float> tmp_centr;
