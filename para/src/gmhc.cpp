@@ -198,7 +198,7 @@ void gmhc::move_apriori()
 {
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
-    for (size_t i = 0; i < apriori_count_; ++i)
+    for (size_t i = 1; i < apriori_count_; ++i)
     {
         const auto& ctx = apr_ctxs_[i];
 
@@ -213,14 +213,11 @@ void gmhc::move_apriori()
             ctx.cu_inverses,
             icov_size * sizeof(float),
             cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-    }
 
-    apr_ctxs_.front().cluster_data = cluster_data_;
-    apr_ctxs_.front().cu_centroids = cu_centroids_;
-    apr_ctxs_.front().cu_inverses = cu_icov_;
+        apr_ctxs_.front().cluster_count += apr_ctxs_[i].cluster_count;
+        apr_ctxs_.front().maha_cluster_count += apr_ctxs_[i].maha_cluster_count;
+    }
     apr_ctxs_.front().point_size = points_size;
-    apr_ctxs_.front().cluster_count = common_.cluster_count;
-    apr_ctxs_.front().initialize();
 }
 
 std::vector<gmhc::res_t> gmhc::run()
@@ -231,13 +228,8 @@ std::vector<gmhc::res_t> gmhc::run()
     // compute apriori
     if (apriori_count_)
     {
-        for (size_t i = 0; i < apriori_count_; ++i)
+        for (auto& ctx : apr_ctxs_)
         {
-            auto& ctx = apr_ctxs_[i];
-
-            run_neighbors<shared_apriori_data_t::neighbors_size>(
-                ctx.compute_data, ctx.cu_tmp_neighbors, ctx.cu_neighbors, ctx.cluster_count, ctx.starting_info);
-
             while (ctx.cluster_count > 1)
             {
                 auto tmp = ctx.iterate();
@@ -247,9 +239,6 @@ std::vector<gmhc::res_t> gmhc::run()
 
         move_apriori();
     }
-
-    run_neighbors<shared_apriori_data_t::neighbors_size>(
-        final.compute_data, final.cu_tmp_neighbors, final.cu_neighbors, final.cluster_count, final.starting_info);
 
     // compute rest
     while (final.cluster_count > 1)

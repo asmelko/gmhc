@@ -20,11 +20,17 @@ void clustering_context_t::initialize()
     compute_data.dim = point_dim;
 
     update_data.to_update = cu_updates;
+
+    maha_cluster_count = 0;
+    switched_to_full_maha = false;
+    initialize_neighbors = true;
 }
 
 gmhc::res_t clustering_context_t::iterate()
 {
     cluster_data_t data[2];
+
+    compute_neighbors();
 
     auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
 
@@ -35,10 +41,6 @@ gmhc::res_t clustering_context_t::iterate()
 
     update_iteration(data);
 
-    ++shared.id;
-    --shared.cluster_count;
-    --cluster_count;
-
     if (data[0].id > data[1].id)
         std::swap(data[0].id, data[1].id);
 
@@ -47,46 +49,51 @@ gmhc::res_t clustering_context_t::iterate()
     if (vld)
         verify(ret, min.min_dist);
 
-    run_update_neighbors<shared_apriori_data_t::neighbors_size>(
-        compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, starting_info);
-
     return std::make_pair(ret, min.min_dist);
 }
 
-void clustering_context_t::remove(csize_t idx)
+void clustering_context_t::compute_neighbors()
 {
-    csize_t end_idx = cluster_count;
+    if (initialize_neighbors || (!switched_to_full_maha && maha_cluster_count == cluster_count))
+    {
+        run_neighbors<shared_apriori_data_t::neighbors_size>(
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, starting_info);
 
-    if (idx == end_idx)
-        return;
-
-    CUCH(cudaMemcpy(cu_centroids + idx * point_dim,
-        cu_centroids + end_idx * point_dim,
-        sizeof(float) * point_dim,
-        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-
-    cluster_data[idx] = cluster_data[end_idx];
-
-    CUCH(cudaMemcpy(cu_neighbors + idx * shared.neighbors_size,
-        cu_neighbors + end_idx * shared.neighbors_size,
-        sizeof(neighbor_t) * shared.neighbors_size,
-        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-
-    if (cluster_data[idx].size >= maha_threshold)
-        CUCH(cudaMemcpy(cu_inverses + idx * icov_size,
-            cu_inverses + end_idx * icov_size,
-            sizeof(float) * icov_size,
-            cudaMemcpyKind::cudaMemcpyDeviceToDevice));
-
-    return;
+        initialize_neighbors = false;
+        switched_to_full_maha = maha_cluster_count == cluster_count;
+    }
+    else
+        run_update_neighbors<shared_apriori_data_t::neighbors_size>(
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, starting_info);
 }
 
 void clustering_context_t::move_clusters(csize_t i, csize_t j)
 {
-    remove(j);
-    
     update_data.old_a = i;
     update_data.old_b = j;
+
+    csize_t end_idx = cluster_count;
+
+    if (j == end_idx)
+        return;
+
+    CUCH(cudaMemcpy(cu_centroids + j * point_dim,
+        cu_centroids + end_idx * point_dim,
+        sizeof(float) * point_dim,
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
+    cluster_data[j] = cluster_data[end_idx];
+
+    CUCH(cudaMemcpy(cu_neighbors + j * shared.neighbors_size,
+        cu_neighbors + end_idx * shared.neighbors_size,
+        sizeof(neighbor_t) * shared.neighbors_size,
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
+    if (cluster_data[j].size >= maha_threshold)
+        CUCH(cudaMemcpy(cu_inverses + j * icov_size,
+            cu_inverses + end_idx * icov_size,
+            sizeof(float) * icov_size,
+            cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 }
 
 void clustering_context_t::update_iteration(const cluster_data_t* merged)
@@ -112,6 +119,19 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
 
     // compute new inverse of covariance matrix
     compute_icov(new_idx);
+
+    // update counts
+    ++shared.id;
+    --shared.cluster_count;
+    --cluster_count;
+
+    if (cluster_data[new_idx].size >= maha_threshold)
+    {
+        if (merged[0].size < maha_threshold && merged[1].size < maha_threshold)
+            ++maha_cluster_count;
+        else if (merged[0].size >= maha_threshold && merged[1].size >= maha_threshold)
+            --maha_cluster_count;
+    }
 }
 
 void clustering_context_t::compute_covariance(csize_t pos)

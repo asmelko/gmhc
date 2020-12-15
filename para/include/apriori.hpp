@@ -31,8 +31,12 @@ struct clustering_context_t
 
     // current number of clusters
     csize_t cluster_count;
+    // current number of clusters that reached maha_threshold
+    csize_t maha_cluster_count;
     // Mahalanobis threshold
     csize_t maha_threshold;
+    // indicates that all clusters reached maha_threshold
+    bool switched_to_full_maha;
 
     // parameter for kernels
     kernel_info starting_info;
@@ -41,6 +45,8 @@ struct clustering_context_t
     neighbor_t* cu_neighbors;
     // device intermediate neighbor array
     neighbor_t* cu_tmp_neighbors;
+    // flag that states that neighbor array needs to be initialized
+    bool initialize_neighbors;
 
     // device point array
     float* cu_points;
@@ -79,8 +85,8 @@ public:
     pasgnd_t<float> iterate();
 
 private:
-    // removes cluster at idx
-    void remove(csize_t idx);
+    // initializes/updates neighbor array
+    void compute_neighbors();
     // reorders data according to the merged clusters i and j
     void move_clusters(csize_t i, csize_t j);
     // updates data for new cluster
