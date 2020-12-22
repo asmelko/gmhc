@@ -151,30 +151,30 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
         run_covariance(input_t { cu_points, point_size, point_dim }, cu_point_asgns, tmp_cov, shared.id, KERNEL_INFO);
 
         run_finish_covariance(tmp_cov, cluster_data[pos].size, point_dim, cov);
-    }
 
-    if (wf < 1)
-    {
-        if (subthreshold_kind != subthreshold_handling_kind::MAHAL0)
+        if (wf < 1)
         {
-            CUCH(cudaMemcpy(
-                tmp_cov, cov, sizeof(float) * point_dim * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+            if (subthreshold_kind != subthreshold_handling_kind::MAHAL0)
+            {
+                CUCH(cudaMemcpy(
+                    tmp_cov, cov, sizeof(float) * point_dim * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
-            SOCH(cusolverDnSpotrf(shared.cusolver_handle,
-                cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
-                (int)point_dim,
-                tmp_cov,
-                (int)point_dim,
-                shared.cu_workspace,
-                shared.workspace_size,
-                shared.cu_info));
+                SOCH(cusolverDnSpotrf(shared.cusolver_handle,
+                    cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
+                    (int)point_dim,
+                    tmp_cov,
+                    (int)point_dim,
+                    shared.cu_workspace,
+                    shared.workspace_size,
+                    shared.cu_info));
+            }
+
+            run_transform_cov(
+                cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
+
+            if (vld)
+                vld->set_mf(subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
         }
-
-        run_transform_cov(
-            cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
-
-        if (vld)
-            vld->set_mf(subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
     }
 
     if (vld)

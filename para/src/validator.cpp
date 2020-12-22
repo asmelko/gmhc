@@ -281,6 +281,7 @@ std::vector<float> validator::compute_covariance(const cluster& c)
     if (c.size == 2)
     {
         cov = unit_matrix_;
+        mf_ = 1.f;
         wf = 0;
     }
     else
