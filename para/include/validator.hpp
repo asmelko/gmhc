@@ -63,7 +63,7 @@ public:
 
     void set_cov(const float* arr);
     void set_icov(const float* arr);
-    void set_mf(bool is_one, const float* cholesky, const int* info);
+    void set_mf(bool use_cholesky, const float* cholesky, const int* info);
     void set_icmf(const float* value);
 
     // adjusted diff of floats

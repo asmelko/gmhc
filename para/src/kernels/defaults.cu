@@ -20,7 +20,9 @@ __global__ void set_default_icovs(float* __restrict__ icovs, csize_t size, csize
         auto cell_idx = i % icov_size;
         auto coords = compute_coordinates(point_dim, cell_idx);
         if (coords.x == coords.y)
-            icovs[i] = 1;
+            icovs[i] = 1.f;
+        else
+            icovs[i] = 0.f;
     }
 }
 

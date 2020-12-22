@@ -24,8 +24,6 @@ struct shared_apriori_data_t
     float* cu_workspace;
     int workspace_size;
 
-    // overall cluster count
-    csize_t cluster_count;
     // next available id
     asgn_t id;
 

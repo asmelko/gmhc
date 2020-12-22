@@ -120,10 +120,7 @@ void run_print_assg(clustering::asgn_t* assignments, clustering::csize_t point_s
 // debug kernel - prints centroid array
 void run_print_centroid(const float* centroid, clustering::csize_t dim, clustering::csize_t count);
 // debug kernel - prints update array
-void run_print_up(clustering::csize_t* updated,
-    clustering::csize_t* eucl_count,
-    clustering::csize_t maha_begin,
-    clustering::csize_t* maha_count);
+void run_print_up(clustering::csize_t* updated, clustering::csize_t* count);
 // debug kernel - computes euclidean distance
 float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, clustering::csize_t dim);
 // debug kernel - computes maha distance
@@ -136,9 +133,7 @@ float run_point_maha(const float* lhs_centroid,
 void run_compare_nei_u(const neighbor_t* lhs,
     const neighbor_t* rhs,
     const clustering::csize_t* update,
-    const clustering::csize_t* small_size,
-    const clustering::csize_t* big_size,
-    clustering::csize_t big_begin,
+    const clustering::csize_t* size,
     clustering::csize_t new_idx);
 // debug kernel - compares two neighbor arrays
 void run_compare_nei(const neighbor_t* lhs,

@@ -27,6 +27,7 @@ void validator::create_clusters(const asgn_t* apriori_assignments)
 
         cluster c;
         c.id = i;
+        c.size = 1;
 
         for (csize_t j = 0; j < point_dim_; j++)
             c.centroid.push_back(points_[i * point_dim_ + j]);
@@ -278,7 +279,10 @@ std::vector<float> validator::compute_covariance(const cluster& c)
     cov.resize(point_dim_ * point_dim_);
 
     if (c.size == 2)
-        return unit_matrix_;
+    {
+        cov = unit_matrix_;
+        wf = 0;
+    }
     else
     {
         for (csize_t i = 0; i < point_dim_; ++i)
@@ -356,27 +360,31 @@ void validator::set_cov(const float* arr)
 
     for (size_t i = 0; i < point_dim_; i++)
         for (size_t j = i + 1; j < point_dim_; j++)
-            icov_[i + point_dim_ * j] = icov_[j + point_dim_ * i];
+            cov_[i + point_dim_ * j] = cov_[j + point_dim_ * i];
 }
 
 void validator::set_icov(const float* arr)
 {
     icov_.resize(point_dim_ * point_dim_);
 
-    CUCH(cudaMemcpy(icov_.data(), arr, sizeof(float) * point_dim_ * point_dim_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+    CUCH(
+        cudaMemcpy(icov_.data(), arr, sizeof(float) * point_dim_ * point_dim_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
     for (size_t i = 0; i < point_dim_; i++)
         for (size_t j = i + 1; j < point_dim_; j++)
             icov_[i + point_dim_ * j] = icov_[j + point_dim_ * i];
 }
 
-void validator::set_mf(bool is_one, const float* cu_cholesky, const int* cu_info)
+void validator::set_mf(bool use_cholesky, const float* cu_cholesky, const int* cu_info)
 {
     int info;
     CUCH(cudaMemcpy(&info, cu_info, sizeof(info), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-    if (is_one || info != 0)
+    if (!use_cholesky || info != 0)
+    {
         mf_ = 1.f;
+        return;
+    }
 
     std::vector<float> cholesky;
     cholesky.resize(point_dim_ * point_dim_);
@@ -386,9 +394,7 @@ void validator::set_mf(bool is_one, const float* cu_cholesky, const int* cu_info
 
     mf_ = 1.f;
     for (csize_t i = 0; i < point_dim_; i++)
-        mf_ *= cholesky[i * (point_dim_ + 1)];
-
-    mf_ = std::pow(mf_, 2.f / point_dim_);
+        mf_ *= std::pow(cholesky[i * (point_dim_ + 1)], 2.f / point_dim_);
 }
 
 void validator::set_icmf(const float* value)
@@ -463,7 +469,7 @@ std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& ex
         if (expected.first.first != min_pair.first && expected.first.second != min_pair.second)
             good = recompute(min_pair) >= expected.second;
         else
-            good = !float_diff(expected_dist, min_dist, 0.001f);
+            good = !float_diff(expected_dist, min_dist, 0.001f) && !float_diff(expected.second, min_dist, 0.001f);
 
         if (good)
         {
@@ -481,9 +487,7 @@ std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& ex
     c.size = cluster_size;
     c.centroid = compute_centroid(points_, point_dim_, point_count_, point_asgns_.data(), id_);
 
-    if (icov_.size())
-        for (csize_t i = 0; i < point_dim_ * point_dim_; i++)
-            c.icov.push_back(icov_[i]);
+    c.icov = icov_;
 
     clusters_.erase(clusters_.begin() + min_idx.second);
     clusters_[min_idx.first] = std::move(c);

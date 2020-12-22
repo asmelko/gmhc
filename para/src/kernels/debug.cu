@@ -50,6 +50,7 @@ __global__ void print_centroid(const float* centroid, csize_t dim, csize_t count
 void run_print_centroid(const float* centroid, csize_t dim, csize_t count)
 {
     print_centroid<<<1, 1>>>(centroid, dim, count);
+    CUCH(cudaDeviceSynchronize());
 }
 
 
@@ -69,19 +70,17 @@ __device__ void print_min(const chunk_t* output)
 
 
 
-__global__ void print_up(csize_t* updated, csize_t* eucl_count, csize_t maha_begin, csize_t* maha_count)
+__global__ void print_up(csize_t* updated, csize_t* count)
 {
     printf("update:\n");
-    for (csize_t i = 0; i < *eucl_count; i++)
-        printf("eucl %d\n", updated[i]);
-
-    for (csize_t i = maha_begin; i < *maha_count; i++)
-        printf("maha %d\n", updated[i]);
+    for (csize_t i = 0; i < *count; i++)
+        printf("upd %d\n", updated[i]);
 }
 
-void run_print_up(csize_t* updated, csize_t* eucl_count, csize_t maha_begin, csize_t* maha_count)
+void run_print_up(csize_t* updated, csize_t* count)
 {
-    print_up<<<1, 1>>>(updated, eucl_count, maha_begin, maha_count);
+    print_up<<<1, 1>>>(updated, count);
+    CUCH(cudaDeviceSynchronize());
 }
 
 __global__ void print_ne(neighbor_t* neighbors, csize_t nei_number, csize_t count)
@@ -99,6 +98,7 @@ __global__ void print_ne(neighbor_t* neighbors, csize_t nei_number, csize_t coun
 void run_print_nei(neighbor_t* neighbors, csize_t nei_number, csize_t count)
 {
     print_ne<<<1, 1>>>(neighbors, nei_number, count);
+    CUCH(cudaDeviceSynchronize());
 }
 
 
@@ -219,43 +219,23 @@ float run_point_maha(
     return res;
 }
 
-__global__ void compare_nei_u(const neighbor_t* lhs,
-    const neighbor_t* rhs,
-    const csize_t* update,
-    const csize_t* small_size,
-    const csize_t* big_size,
-    csize_t big_begin,
-    csize_t new_idx)
+__global__ void compare_nei_u(
+    const neighbor_t* lhs, const neighbor_t* rhs, const csize_t* update, const csize_t* size, csize_t new_idx)
 {
-    printf("to update %d %d\n", *small_size, *big_size);
-    printf("small:\n");
-    for (size_t i = 0; i < *small_size; i++)
-    {
-        printf("%d ", update[i]);
-    }
-    printf("\nbig:\n");
-    for (size_t i = big_begin; i < *big_size; i++)
+    printf("update size %d\n", *size);
+    printf("to update:\n");
+    for (size_t i = 0; i < *size; i++)
     {
         printf("%d ", update[i]);
     }
     printf("\n");
-    for (size_t i = 0; i < *small_size; i++)
+    for (size_t i = 0; i < *size; i++)
     {
         printf("e %f %f ", lhs[update[i]].distance, rhs[update[i]].distance);
 
         if (lhs[update[i]].distance != rhs[update[i]].distance)
             printf("d");
 
-        if (update[i] == new_idx)
-            printf(" new");
-        printf("\n");
-    }
-
-    for (size_t i = big_begin; i < *big_size; i++)
-    {
-        printf("m %f %f ", lhs[update[i]].distance, rhs[update[i]].distance);
-        if (lhs[update[i]].distance != rhs[update[i]].distance)
-            printf("d");
         if (update[i] == new_idx)
             printf(" new");
         printf("\n");
@@ -300,13 +280,11 @@ __global__ void compare_nei(const neighbor_t* lhs,
 
 void run_compare_nei_u(const neighbor_t* lhs,
     const neighbor_t* rhs,
-    const csize_t* update,
-    const csize_t* small_size,
-    const csize_t* big_size,
-    csize_t big_begin,
-    csize_t new_idx)
+    const clustering::csize_t* update,
+    const clustering::csize_t* size,
+    clustering::csize_t new_idx)
 {
-    compare_nei_u<<<1, 1>>>(lhs, rhs, update, small_size, big_size, big_begin, new_idx);
+    compare_nei_u<<<1, 1>>>(lhs, rhs, update, size, new_idx);
 }
 
 void run_compare_nei(const neighbor_t* lhs,

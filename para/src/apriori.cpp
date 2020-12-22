@@ -21,6 +21,7 @@ void clustering_context_t::initialize()
     compute_data.dim = point_dim;
 
     update_data.to_update = cu_updates;
+    update_data.update_size = shared.cu_upd_size;
 
     maha_cluster_count = 0;
     switched_to_full_maha = false;
@@ -73,7 +74,7 @@ void clustering_context_t::move_clusters(csize_t i, csize_t j)
     update_data.old_a = i;
     update_data.old_b = j;
 
-    csize_t end_idx = cluster_count;
+    csize_t end_idx = --cluster_count;
 
     if (j == end_idx)
         return;
@@ -90,11 +91,12 @@ void clustering_context_t::move_clusters(csize_t i, csize_t j)
         sizeof(neighbor_t) * shared.neighbors_size,
         cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
-    if (cluster_data[j].size >= maha_threshold)
-        CUCH(cudaMemcpy(cu_inverses + j * icov_size,
-            cu_inverses + end_idx * icov_size,
-            sizeof(float) * icov_size,
-            cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+    CUCH(cudaMemcpy(cu_inverses + j * icov_size,
+        cu_inverses + end_idx * icov_size,
+        sizeof(float) * icov_size,
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
+    CUCH(cudaMemcpy(cu_mfactors + j, cu_mfactors + end_idx, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 }
 
 void clustering_context_t::update_iteration(const cluster_data_t* merged)
@@ -121,10 +123,7 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
     // compute new inverse of covariance matrix
     compute_icov(new_idx);
 
-    // update counts
     ++shared.id;
-    --shared.cluster_count;
-    --cluster_count;
 
     if (cluster_data[new_idx].size >= maha_threshold)
     {
@@ -135,17 +134,14 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
     }
 }
 
-void clustering_context_t::compute_covariance(csize_t pos)
+void clustering_context_t::compute_covariance(csize_t pos, float wf)
 {
     float* tmp_cov = shared.cu_tmp_icov + point_dim * point_dim;
     float* cov = shared.cu_tmp_icov;
 
-    float wf;
-
     if (cluster_data[pos].size == 2)
     {
         run_set_unit_matrix(cov, point_dim);
-        wf = 0;
     }
     else
     {
@@ -155,8 +151,6 @@ void clustering_context_t::compute_covariance(csize_t pos)
         run_covariance(input_t { cu_points, point_size, point_dim }, cu_point_asgns, tmp_cov, shared.id, KERNEL_INFO);
 
         run_finish_covariance(tmp_cov, cluster_data[pos].size, point_dim, cov);
-
-        wf = std::max(cluster_data[pos].size / (float)maha_threshold, 1.f);
     }
 
     if (wf < 1)
@@ -194,7 +188,7 @@ bool euclidean_based_kind(subthreshold_handling_kind kind)
 
 void clustering_context_t::compute_icov(csize_t pos)
 {
-    auto wf = std::max(cluster_data[pos].size / (float)maha_threshold, 1.f);
+    auto wf = compute_weight_factor(pos);
 
     if (euclidean_based_kind(subthreshold_kind) && wf < 1)
     {
@@ -203,7 +197,7 @@ void clustering_context_t::compute_icov(csize_t pos)
         return;
     }
 
-    compute_covariance(pos);
+    compute_covariance(pos, wf);
 
     auto cov = shared.cu_tmp_icov;
 
@@ -242,6 +236,16 @@ void clustering_context_t::compute_icov(csize_t pos)
     run_store_icovariance_data(cu_inverses + pos * icov_size, nullptr, cov, 0, point_dim);
 }
 
+float clustering_context_t::compute_weight_factor(csize_t pos)
+{
+    if (cluster_data[pos].size == 2)
+        return 0.f;
+
+    if (maha_threshold > 0)
+        return std::min(1.f, cluster_data[pos].size / (float)maha_threshold);
+    return 0;
+}
+
 void clustering_context_t::verify(pasgn_t id_pair, float dist)
 {
     CUCH(cudaDeviceSynchronize());
@@ -263,7 +267,6 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
     if (vld->has_error())
     {
         CUCH(cudaDeviceSynchronize());
-        shared.cluster_count = 0;
         cluster_count = 0;
     }
 }

@@ -32,11 +32,10 @@ bool gmhc::initialize(const float* data_points,
     subthreshold_kind_ = subthreshold_kind;
 
     common_.id = (asgn_t)data_points_size;
-    common_.cluster_count = data_points_size;
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
     maha_threshold_ = mahalanobis_threshold;
-    starting_info_ = kernel_info(6, 512);
+    starting_info_ = kernel_info(6, 1024);
 
     CUCH(cudaSetDevice(0));
 
@@ -47,8 +46,9 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(
         &cu_tmp_neighs_, sizeof(neighbor_t) * common_.neighbors_size * data_points_size * starting_info_.grid_dim));
     CUCH(cudaMalloc(&cu_icov_, sizeof(float) * icov_size * data_points_size));
-    CUCH(cudaMalloc(&cu_update_, common_.cluster_count * sizeof(csize_t)));
-    cluster_data_ = new cluster_data_t[common_.cluster_count];
+    CUCH(cudaMalloc(&cu_icov_mf_, sizeof(float) * data_points_size));
+    CUCH(cudaMalloc(&cu_update_, data_points_size * sizeof(csize_t)));
+    cluster_data_ = new cluster_data_t[data_points_size];
 
     CUCH(cudaMalloc(&common_.cu_min, sizeof(chunk_t)));
     CUCH(cudaMalloc(&common_.cu_tmp_icov, 2 * data_point_dim * data_point_dim * sizeof(float)));
@@ -78,7 +78,7 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_workspace, sizeof(float) * common_.workspace_size));
 
     run_set_default_icovs(cu_icov_, data_points_size, data_point_dim, starting_info_);
-    run_set_default_icov_mfs(cu_icov_, data_points_size, starting_info_);
+    run_set_default_icov_mfs(cu_icov_mf_, data_points_size, starting_info_);
 
     if (apriori_assignments)
         initialize_apriori(apriori_assignments, vld);
@@ -94,7 +94,7 @@ bool gmhc::initialize(const float* data_points,
             cudaMemcpyKind::cudaMemcpyHostToDevice));
         run_set_default_asgn(cu_point_asgns_, data_points_size);
 
-        for (asgn_t i = 0; i < common_.cluster_count; ++i)
+        for (asgn_t i = 0; i < data_points_size; ++i)
             cluster_data_[i] = cluster_data_t { i, 1 };
 
         apr_ctxs_.emplace_back(common_);
