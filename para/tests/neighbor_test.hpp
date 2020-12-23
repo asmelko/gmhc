@@ -26,6 +26,7 @@ TEST(kernel, neighbor_small)
     neighbor_t *cu_tmp_n, *cu_n;
     float* cu_centroids;
     float* cu_inverses;
+    float* cu_mfactors;
     chunk_t* cu_out;
     chunk_t host_res;
     auto icov_size = (data.dim + 1) * data.dim / 2;
@@ -36,19 +37,25 @@ TEST(kernel, neighbor_small)
 
     CUCH(cudaMalloc(&cu_centroids, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_inverses, sizeof(float) * data.points * icov_size));
+    CUCH(cudaMalloc(&cu_mfactors, sizeof(float) * data.points));
     CUCH(cudaMalloc(&cu_tmp_n, sizeof(neighbor_t) * neigh_number * kernel.grid_dim * data.points));
     CUCH(cudaMalloc(&cu_n, sizeof(neighbor_t) * neigh_number * data.points));
     CUCH(cudaMalloc(&cu_out, sizeof(chunk_t)));
 
     run_set_default_icovs(cu_inverses, (csize_t)data.points, (csize_t)data.dim, kernel);
+    run_set_default_icov_mfs(cu_mfactors, (csize_t)data.points, kernel);
 
     CUCH(cudaMemcpy(cu_centroids,
         data.data.data(),
         sizeof(float) * data.points * data.dim,
         cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-    run_neighbors<neigh_number>(
-        centroid_data_t { cu_centroids, cu_inverses, (csize_t)data.dim }, cu_tmp_n, cu_n, (asgn_t)data.points, kernel);
+    run_neighbors<neigh_number>(centroid_data_t { cu_centroids, cu_inverses, cu_mfactors, (csize_t)data.dim },
+        cu_tmp_n,
+        cu_n,
+        (asgn_t)data.points,
+        false,
+        kernel);
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
     host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out);
@@ -69,6 +76,7 @@ TEST(kernel, neighbor_big)
     neighbor_t *cu_tmp_n, *cu_n;
     float* cu_centroids;
     float* cu_inverses;
+    float* cu_mfactors;
     chunk_t* cu_out;
     chunk_t host_res;
     auto icov_size = (data.dim + 1) * data.dim / 2;
@@ -81,11 +89,13 @@ TEST(kernel, neighbor_big)
 
     CUCH(cudaMalloc(&cu_centroids, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_inverses, sizeof(float) * data.points * icov_size));
+    CUCH(cudaMalloc(&cu_mfactors, sizeof(float) * data.points));
     CUCH(cudaMalloc(&cu_tmp_n, sizeof(neighbor_t) * neigh_number * kernel.grid_dim * data.points));
     CUCH(cudaMalloc(&cu_n, sizeof(neighbor_t) * neigh_number * data.points));
     CUCH(cudaMalloc(&cu_out, sizeof(chunk_t)));
 
     run_set_default_icovs(cu_inverses, (csize_t)data.points, (csize_t)data.dim, kernel);
+    run_set_default_icov_mfs(cu_mfactors, (csize_t)data.points, kernel);
 
     CUCH(cudaMemcpy(cu_centroids,
         data.data.data(),
@@ -101,8 +111,12 @@ TEST(kernel, neighbor_big)
 
     start = std::chrono::system_clock::now();
 
-    run_neighbors<neigh_number>(
-        centroid_data_t { cu_centroids, cu_inverses, (csize_t)data.dim }, cu_tmp_n, cu_n, (asgn_t)data.points, kernel);
+    run_neighbors<neigh_number>(centroid_data_t { cu_centroids, cu_inverses, cu_mfactors, (csize_t)data.dim },
+        cu_tmp_n,
+        cu_n,
+        (asgn_t)data.points,
+        true,
+        kernel);
     host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out);
 
     CUCH(cudaGetLastError());

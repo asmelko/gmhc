@@ -6,7 +6,7 @@
 using namespace clustering;
 
 __inline__ __device__ float maha_dist(
-    const float* __restrict__ point, const float* __restrict__ matrix, csize_t size, unsigned int lane_id)
+    const float* __restrict__ point, const float* __restrict__ matrix, float mf, csize_t size, unsigned int lane_id)
 {
     float tmp_point = 0;
 
@@ -25,18 +25,20 @@ __inline__ __device__ float maha_dist(
     {
         if (tmp_point < 0)
             return euclidean_norm(point, size);
-        return sqrtf(tmp_point);
+        return sqrtf(tmp_point / mf);
     }
     return 0;
 }
 
 template<csize_t N>
-__inline__ __device__ void point_neighbors_mat_warp(const float* __restrict__ centroids,
-    const float* __restrict__ inverses,
-    neighbor_t* __restrict__ neighbors,
-    float* __restrict__ curr_centroid,
+__inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ neighbors,
+    const float* __restrict__ curr_centroid,
+    const float* __restrict__ curr_icov,
+    float curr_mf,
     const float* __restrict__ this_centroid,
     const float* __restrict__ this_icov,
+    float this_mf,
+    float* __restrict__ work_centroid,
     csize_t dim,
     csize_t idx)
 {
@@ -46,14 +48,13 @@ __inline__ __device__ void point_neighbors_mat_warp(const float* __restrict__ ce
     auto lane_id = threadIdx.x % warpSize;
 
     for (csize_t i = lane_id; i < dim; i += warpSize)
-        curr_centroid[warp_id * dim + i] = centroids[idx * dim + i] - this_centroid[i];
+        work_centroid[warp_id * dim + i] = curr_centroid[i] - this_centroid[i];
 
     __syncwarp();
 
-    auto icov_size = (dim + 1) * dim / 2;
-    dist += maha_dist(curr_centroid + warp_id * dim, inverses + idx * icov_size, dim, lane_id);
+    dist += maha_dist(work_centroid + warp_id * dim, curr_icov, curr_mf, dim, lane_id);
 
-    dist += maha_dist(curr_centroid + warp_id * dim, this_icov, dim, lane_id);
+    dist += maha_dist(work_centroid + warp_id * dim, this_icov, this_mf, dim, lane_id);
 
     if (lane_id == 0)
     {
@@ -66,15 +67,19 @@ __inline__ __device__ void point_neighbors_mat_warp(const float* __restrict__ ce
 template<csize_t N>
 __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
+    const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
+    neighbor_t* __restrict__ work_neighbors,
     float* __restrict__ shared_mem,
     csize_t dim,
     csize_t count,
-    csize_t x)
+    csize_t x,
+    bool is_new)
 {
     float* this_centroid = shared_mem;
     float* this_icov = shared_mem + dim;
-    float* curr_centroid = shared_mem + dim + dim * dim;
+    float this_mf = mfactors ? mfactors[x] : 1;
+    float* work_centroid = shared_mem + dim + dim * dim;
 
     neighbor_t local_neighbors[N];
 
@@ -93,11 +98,44 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
 
     __syncthreads();
 
-    for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x + (x + 1) * warpSize; idx < count * warpSize;
-         idx += blockDim.x * gridDim.x)
+    csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
+
+    if (is_new)
     {
-        point_neighbors_mat_warp<N>(
-            centroids, inverses, local_neighbors, curr_centroid, this_centroid, this_icov, dim, idx / warpSize);
+        for (; idx < x * warpSize; idx += blockDim.x * gridDim.x)
+        {
+            auto y = idx / warpSize;
+            auto curr_mf = mfactors ? mfactors[y] : 1;
+            point_neighbors_mat_warp<N>(neighbors + y * N,
+                centroids + y * dim,
+                inverses + y * icov_size,
+                curr_mf,
+                this_centroid,
+                this_icov,
+                this_mf,
+                work_centroid,
+                dim,
+                x);
+        }
+        idx += warpSize;
+    }
+    else
+        idx += (x + 1) * warpSize;
+
+    for (; idx < count * warpSize; idx += blockDim.x * gridDim.x)
+    {
+        auto y = idx / warpSize;
+        auto curr_mf = mfactors ? mfactors[y] : 1;
+        point_neighbors_mat_warp<N>(local_neighbors,
+            centroids + y * dim,
+            inverses + y * icov_size,
+            curr_mf,
+            this_centroid,
+            this_icov,
+            this_mf,
+            work_centroid,
+            dim,
+            y);
     }
 
     __syncthreads();
@@ -107,12 +145,13 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
     __syncthreads();
 
     if (threadIdx.x == 0)
-        memcpy(neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, sizeof(neighbor_t) * N);
+        memcpy(work_neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, sizeof(neighbor_t) * N);
 }
 
 template<csize_t N>
 __global__ void neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
+    const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
     csize_t dim,
     csize_t count)
@@ -120,15 +159,18 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
     extern __shared__ float shared_mem[];
 
     for (csize_t x = 0; x < count; ++x)
-        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, count, x);
+        point_neighbors_mat<N>(centroids, inverses, mfactors, nullptr, neighbors, shared_mem, dim, count, x, false);
 }
 
 template<csize_t N>
 __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
+    const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
+    neighbor_t* __restrict__ work_neighbors,
     csize_t* __restrict__ updated,
     const csize_t* __restrict__ upd_count,
+    csize_t new_idx,
     csize_t dim,
     csize_t count)
 {
@@ -137,5 +179,14 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     auto update_count = *upd_count;
 
     for (csize_t i = 0; i < update_count; ++i)
-        point_neighbors_mat<N>(centroids, inverses, neighbors, shared_mem, dim, count, updated[i]);
+        point_neighbors_mat<N>(centroids,
+            inverses,
+            mfactors,
+            neighbors,
+            work_neighbors,
+            shared_mem,
+            dim,
+            count,
+            updated[i],
+            updated[i] == new_idx);
 }

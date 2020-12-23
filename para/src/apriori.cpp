@@ -18,6 +18,7 @@ void clustering_context_t::initialize()
 {
     compute_data.centroids = cu_centroids;
     compute_data.inverses = cu_inverses;
+    compute_data.mfactors = nullptr;
     compute_data.dim = point_dim;
 
     update_data.to_update = cu_updates;
@@ -59,7 +60,7 @@ void clustering_context_t::compute_neighbors()
     if (initialize_neighbors || (!switched_to_full_maha && maha_cluster_count == cluster_count))
     {
         run_neighbors<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, starting_info);
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, cluster_count == point_size, starting_info);
 
         initialize_neighbors = false;
         switched_to_full_maha = maha_cluster_count == cluster_count;
@@ -291,10 +292,13 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
         j = idxs[0];
     }
 
-    float* rhs_icov = cu_inverses + icov_size * i;
-
-    float dist = run_point_maha(
-        cu_centroids + point_dim * j, cu_centroids + point_dim * i, point_dim, cu_inverses + icov_size * j, rhs_icov);
+    float dist = run_point_maha(cu_centroids + point_dim * j,
+        cu_centroids + point_dim * i,
+        point_dim,
+        cu_inverses + icov_size * j,
+        cu_inverses + icov_size * i,
+        cu_mfactors[j],
+        cu_mfactors[i]);
 
 
     if (isinf(dist))

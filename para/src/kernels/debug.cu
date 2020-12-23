@@ -160,6 +160,8 @@ __global__ void point_maha(const float* lhs_centroid,
     csize_t dim,
     const float* lhs_icov,
     const float* rhs_icov,
+    float lhs_mf,
+    float rhs_mf,
     float* ret)
 {
     extern __shared__ float shared_mem[];
@@ -177,9 +179,9 @@ __global__ void point_maha(const float* lhs_centroid,
     __syncwarp();
 
     if (rhs_icov)
-        dist += maha_dist(shared_mem, rhs_icov, dim, lane_id);
+        dist += maha_dist(shared_mem, rhs_icov, rhs_mf, dim, lane_id);
 
-    dist += maha_dist(shared_mem, lhs_icov, dim, lane_id);
+    dist += maha_dist(shared_mem, lhs_icov, lhs_mf, dim, lane_id);
 
     if (lane_id == 0)
     {
@@ -202,14 +204,20 @@ float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, csize
     return res;
 }
 
-float run_point_maha(
-    const float* lhs_centroid, const float* rhs_centroid, csize_t dim, const float* lhs_icov, const float* rhs_icov)
+float run_point_maha(const float* lhs_centroid,
+    const float* rhs_centroid,
+    csize_t dim,
+    const float* lhs_icov,
+    const float* rhs_icov,
+    float lhs_mf,
+    float rhs_mf)
 {
     float* cu_res;
     CUCH(cudaMalloc(&cu_res, sizeof(float)));
     auto icov_size = (dim + 1) * dim / 2;
 
-    point_maha<<<1, 32, icov_size * sizeof(float)>>>(lhs_centroid, rhs_centroid, dim, lhs_icov, rhs_icov, cu_res);
+    point_maha<<<1, 32, icov_size * sizeof(float)>>>(
+        lhs_centroid, rhs_centroid, dim, lhs_icov, rhs_icov, lhs_mf, rhs_mf, cu_res);
 
     CUCH(cudaDeviceSynchronize());
     float res;

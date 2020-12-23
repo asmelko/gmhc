@@ -31,7 +31,7 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t c
 }
 
 #include "neighbor_eucl.cuh"
-#include "neighbor_new.cuh"
+#include "neighbor_maha.cuh"
 #include "reduce.cuh"
 #include "update.cuh"
 
@@ -51,25 +51,37 @@ void run_update_neighbors(centroid_data_t data,
     update<N><<<info.grid_dim, info.block_dim>>>(
         act_neighbors, upd_data.to_update, upd_data.update_size, size, upd_data.old_a, upd_data.old_b);
 
-    neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
-        data.centroids, data.inverses, tmp_neighbors, upd_data.to_update, upd_data.update_size, data.dim, size);
+    neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids,
+        data.inverses,
+        data.mfactors,
+        act_neighbors,
+        tmp_neighbors,
+        upd_data.to_update,
+        upd_data.update_size,
+        upd_data.old_a,
+        data.dim,
+        size);
 
     reduce_u<N><<<info.grid_dim, info.block_dim>>>(
         tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
-
-    neighbors_new<N><<<info.grid_dim, info.block_dim, shared_new>>>(
-        data.centroids, data.inverses, act_neighbors, data.dim, size, upd_data.old_a);
 }
 
 template<csize_t N>
-void run_neighbors(
-    centroid_data_t data, neighbor_t* tmp_neighbors, neighbor_t* act_neighbors, csize_t size, kernel_info info)
+void run_neighbors(centroid_data_t data,
+    neighbor_t* tmp_neighbors,
+    neighbor_t* act_neighbors,
+    csize_t size,
+    bool use_eucl,
+    kernel_info info)
 {
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
-    neighbors_mat<N>
-        <<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids, data.inverses, tmp_neighbors, data.dim, size);
+    if (use_eucl)
+        neighbors<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids, tmp_neighbors, data.dim, size);
+    else
+        neighbors_mat<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
+            data.centroids, data.inverses, data.mfactors, tmp_neighbors, data.dim, size);
 
     reduce<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors, act_neighbors, size, info.grid_dim);
 }
@@ -91,15 +103,19 @@ chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* re
 }
 
 #define INIT_TEMPLATES(N)                                                                                              \
-    template void run_neighbors<N>(                                                                                    \
-        centroid_data_t data, neighbor_t * tmp_neighbors, neighbor_t * act_neighbors, csize_t size, kernel_info info); \
-    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, csize_t size, chunk_t* result);                 \
+    template void run_neighbors<N>(centroid_data_t data,                                                               \
+        neighbor_t * tmp_neighbors,                                                                                    \
+        neighbor_t * act_neighbors,                                                                                    \
+        csize_t size,                                                                                                  \
+        bool use_eucl,                                                                                                 \
+        kernel_info info);                                                                                             \
     template void run_update_neighbors<N>(centroid_data_t data,                                                        \
         neighbor_t * tmp_neighbors,                                                                                    \
         neighbor_t * act_neighbors,                                                                                    \
         csize_t size,                                                                                                  \
         update_data_t upd_data,                                                                                        \
-        kernel_info info);
+        kernel_info info);                                                                                             \
+    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, csize_t size, chunk_t* result);
 
 INIT_TEMPLATES(1)
 INIT_TEMPLATES(2)

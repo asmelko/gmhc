@@ -86,6 +86,7 @@ void run_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
     neighbor_t* act_neighbors,
     clustering::csize_t size,
+    bool use_eucl,
     kernel_info info);
 
 // retrieves the minimum from a neighbor array
@@ -128,7 +129,9 @@ float run_point_maha(const float* lhs_centroid,
     const float* rhs_centroid,
     clustering::csize_t dim,
     const float* lhs_icov,
-    const float* rhs_icov);
+    const float* rhs_icov,
+    float lhs_mf,
+    float rhs_mf);
 // debug kernel - compares two neighbor arrays - only updated part
 void run_compare_nei_u(const neighbor_t* lhs,
     const neighbor_t* rhs,

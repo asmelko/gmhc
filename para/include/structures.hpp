@@ -59,6 +59,7 @@ struct centroid_data_t
 {
     float* centroids;
     float* inverses;
+    float* mfactors;
     clustering::csize_t dim;
 };
 
