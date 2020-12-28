@@ -17,7 +17,6 @@ TEST(para, apriori_small)
     auto data = reader::read_data_from_string<float>(input);
 
     gmhc para;
-    validator vld;
 
     auto thresh = 5;
 
@@ -26,24 +25,30 @@ TEST(para, apriori_small)
     for (csize_t i = 0; i < data.points; i++)
         apriori_asgn.push_back(i / thresh);
 
-    vld.initialize(data.data.data(),
-        (csize_t)data.points,
-        (csize_t)data.dim,
-        thresh,
-        subthreshold_handling_kind::MAHAL,
-        apriori_asgn.data());
-    para.initialize(data.data.data(),
-        (csize_t)data.points,
-        (csize_t)data.dim,
-        thresh,
-        subthreshold_handling_kind::MAHAL,
-        apriori_asgn.data(),
-        &vld);
+    for (size_t i = 0; i < 4; i++)
+    {
+        printf("computing subthreshold %zd\n", i);
 
-    auto res = para.run();
-    para.free();
+        validator vld;
 
-    ASSERT_FALSE(vld.has_error());
+        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
+
+        vld.initialize(
+            data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind, apriori_asgn.data());
+
+        para.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            apriori_asgn.data(),
+            &vld);
+
+        para.run();
+        para.free();
+
+        ASSERT_FALSE(vld.has_error());
+    }
 }
 
 TEST(para, apriori_big)
@@ -51,7 +56,6 @@ TEST(para, apriori_big)
     auto data = reader::read_data_from_file<float>("big");
 
     gmhc para;
-    validator vld;
 
     auto thresh = 20;
 
@@ -60,24 +64,30 @@ TEST(para, apriori_big)
     for (csize_t i = 0; i < data.points; i++)
         apriori_asgn.push_back(rand() % thresh);
 
-    vld.initialize(data.data.data(),
-        (csize_t)data.points,
-        (csize_t)data.dim,
-        thresh,
-        subthreshold_handling_kind::MAHAL,
-        apriori_asgn.data());
-    para.initialize(data.data.data(),
-        (csize_t)data.points,
-        (csize_t)data.dim,
-        thresh,
-        subthreshold_handling_kind::MAHAL,
-        apriori_asgn.data(),
-        &vld);
+    for (size_t i = 0; i < 4; i++)
+    {
+        printf("computing subthreshold %zd\n", i);
 
-    auto res = para.run();
-    para.free();
+        validator vld;
 
-    ASSERT_FALSE(vld.has_error());
+        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
+
+        vld.initialize(
+            data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind, apriori_asgn.data());
+
+        para.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            apriori_asgn.data(),
+            &vld);
+
+        para.run();
+        para.free();
+
+        ASSERT_FALSE(vld.has_error());
+    }
 }
 
 TEST(para, small)
@@ -91,19 +101,31 @@ TEST(para, small)
         "3.71229 -0.498549 0.436246 1.65099 4.69318 4.50654 4.72271 -3.79102 -5.22239 0.974885 -10.9422 5.59455 "
         "1.47331 5.72225 -1.47315 -2.90234 -7.91345 -9.92892 11.5448 -4.2494 -2.811 1.19261 -5.76345 -0.720766 16.3369 "
         "4.82052 0.6734 5.29015 1.93098 -2.19635 -2.60147 -3.42446 1.9895 -1.261 -2.28809";
+
     auto data = reader::read_data_from_string<float>(input);
 
     gmhc para;
-    validator vld;
 
-    vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, subthreshold_handling_kind::MAHAL);
-    para.initialize(
-        data.data.data(), (csize_t)data.points, (csize_t)data.dim, 5, subthreshold_handling_kind::MAHAL, nullptr, &vld);
+    auto thresh = 5;
 
-    auto res = para.run();
-    para.free();
+    for (size_t i = 0; i < 4; i++)
+    {
+        printf("computing subthreshold %zd\n", i);
 
-    ASSERT_FALSE(vld.has_error());
+        validator vld;
+
+        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
+
+        vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind);
+
+        para.initialize(
+            data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind, nullptr, &vld);
+
+        para.run();
+        para.free();
+
+        ASSERT_FALSE(vld.has_error());
+    }
 }
 
 TEST(para, nilsson)

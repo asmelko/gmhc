@@ -100,6 +100,7 @@ void run_update_neighbors(centroid_data_t data,
     neighbor_t* act_neighbors,
     clustering::csize_t size,
     update_data_t upd_data,
+    bool use_eucl,
     kernel_info info);
 
 // sets identity matrix
@@ -130,8 +131,8 @@ float run_point_maha(const float* lhs_centroid,
     clustering::csize_t dim,
     const float* lhs_icov,
     const float* rhs_icov,
-    float lhs_mf,
-    float rhs_mf);
+    const float* lhs_mf,
+    const float* rhs_mf);
 // debug kernel - compares two neighbor arrays - only updated part
 void run_compare_nei_u(const neighbor_t* lhs,
     const neighbor_t* rhs,

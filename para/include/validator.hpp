@@ -19,6 +19,7 @@ class validator
     {
         std::vector<float> centroid;
         std::vector<float> icov;
+        float mf;
 
         csize_t size;
         asgn_t id;
@@ -32,6 +33,7 @@ class validator
 
     asgn_t id_;
     csize_t cluster_count_;
+    csize_t maha_cluster_count_;
     std::vector<asgn_t> point_asgns_;
     std::vector<cluster> clusters_;
     std::vector<csize_t> apr_sizes_;
@@ -63,13 +65,14 @@ public:
 
     void set_cov(const float* arr);
     void set_icov(const float* arr);
-    void set_mf(bool use_cholesky, const float* cholesky, const int* info);
+    void set_mf(const float* cholesky, const int* info);
     void set_icmf(const float* value);
 
     // adjusted diff of floats
     // respect slight differences of CPU and GPU floating point computation
     static bool float_diff(float a, float b, float d = 0.05f);
     static bool float_diff(const float* a, const float* b, csize_t size, float d = 0.05f);
+    static bool float_diff(const std::vector<float>& a, const std::vector<float>& b, csize_t size, float d = 0.05f);
 
 private:
     // iterate its own mahalanobis clustering

@@ -160,8 +160,8 @@ __global__ void point_maha(const float* lhs_centroid,
     csize_t dim,
     const float* lhs_icov,
     const float* rhs_icov,
-    float lhs_mf,
-    float rhs_mf,
+    const float* lhs_mf,
+    const float* rhs_mf,
     float* ret)
 {
     extern __shared__ float shared_mem[];
@@ -179,9 +179,9 @@ __global__ void point_maha(const float* lhs_centroid,
     __syncwarp();
 
     if (rhs_icov)
-        dist += maha_dist(shared_mem, rhs_icov, rhs_mf, dim, lane_id);
+        dist += maha_dist(shared_mem, rhs_icov, *rhs_mf, dim, lane_id);
 
-    dist += maha_dist(shared_mem, lhs_icov, lhs_mf, dim, lane_id);
+    dist += maha_dist(shared_mem, lhs_icov, *lhs_mf, dim, lane_id);
 
     if (lane_id == 0)
     {
@@ -209,8 +209,8 @@ float run_point_maha(const float* lhs_centroid,
     csize_t dim,
     const float* lhs_icov,
     const float* rhs_icov,
-    float lhs_mf,
-    float rhs_mf)
+    const float* lhs_mf,
+    const float* rhs_mf)
 {
     float* cu_res;
     CUCH(cudaMalloc(&cu_res, sizeof(float)));

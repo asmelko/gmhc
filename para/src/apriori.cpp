@@ -14,11 +14,11 @@ clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
     : shared(shared_data)
 {}
 
-void clustering_context_t::initialize()
+void clustering_context_t::initialize(bool is_final_context)
 {
     compute_data.centroids = cu_centroids;
     compute_data.inverses = cu_inverses;
-    compute_data.mfactors = nullptr;
+    compute_data.mfactors = cu_mfactors;
     compute_data.dim = point_dim;
 
     update_data.to_update = cu_updates;
@@ -27,6 +27,7 @@ void clustering_context_t::initialize()
     maha_cluster_count = 0;
     switched_to_full_maha = false;
     initialize_neighbors = true;
+    is_final = is_final_context;
 }
 
 gmhc::res_t clustering_context_t::iterate()
@@ -57,17 +58,24 @@ gmhc::res_t clustering_context_t::iterate()
 
 void clustering_context_t::compute_neighbors()
 {
-    if (initialize_neighbors || (!switched_to_full_maha && maha_cluster_count == cluster_count))
+    if (initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count))
     {
-        run_neighbors<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, cluster_count == point_size, starting_info);
-
         initialize_neighbors = false;
         switched_to_full_maha = maha_cluster_count == cluster_count;
+
+        if (switched_to_full_maha)
+            compute_data.mfactors = nullptr;
+
+        run_neighbors<shared_apriori_data_t::neighbors_size>(
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, cluster_count == point_size, starting_info);
     }
     else
+    {
+        bool use_eucl = !switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID;
+
         run_update_neighbors<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, starting_info);
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, starting_info);
+    }
 }
 
 void clustering_context_t::move_clusters(csize_t i, csize_t j)
@@ -174,7 +182,7 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
                 cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
 
             if (vld)
-                vld->set_mf(subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
+                vld->set_mf(tmp_cov, shared.cu_info);
         }
     }
 
@@ -297,8 +305,8 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
         point_dim,
         cu_inverses + icov_size * j,
         cu_inverses + icov_size * i,
-        cu_mfactors[j],
-        cu_mfactors[i]);
+        cu_mfactors + j,
+        cu_mfactors + i);
 
 
     if (isinf(dist))

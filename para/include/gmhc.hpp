@@ -17,10 +17,8 @@ struct shared_apriori_data_t
     csize_t* cu_upd_size;
 
     // device variables to compute inverse matrix
-    float **cu_read_icov, **cu_write_icov;
     float* cu_tmp_icov;
     int* cu_info;
-    int* cu_pivot;
     float* cu_workspace;
     int workspace_size;
 

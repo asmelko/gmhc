@@ -72,6 +72,8 @@ struct clustering_context_t
 
     // shared data among each clustering context
     shared_apriori_data_t& shared;
+    //flag that states that this is last/only apriori context left to cluster
+    bool is_final;
 
     // verification validator
     validator* vld;
@@ -80,7 +82,7 @@ public:
     clustering_context_t(shared_apriori_data_t& shared_data);
 
     // initializes the context
-    void initialize();
+    void initialize(bool is_final);
 
     // performs one iteration of clustering
     pasgnd_t<float> iterate();

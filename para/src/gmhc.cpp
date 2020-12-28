@@ -53,10 +53,7 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_min, sizeof(chunk_t)));
     CUCH(cudaMalloc(&common_.cu_tmp_icov, 2 * data_point_dim * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&common_.cu_upd_size, sizeof(csize_t)));
-    CUCH(cudaMalloc(&common_.cu_read_icov, sizeof(float*)));
-    CUCH(cudaMalloc(&common_.cu_write_icov, sizeof(float*)));
     CUCH(cudaMalloc(&common_.cu_info, sizeof(int)));
-    CUCH(cudaMalloc(&common_.cu_pivot, sizeof(int) * data_point_dim));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
 
     int workspace_size_f, workspace_size_i;
@@ -84,6 +81,8 @@ bool gmhc::initialize(const float* data_points,
         initialize_apriori(apriori_assignments, vld);
     else
     {
+        apriori_count_ = 0;
+
         CUCH(cudaMemcpy(cu_points_,
             data_points,
             data_points_size * data_point_dim * sizeof(float),
@@ -100,7 +99,6 @@ bool gmhc::initialize(const float* data_points,
         apr_ctxs_.emplace_back(common_);
 
         set_apriori(apr_ctxs_.front(), 0, points_size, vld);
-        apriori_count_ = 0;
     }
 
     return true;
@@ -136,7 +134,7 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
 
     cluster.vld = vld;
 
-    cluster.initialize();
+    cluster.initialize(apriori_count_ == 0);
 }
 
 void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
@@ -218,6 +216,7 @@ void gmhc::move_apriori()
         apr_ctxs_.front().maha_cluster_count += apr_ctxs_[i].maha_cluster_count;
     }
     apr_ctxs_.front().point_size = points_size;
+    apr_ctxs_.front().is_final = true;
 }
 
 std::vector<gmhc::res_t> gmhc::run()
@@ -265,9 +264,9 @@ void gmhc::free()
     CUCH(cudaFree(common_.cu_min));
     CUCH(cudaFree(common_.cu_tmp_icov));
     CUCH(cudaFree(common_.cu_upd_size));
-    CUCH(cudaFree(common_.cu_read_icov));
-    CUCH(cudaFree(common_.cu_write_icov));
     CUCH(cudaFree(common_.cu_info));
-    CUCH(cudaFree(common_.cu_pivot));
+    CUCH(cudaFree(common_.cu_workspace));
     SOCH(cusolverDnDestroy(common_.cusolver_handle));
+
+    apr_ctxs_.clear();
 }
