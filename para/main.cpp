@@ -47,9 +47,9 @@ int main(int argc, char** argv)
     clustering::asgn_t* apr_asgn = nullptr;
 
     char* end;
-    auto thresh = std::strtoll(argv[2], &end, 10);
+    auto thresh = std::strtof(argv[2], &end);
 
-    if (thresh >= (long long)ULONG_MAX || thresh < 0 || *end != '\0')
+    if (thresh > 1 || thresh < 0 || *end != '\0')
     {
         std::cerr << "bad threshold" << std::endl;
         return 1;
@@ -80,11 +80,12 @@ int main(int argc, char** argv)
     }
 
     clustering::gmhc gmhclust;
+    clustering::csize_t actual_thresh = data.points * thresh;
 
     bool init = gmhclust.initialize(data.data.data(),
         (clustering::csize_t)data.points,
         (clustering::csize_t)data.dim,
-        (clustering::csize_t)thresh,
+        actual_thresh,
         kind,
         apr_asgn);
 
