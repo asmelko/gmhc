@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     }
 
     clustering::gmhc gmhclust;
-    clustering::csize_t actual_thresh = data.points * thresh;
+    clustering::csize_t actual_thresh = (float)data.points * thresh;
 
     bool init = gmhclust.initialize(data.data.data(),
         (clustering::csize_t)data.points,

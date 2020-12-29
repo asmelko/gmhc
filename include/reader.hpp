@@ -21,18 +21,18 @@ struct reader
         std::vector<T> data;
     };
 
-    template<typename T>
-    static data_t<T> read_data_from_binary_file(const std::string& file)
+    template<typename Out_T, typename Read_T = Out_T>
+    static data_t<Out_T> read_data_from_binary_file(const std::string& file)
     {
         std::ifstream fs(file, std::ios::in | std::ios::binary);
 
         if (!fs.is_open())
         {
             std::cerr << "file could not open";
-            return { 0, 0, std::vector<T> {} };
+            return { 0, 0, std::vector<Out_T> {} };
         }
 
-        return read_bin_data<T>(fs);
+        return read_bin_data<Out_T, Read_T>(fs);
     }
 
     template<typename T>
@@ -82,27 +82,27 @@ private:
         return { dim, points, std::move(ret) };
     }
 
-    template<typename T>
-    static data_t<T> read_bin_data(std::istream& stream)
+    template<typename Out_T, typename Read_T = Out_T>
+    static data_t<Out_T> read_bin_data(std::istream& stream)
     {
-        std::uint32_t dim, points;
-        float point;
+        std::uint64_t dim, points;
+        Read_T point;
 
-        stream.read((char*)&dim, sizeof(std::int32_t));
-        stream.read((char*)&points, sizeof(std::int32_t));
+        stream.read((char*)&dim, sizeof(dim));
+        stream.read((char*)&points, sizeof(points));
 
-        std::vector<T> ret;
+        std::vector<Out_T> ret;
         ret.reserve(dim * points);
 
         for (size_t i = 0; i < points * dim; ++i)
         {
-            stream.read((char*)&point, sizeof(float));
-            ret.push_back(point);
+            stream.read((char*)&point, sizeof(point));
+            ret.push_back(static_cast<Out_T>(point));
 
             if (stream.fail() || stream.bad())
             {
                 std::cerr << "issue when reading data";
-                return { 0, 0, std::vector<T> {} };
+                return { 0, 0, std::vector<Out_T> {} };
             }
         }
 
