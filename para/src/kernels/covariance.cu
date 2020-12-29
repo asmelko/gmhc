@@ -85,11 +85,17 @@ __global__ void covariance(const float* __restrict__ points,
 
     __syncthreads();
 
-    reduce_sum_block(shared_mem, shared_chunks, cov_size);
-
     if (threadIdx.x == 0)
-        for (csize_t i = 0; i < cov_size; ++i)
-            atomicAdd(cov_matrix + i, tmp_cov[i]);
+    {
+        for (csize_t i = 0; i < cov_size; i++)
+        {
+            float sum = 0;
+            for (csize_t j = 0; j < shared_chunks; j++)
+                sum += (shared_mem + cov_size * j)[i];
+
+            atomicAdd(cov_matrix + i, sum);
+        }
+    }
 }
 
 __global__ void finish_covariance(
@@ -158,7 +164,7 @@ __global__ void transform_cov(float* __restrict__ matrix,
     const float* __restrict__ cholesky_decomp,
     const int* __restrict__ cholesky_success)
 {
-    __shared__ float shared[32];
+    __shared__ float shared[1];
 
     float mf = 1.f;
 
@@ -169,7 +175,7 @@ __global__ void transform_cov(float* __restrict__ matrix,
 
         __syncthreads();
 
-        reduce_mul_block(&mf, shared);
+        reduce_mul_warp(&mf);
 
         if (threadIdx.x == 0)
             shared[0] = mf;
@@ -201,7 +207,7 @@ __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, con
 
     __syncthreads();
 
-    reduce_mul_block(&icmf, shared);
+    reduce_mul_warp(&icmf);
 
     if (threadIdx.x == 0)
         *dest = icmf;
