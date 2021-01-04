@@ -198,8 +198,6 @@ __global__ void transform_cov(float* __restrict__ matrix,
 
 __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, const float* __restrict__ cholesky_decomp)
 {
-    __shared__ float shared[32];
-
     float icmf = 1.f;
 
     for (csize_t idx = threadIdx.x; idx < dim; idx += blockDim.x)

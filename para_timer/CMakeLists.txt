@@ -1,0 +1,8 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+PROJECT(para_timer CXX CUDA)
+
+ADD_EXECUTABLE(para_timer "main.cpp")
+
+set_property(TARGET para_timer PROPERTY CUDA_ARCHITECTURES OFF)
+
+TARGET_LINK_LIBRARIES(para_timer para)
