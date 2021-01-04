@@ -41,7 +41,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    auto data = clustering::reader::read_data_from_binary_file<float>(argv[1]);
+    auto data = clustering::reader::read_data_from_binary_file<float, double>(argv[1]);
 
     std::vector<clustering::asgn_t> apriori_assignments;
     clustering::asgn_t* apr_asgn = nullptr;
@@ -80,7 +80,7 @@ int main(int argc, char** argv)
     }
 
     clustering::gmhc gmhclust;
-    clustering::csize_t actual_thresh = (float)data.points * thresh;
+    auto actual_thresh = (clustering::csize_t)((float)data.points * thresh);
 
     bool init = gmhclust.initialize(data.data.data(),
         (clustering::csize_t)data.points,
