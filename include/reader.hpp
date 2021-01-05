@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "clustering.hpp"
+
 namespace clustering {
 
 // reads input data
@@ -54,6 +56,38 @@ struct reader
     {
         std::stringstream ss(data, std::ios_base::in);
         return read_data<T>(ss);
+    }
+
+    static std::vector<asgn_t> read_assignments_from_file(const std::string& file)
+    {
+        std::ifstream fs(file);
+
+        if (!fs.is_open())
+        {
+            std::cerr << "file could not open";
+            return {};
+        }
+
+        std::vector<asgn_t> ret;
+
+        while (true)
+        {
+            int asgn;
+            fs >> asgn;
+
+            if (fs.eof())
+                break;
+
+            if (fs.fail() || fs.bad())
+            {
+                std::cerr << "issue when reading data";
+                return {};
+            }
+
+            ret.push_back(asgn);
+        }
+
+        return ret;
     }
 
 private:

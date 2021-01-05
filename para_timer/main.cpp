@@ -2,74 +2,66 @@
 #include <climits>
 #include <iostream>
 #include <istream>
+#include <iomanip>
 #include <numeric>
 
 #include "../para/include/gmhc.hpp"
+#include "option.hpp"
 #include "reader.hpp"
-
 
 std::string enum_to_string(clustering::subthreshold_handling_kind kind)
 {
     switch (kind)
     {
         case clustering::subthreshold_handling_kind::MAHAL:
-            return "MAHAL";
+            return "M";
         case clustering::subthreshold_handling_kind::EUCLID:
-            return "EUCLID";
+            return "E";
         case clustering::subthreshold_handling_kind::MAHAL0:
-            return "MAHAL0";
+            return "M0";
         case clustering::subthreshold_handling_kind::EUCLID_MAHAL:
-            return "EUCLID_MAHAL";
+            return "EM";
         default:
-            return "UNK";
+            return "UNDEF";
     }
 }
 
-void print_time(const std::vector<std::chrono::duration<double>>& time, long reps, std::vector<double>& ret)
+void print_time(std::vector<std::chrono::duration<double>>& time, int reps, clustering::subthreshold_handling_kind kind)
 {
+    std::cout << enum_to_string(kind) << "\t";
+
     auto sum = std::accumulate(time.begin(), time.end(), std::chrono::duration<double>::zero());
     auto mean = sum / reps;
-    ret.push_back(mean.count());
-    std::cerr << mean.count() << std::endl;
+    std::cout << mean.count() << "\t";
 
     double std_dev = 0;
     for (auto t : time)
         std_dev += (t - mean).count() * (t - mean).count();
     std_dev /= reps;
     std_dev = std::sqrt(std_dev);
-    ret.push_back(std_dev);
+    std::cout << std_dev << std::endl;
+    time.clear();
 }
 
-int main(int argc, char** argv)
+int measure(const float* data, clustering::csize_t count, clustering::csize_t dim, int repetitions)
 {
-    if (argc != 3)
-    {
-        std::cout << "bad input" << std::endl << "usage: para_timer repetitions file_name" << std::endl;
-        return 1;
-    }
+    using namespace clustering;
 
-    char* r_end;
-    auto reps = std::strtol(argv[1], &r_end, 10);
+    std::cout << std::fixed << std::setprecision(6);
+    std::cout << "kind\ttime    \tstd.dev" << std::endl; 
 
-    if (reps < 0 || *r_end != '\0')
-    {
-        std::cerr << "bad repetitions number" << std::endl;
-        return 1;
-    }
+    auto threshold = (csize_t)(count * 0.5);
 
-    auto data = clustering::reader::read_data_from_binary_file<float, double>(argv[2]);
-
-    auto thresh = (clustering::csize_t)(data.points * 0.5);
     // dry run
-    clustering::gmhc gmhclust;
-    if (!gmhclust.initialize(data.data.data(),
-            (clustering::csize_t)data.points,
-            (clustering::csize_t)data.dim,
-            thresh,
-            clustering::subthreshold_handling_kind::MAHAL))
-        return 1;
-    gmhclust.run();
-    gmhclust.free();
+    {
+        gmhc gmhclust;
+        if (!gmhclust.initialize(data, count, dim, threshold, subthreshold_handling_kind::MAHAL))
+            return 1;
+        gmhclust.run();
+        gmhclust.free();
+    }
+
+    gmhc gmhclust;
 
     std::vector<std::chrono::duration<double>> run_time;
     std::vector<double> processed_time;
@@ -77,17 +69,13 @@ int main(int argc, char** argv)
 
     for (size_t i = 0; i < enum_size; i++)
     {
-        auto sub_kind = (clustering::subthreshold_handling_kind)i;
+        auto kind = (subthreshold_handling_kind)i;
 
-        for (size_t j = 0; j < reps; j++)
+        for (size_t j = 0; j < repetitions; j++)
         {
             auto start = std::chrono::system_clock::now();
 
-            if (!gmhclust.initialize(data.data.data(),
-                    (clustering::csize_t)data.points,
-                    (clustering::csize_t)data.dim,
-                    thresh,
-                    sub_kind))
+            if (!gmhclust.initialize(data, count, dim, threshold, kind))
                 return 1;
             gmhclust.run();
             gmhclust.free();
@@ -96,27 +84,36 @@ int main(int argc, char** argv)
 
             run_time.push_back(end - start);
         }
-        print_time(run_time, reps, processed_time);
-        run_time.clear();
-    }
-
-    std::cout << "(M,E,M0,EM): (";
-    for (size_t i = 0; i < enum_size; i++) 
-    {
-        std::cout << processed_time[i * 2];
-        if (i != enum_size - 1)
-            std::cout << ",";
-        else
-            std::cout << ") avg.time, (";
-    }
-    for (size_t i = 0; i < enum_size; i++)
-    {
-        std::cout << processed_time[i * 2 + 1];
-        if (i != enum_size - 1)
-            std::cout << ",";
-        else
-            std::cout << ") std.dev." << std::endl;
+        print_time(run_time, repetitions, kind);
     }
 
     return 0;
+}
+
+int main(int argc, char** argv)
+{
+    using namespace mbas;
+    using namespace clustering;
+
+    command cmd;
+
+    cmd.add_option("d,dataset", "Path to dataset file.", false)
+        .add_parameter<std::string>(value_type<std::string>(), "D_PATH");
+    cmd.add_option("n", "Test repetition.", false)
+        .add_parameter<int>(value_type<int>(), "REPS")
+        .set_constraint([](int value) { return value >= 1; });
+
+    auto parsed = cmd.parse(argc, argv);
+
+    if (!parsed.parse_ok())
+    {
+        std::cerr << cmd.help();
+        return 1;
+    }
+
+    auto dataset = parsed["dataset"]->get_value<std::string>();
+    auto data = reader::read_data_from_binary_file<float, double>(dataset);
+    auto reps = parsed["n"]->get_value<int>();
+
+    return measure(data.data.data(), (csize_t)data.points, (csize_t)data.dim, reps);
 }
