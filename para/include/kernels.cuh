@@ -1,11 +1,11 @@
 #ifndef KERNELS_CUH
 #define KERNELS_CUH
 
-#include <cuSolverDN.h>
+#include <cuda_runtime.h>
+#include <cusolverDn.h>
 #include <limits>
 
 #include "clustering.hpp"
-#include "cuda_runtime.h"
 #include "structures.hpp"
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)

@@ -43,7 +43,7 @@ void print_time(std::vector<std::chrono::duration<double>>& time, int reps, clus
     time.clear();
 }
 
-int measure(const float* data, clustering::csize_t count, clustering::csize_t dim, int repetitions)
+int measure(const float* data, clustering::csize_t count, clustering::csize_t dim, size_t repetitions)
 {
     using namespace clustering;
 
@@ -115,5 +115,5 @@ int main(int argc, char** argv)
     auto data = reader::read_data_from_binary_file<float, double>(dataset);
     auto reps = parsed["n"]->get_value<int>();
 
-    return measure(data.data.data(), (csize_t)data.points, (csize_t)data.dim, reps);
+    return measure(data.data.data(), (csize_t)data.points, (csize_t)data.dim, (size_t)reps);
 }

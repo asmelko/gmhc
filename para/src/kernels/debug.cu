@@ -18,7 +18,7 @@ void cuda_check(cudaError_t code, const char* file, int line)
 
 void cuSOLVER_check(cusolverStatus_t code, const char* file, int line)
 {
-    if (code != CUBLAS_STATUS_SUCCESS)
+    if (code != CUSOLVER_STATUS_SUCCESS)
     {
         std::cerr << "cuSOLVER error"
                   << " at " << file << ":" << line;

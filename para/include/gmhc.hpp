@@ -1,7 +1,7 @@
 #ifndef GMHC_HPP
 #define GMHC_HPP
 
-#include <cusolverDN.h>
+#include <cusolverDn.h>
 
 #include "apriori.hpp"
 

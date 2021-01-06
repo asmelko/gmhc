@@ -54,6 +54,27 @@
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "variables": []
+    },
+    {
+      "name": "Linux-GCC-Release",
+      "generator": "Unix Makefiles",
+      "configurationType": "RelWithDebInfo",
+      "cmakeExecutable": "/mnt/home/smelko/cmake-3.15.2/bin/cmake",
+      "remoteCopySourcesExclusionList": [ ".vs", ".git", "build" ],
+      "cmakeCommandArgs": "-DCMAKE_CUDA_HOST_COMPILER=/usr/local/nvgcc/bin/g++ -DBUILD_GMHC_SERIAL=false",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "remoteMachineName": "${defaultRemoteMachineName}",
+      "remoteCMakeListsRoot": "$HOME/remote-builds/${projectDirName}/${workspaceHash}/src",
+      "remoteBuildRoot": "$HOME/remote-builds/${projectDirName}/${workspaceHash}/build/${name}",
+      "remoteInstallRoot": "$HOME/remote-builds/${projectDirName}/${workspaceHash}/install/${name}",
+      "remoteCopySources": true,
+      "rsyncCommandArgs": "-t --delete --delete-excluded",
+      "remoteCopyBuildOutput": false,
+      "remoteCopySourcesMethod": "rsync",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": []
     }
   ]
 }
