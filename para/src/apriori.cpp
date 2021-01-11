@@ -127,8 +127,6 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
         cluster_data[new_idx].size,
         KERNEL_INFO);
 
-    CUCH(cudaDeviceSynchronize());
-
     // compute new inverse of covariance matrix
     compute_icov(new_idx);
 
@@ -154,6 +152,8 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
     }
     else
     {
+        CUCH(cudaDeviceSynchronize()); // assign_constant_storage depends on run_centroid
+
         assign_constant_storage(
             cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
 
