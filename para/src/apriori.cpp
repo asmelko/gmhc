@@ -75,6 +75,9 @@ void clustering_context_t::compute_neighbors()
 
         run_update_neighbors<shared_apriori_data_t::neighbors_size>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, starting_info);
+
+        run_update_neighbors_new<shared_apriori_data_t::neighbors_size>(
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, starting_info);
     }
 }
 

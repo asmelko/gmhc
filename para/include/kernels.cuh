@@ -103,6 +103,16 @@ void run_update_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info);
 
+// updates neighbor array of a new cluster
+template<clustering::csize_t N>
+void run_update_neighbors_new(centroid_data_t data,
+    neighbor_t* tmp_neighbors,
+    neighbor_t* act_neighbors,
+    clustering::csize_t size,
+    clustering::csize_t new_idx,
+    bool use_eucl,
+    kernel_info info);
+
 // sets identity matrix
 void run_set_unit_matrix(float* matrix, clustering::csize_t size);
 // sets initial assignments

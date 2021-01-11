@@ -77,7 +77,6 @@ __global__ void neighbors_u(const float* __restrict__ centroids,
     neighbor_t* __restrict__ work_neighbors,
     const csize_t* __restrict__ updated,
     const csize_t* __restrict__ upd_count,
-    csize_t new_idx,
     csize_t dim,
     csize_t count)
 {
@@ -86,6 +85,18 @@ __global__ void neighbors_u(const float* __restrict__ centroids,
     auto update_count = *upd_count;
 
     for (csize_t i = 0; i < update_count; ++i)
-        point_neighbor<N>(
-            centroids, neighbors, work_neighbors, shared_mem, dim, count, updated[i], updated[i] == new_idx);
+        point_neighbor<N>(centroids, neighbors, work_neighbors, shared_mem, dim, count, updated[i], false);
+}
+
+template<csize_t N>
+__global__ void neighbors_u(const float* __restrict__ centroids,
+    neighbor_t* __restrict__ neighbors,
+    neighbor_t* __restrict__ work_neighbors,
+    csize_t new_idx,
+    csize_t dim,
+    csize_t count)
+{
+    extern __shared__ float shared_mem[];
+
+    point_neighbor<N>(centroids, neighbors, work_neighbors, shared_mem, dim, count, new_idx, true);
 }

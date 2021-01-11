@@ -15,7 +15,10 @@ __global__ void update(neighbor_t* __restrict__ neighbors_a,
 {
     for (csize_t idx = threadIdx.x + blockDim.x * blockIdx.x; idx < size; idx += blockDim.x * gridDim.x)
     {
-        if (idx == old_a || idx == old_b)
+        if (idx == old_a)
+            continue;
+
+        if (idx == old_b)
         {
             csize_t store_idx = atomicAdd(work_idx, 1);
 
