@@ -1,83 +1,87 @@
+#include <fstream>
 #include <iostream>
-#include <istream>
-#include <climits>
 
 #include "gmhc.hpp"
+#include "option.hpp"
 #include "reader.hpp"
-
-std::vector<clustering::asgn_t> create_apriori_assigns(const char* file_name, size_t count)
-{
-	std::ifstream fs(file_name);
-	std::vector<clustering::asgn_t> ret;
-
-	if (!fs.is_open())
-	{
-		std::cerr << "file could not open" << std::endl;
-		return {};
-	}
-
-	for (size_t i = 0; i < count; ++i)
-	{
-		clustering::asgn_t tmp;
-		fs >> tmp;
-		ret.push_back(tmp);
-
-		if (fs.fail() || fs.bad())
-		{
-			std::cerr << "issue when reading data";
-			return {};
-		}
-	}
-	return ret;
-}
 
 int main(int argc, char** argv)
 {
-	if (argc != 3 && argc != 4)
-	{
-		std::cout << "bad input" << std::endl <<
-			"usage: mhclust file_name maha_threshold [apriori_file]" << std::endl;
-		return 1;
-	}
+    using namespace mbas;
+    using namespace clustering;
 
-	auto data = clustering::reader::read_data_from_binary_file<float>(argv[1]);
+    command cmd;
 
-	std::vector<clustering::asgn_t> apriori_assignments;
-	clustering::asgn_t* apr_asgn = nullptr;
+    cmd.add_option("d,dataset", "Path to dataset file.", false)
+        .add_parameter<std::string>(value_type<std::string>(), "D_PATH");
+    cmd.add_option("a,apriori", "Path to apriori assignments file.", true)
+        .add_parameter<std::string>(value_type<std::string>(), "A_PATH");
+    cmd.add_option("t,threshold", "Mahalanobis threshold. Allowed values are [0,1].", false)
+        .add_parameter<float>(value_type<float>(), "THRESHOLD")
+        .set_constraint([](float value) { return value >= 0 && value <= 1; });
+    cmd.add_option("k,kind", "Subthreshold kind. Allowed values are (MAHAL|MAHAL0|EUCLID|EUCLID_MAHAL).", true)
+        .add_parameter<std::string>(value_type<std::string>(), "KIND")
+        .set_constraint([](const std::string& value) {
+            return value == "MAHAL" || value == "MAHAL0" || value == "EUCLID" || value == "EUCLID_MAHAL";
+        });
 
-	char* end;
-	auto thresh = std::strtoll(argv[2], &end, 10);
+    auto parsed = cmd.parse(argc, argv);
 
-	if (thresh >= (long long)ULONG_MAX || thresh < 0 || *end != '\0')
-	{
-		std::cerr << "bad threshold" << std::endl;
-		return 1;
-	}
+    if (!parsed.parse_ok())
+    {
+        std::cerr << cmd.help();
+        return 1;
+    }
 
-	if (argc == 4)
-	{
+    auto dataset = parsed["dataset"]->get_value<std::string>();
+    auto data = reader::read_data_from_binary_file<float, double>(dataset);
 
-		apriori_assignments = create_apriori_assigns(argv[3], data.points);
-		if (apriori_assignments.empty())
-			return 1;
-		apr_asgn = apriori_assignments.data();
-	}
+    std::vector<asgn_t> apriori_assignments;
+    asgn_t* apr_asgn = nullptr;
+    if (parsed["apriori"])
+    {
+        auto apriori_file = parsed["apriori"]->get_value<std::string>();
+        apriori_assignments = reader::read_assignments_from_file(apriori_file);
+        if (apriori_assignments.size() != data.points)
+        {
+            std::cerr << "bad apriori assignment file";
+            return 1;
+        }
+        apr_asgn = apriori_assignments.data();
+    }
 
-	clustering::gmhc gmhclust;
+    auto kind = subthreshold_handling_kind::MAHAL;
 
-	bool init = gmhclust.initialize(data.data.data(), (clustering::csize_t)data.points, (clustering::csize_t)data.dim, (clustering::csize_t)thresh, apr_asgn);
+    if (parsed["kind"])
+    {
+        auto input_kind = parsed["kind"]->get_value<std::string>();
+        if (input_kind == "MAHAL")
+            kind = subthreshold_handling_kind::MAHAL;
+        else if (input_kind == "MAHAL0")
+            kind = subthreshold_handling_kind::MAHAL0;
+        else if (input_kind == "EUCLID")
+            kind = subthreshold_handling_kind::EUCLID;
+        else if (input_kind == "EUCLID_MAHAL")
+            kind = subthreshold_handling_kind::EUCLID_MAHAL;
+    }
 
-	if (!init)
-		return 1;
+    auto threshold = parsed["threshold"]->get_value<float>();
 
-	auto res = gmhclust.run();
+    gmhc gmhclust;
+    auto actual_thresholh = (csize_t)((float)data.points * threshold);
 
-	for (auto& e : res)
-		std::cout << e.first.first << " "
-		<< e.first.second << " "
-		<< e.second << std::endl;
+    bool init = gmhclust.initialize(
+        data.data.data(), (csize_t)data.points, (csize_t)data.dim, actual_thresholh, kind, apr_asgn);
 
-	gmhclust.free();
+    if (!init)
+        return 1;
 
-	return 0;
+    auto res = gmhclust.run();
+
+    for (auto& e : res)
+        std::cout << e.first.first << " " << e.first.second << " " << e.second << std::endl;
+
+    gmhclust.free();
+
+    return 0;
 }

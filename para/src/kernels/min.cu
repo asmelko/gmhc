@@ -1,13 +1,18 @@
-#include "kernels.cuh"
-
-#include "device_launch_parameters.h"
 #include <cfloat>
+#include <device_launch_parameters.h>
 
 #include "common_kernels.cuh"
+#include "kernels.cuh"
 
 using namespace clustering;
 
-__inline__ __device__ csize2 load_data(const float* points, float const * const * inverses, csize_t count, csize_t dim, float* dest, csize_t hsize, csize2 coords)
+__inline__ __device__ csize2 load_data(const float* points,
+    float const* const* inverses,
+    csize_t count,
+    csize_t dim,
+    float* dest,
+    csize_t hsize,
+    csize2 coords)
 {
     csize_t up_point_offset = hsize * coords.x;
     csize_t left_point_offset = hsize * coords.y;
@@ -25,7 +30,7 @@ __inline__ __device__ csize2 load_data(const float* points, float const * const 
         else
             memcpy(dest + i * dim, left_ptr + (i - up_size) * dim, dim * sizeof(float));
     }
-    
+
     const float** inv_dest = reinterpret_cast<const float**>(dest + (up_size + left_size) * dim);
 
     for (csize_t i = threadIdx.x; i < up_size + left_size; i += blockDim.x)
@@ -70,7 +75,7 @@ __inline__ __device__ chunk_t diagonal_loop(csize_t block_size, csize_t dim, flo
         coords.x++;
 
         float dist;
-        float** inv_mem = reinterpret_cast<float**>(shared_mem + (block_size * 2)*dim);
+        float** inv_mem = reinterpret_cast<float**>(shared_mem + (block_size * 2) * dim);
         if (!inv_mem[coords.x] && !inv_mem[coords.y])
             dist = euclidean_norm(shared_mem + coords.x * dim, shared_mem + (coords.y + block_size) * dim, dim);
 
@@ -95,7 +100,7 @@ __inline__ __device__ chunk_t non_diagonal_loop(csize2 chunk_dim, csize_t dim, f
         auto y = i / chunk_dim.x;
 
         float dist;
-        float** inv_mem = reinterpret_cast<float**>(shared_mem + (chunk_dim.x + chunk_dim.y)*dim);
+        float** inv_mem = reinterpret_cast<float**>(shared_mem + (chunk_dim.x + chunk_dim.y) * dim);
         if (!inv_mem[x] && !inv_mem[y])
             dist = euclidean_norm(shared_mem + x * dim, shared_mem + (y + chunk_dim.x) * dim, dim);
 
@@ -109,7 +114,13 @@ __inline__ __device__ chunk_t non_diagonal_loop(csize2 chunk_dim, csize_t dim, f
     return min;
 }
 
-__inline__ __device__ chunk_t block_euclidean_min(const float* points, csize_t count, csize_t dim, float* shared_mem, csize_t hshsize, csize2 coords, const float* const* inverses)
+__inline__ __device__ chunk_t block_euclidean_min(const float* points,
+    csize_t count,
+    csize_t dim,
+    float* shared_mem,
+    csize_t hshsize,
+    csize2 coords,
+    const float* const* inverses)
 {
     auto sh_sizes = load_data(points, inverses, count, dim, shared_mem, hshsize, coords);
 
@@ -132,7 +143,14 @@ __inline__ __device__ chunk_t block_euclidean_min(const float* points, csize_t c
     return min;
 }
 
-__global__ void euclidean_min(const float* points, csize_t point_count, csize_t point_dim, csize_t half_shared_size, chunk_t* res, csize_t chunks_in_line, csize_t chunk_count, const float* const* inverses)
+__global__ void euclidean_min(const float* points,
+    csize_t point_count,
+    csize_t point_dim,
+    csize_t half_shared_size,
+    chunk_t* res,
+    csize_t chunks_in_line,
+    csize_t chunk_count,
+    const float* const* inverses)
 {
     extern __shared__ float shared_mem[];
 
@@ -140,21 +158,25 @@ __global__ void euclidean_min(const float* points, csize_t point_count, csize_t 
     {
         auto coords = compute_coordinates(chunks_in_line, i);
 
-        auto block_min = block_euclidean_min(points, point_count, point_dim, shared_mem, half_shared_size, coords, inverses);
+        auto block_min =
+            block_euclidean_min(points, point_count, point_dim, shared_mem, half_shared_size, coords, inverses);
 
         if (threadIdx.x == 0)
             res[i] = block_min;
     }
 }
 
-chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float * const * inverses, kernel_info info)
+chunk_t run_euclidean_min(const input_t in, chunk_t* out, const float* const* inverses, kernel_info info)
 {
     auto half_shared_size = info.shared_size / 2;
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
-    auto chunk_count =  ((chunks_in_line + 1) * chunks_in_line) / 2;
+    auto chunk_count = ((chunks_in_line + 1) * chunks_in_line) / 2;
 
-    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size * in.dim * sizeof(float) + info.shared_size * sizeof(float*) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
-    reduce_min << <1, 1024 >> > (out, out, chunk_count);
+    euclidean_min<<<info.grid_dim,
+        info.block_dim,
+        info.shared_size * in.dim * sizeof(float) + info.shared_size * sizeof(float*)>>>(
+        in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
+    reduce_min<<<1, 1024>>>(out, out, chunk_count);
 
     CUCH(cudaDeviceSynchronize());
     chunk_t res;
@@ -172,12 +194,13 @@ void run_min(const input_t in, chunk_t* out, const float* const* inverses, kerne
     auto chunks_in_line = (in.count + half_shared_size - 1) / half_shared_size;
     auto chunk_count = ((chunks_in_line + 1) * chunks_in_line) / 2;
 
-    euclidean_min << <info.grid_dim, info.block_dim, info.shared_size* in.dim * sizeof(float) >> > (in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
+    euclidean_min<<<info.grid_dim, info.block_dim, info.shared_size * in.dim * sizeof(float)>>>(
+        in.data, in.count, in.dim, half_shared_size, out, chunks_in_line, chunk_count, inverses);
 }
 
 chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, csize_t chunk_count, kernel_info info)
 {
-    reduce_min << <1, 1024 >> > (chunks, out, chunk_count);
+    reduce_min<<<1, 1024>>>(chunks, out, chunk_count);
     CUCH(cudaDeviceSynchronize());
     chunk_t res;
     CUCH(cudaMemcpy(&res, out, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));

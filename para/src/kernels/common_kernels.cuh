@@ -1,13 +1,14 @@
 #ifndef COMMON_KERNELS_CUH
 #define COMMON_KERNELS_CUH
 
-#include "device_launch_parameters.h"
+#include <device_launch_parameters.h>
 
 #include "kernels.cuh"
 
 __device__ float euclidean_norm(const float* __restrict__ sub, clustering::csize_t dim);
 
-__device__ float euclidean_norm(const float* __restrict__ l_point, const float* __restrict__ r_point, clustering::csize_t dim);
+__device__ float euclidean_norm(
+    const float* __restrict__ l_point, const float* __restrict__ r_point, clustering::csize_t dim);
 
 __device__ void reduce_sum_warp(float* __restrict__ point, clustering::csize_t dim);
 __device__ void reduce_sum_block(float* __restrict__ point, clustering::csize_t dim, float* __restrict__ shared_mem);
