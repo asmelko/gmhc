@@ -55,60 +55,74 @@ __inline__ __device__ void point_covariance(
             atomicAdd(shared_mem + idx++, point[i] * point[j]);
 }
 
+#define BUFF_SIZE 50
+
 __global__ void covariance(const float* __restrict__ points,
     csize_t dim,
     csize_t count,
     const asgn_t* __restrict__ assignments,
     float* __restrict__ cov_matrix,
-    asgn_t cid,
-    csize_t shared_chunks)
+    asgn_t cid)
 {
-    csize_t cov_size = ((dim + 1) * dim) / 2;
     extern __shared__ float shared_mem[];
-    float tmp_point[MAX_DIM];
+    float cov_point[BUFF_SIZE];
 
-    for (csize_t idx = threadIdx.x; idx < cov_size * shared_chunks; idx += blockDim.x)
-        shared_mem[idx] = 0;
+    csize_t cov_idx = 0;
+    csize_t cov_size = ((dim + 1) * dim) / 2;
 
-    __syncthreads();
-
-    float* tmp_cov = shared_mem + cov_size * (threadIdx.x % shared_chunks);
-
-    for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
-        if (assignments[idx] == cid)
-        {
-            for (csize_t i = 0; i < dim; ++i)
-                tmp_point[i] = points[idx * dim + i] - expected_point[i];
-
-            point_covariance(tmp_point, dim, tmp_cov);
-        }
-
-    __syncthreads();
-
-    if (threadIdx.x == 0)
+    while (cov_idx < cov_size)
     {
-        for (csize_t i = 0; i < cov_size; i++)
-        {
-            float sum = 0;
-            for (csize_t j = 0; j < shared_chunks; j++)
-                sum += (shared_mem + cov_size * j)[i];
+        auto need = cov_size - cov_idx;
+        need = need > BUFF_SIZE ? BUFF_SIZE : need;
+        auto end = cov_idx + need;
 
-            atomicAdd(cov_matrix + i, sum);
+        memset(cov_point, 0, need * sizeof(float));
+
+        for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
+        {
+            if (assignments[idx] == cid)
+            {
+                for (csize_t point_idx = cov_idx; point_idx < end; point_idx++)
+                {
+                    auto coords = compute_coordinates(dim, point_idx);
+                    cov_point[point_idx - cov_idx] += (points[idx * dim + coords.x] - expected_point[coords.x])
+                        * (points[idx * dim + coords.y] - expected_point[coords.y]);
+                }
+            }
         }
+
+        __syncthreads();
+
+        reduce_sum_block(cov_point, need, shared_mem);
+
+        if (threadIdx.x == 0)
+        {
+            memcpy(cov_matrix + blockIdx.x * cov_size + cov_idx, cov_point, need * sizeof(float));
+        }
+        cov_idx += need;
     }
 }
 
-__global__ void finish_covariance(
-    const float* __restrict__ in_cov_matrix, csize_t divisor, csize_t dim, float* __restrict__ out_cov_matrix)
+__global__ void finish_covariance(const float* __restrict__ in_cov_matrix,
+    csize_t grid_size,
+    csize_t divisor,
+    csize_t dim,
+    float* __restrict__ out_cov_matrix)
 {
     csize_t cov_size = ((dim + 1) * dim) / 2;
 
-    for (csize_t idx = threadIdx.x; idx < cov_size; idx += blockDim.x)
+    for (csize_t i = threadIdx.x; i < cov_size; i += blockDim.x)
     {
-        auto coords = compute_coordinates(dim, idx);
-        auto tmp = in_cov_matrix[idx] / divisor;
-        out_cov_matrix[coords.x + coords.y * dim] = tmp;
-        out_cov_matrix[coords.x * dim + coords.y] = tmp;
+        float sum = 0;
+        for (size_t j = 0; j < grid_size; j++)
+        {
+            sum += in_cov_matrix[j * cov_size + i];
+        }
+        sum /= divisor;
+
+        auto coords = compute_coordinates(dim, i);
+        out_cov_matrix[coords.x + coords.y * dim] = sum;
+        out_cov_matrix[coords.x * dim + coords.y] = sum;
     }
 }
 
@@ -212,20 +226,18 @@ __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, con
 }
 
 
-void run_covariance(const input_t in, const asgn_t* assignments, float* out, asgn_t centroid_id, kernel_info info)
+void run_covariance(const input_t in,
+    const asgn_t* assignments,
+    float* work_covariance,
+    float* out,
+    asgn_t centroid_id,
+    csize_t divisor,
+    kernel_info info)
 {
-    csize_t cov_size = ((in.dim + 1) * in.dim) / 2;
-    csize_t shared_chunks = 10000 / cov_size;
+    covariance<<<info.grid_dim, info.block_dim, 32 * BUFF_SIZE * sizeof(float)>>>(
+        in.data, in.dim, in.count, assignments, work_covariance, centroid_id);
 
-    CUCH(cudaMemset(out, 0, cov_size * sizeof(float)));
-    CUCH(cudaDeviceSynchronize());
-    covariance<<<info.grid_dim, info.block_dim, shared_chunks * cov_size * sizeof(float)>>>(
-        in.data, in.dim, in.count, assignments, out, centroid_id, shared_chunks);
-}
-
-void run_finish_covariance(const float* in_cov_matrix, csize_t divisor, csize_t dim, float* out_cov_matrix)
-{
-    finish_covariance<<<1, 32>>>(in_cov_matrix, divisor, dim, out_cov_matrix);
+    finish_covariance<<<1, 32>>>(work_covariance, info.grid_dim, divisor, in.dim, out);
 }
 
 void run_store_icovariance_data(

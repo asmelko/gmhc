@@ -22,6 +22,10 @@ struct shared_apriori_data_t
     float* cu_workspace;
     int workspace_size;
 
+    //reduce arrays for centroid and covariance kernel
+    float* cu_work_centroid;
+    float* cu_work_covariance;
+
     // next available id
     asgn_t id;
 

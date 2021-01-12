@@ -41,6 +41,7 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chun
 // computes centroid of a cluster
 void run_centroid(const input_t in,
     const clustering::asgn_t* assignments,
+    float* work_centroid,
     float* out,
     clustering::asgn_t cluster_id,
     clustering::csize_t cluster_size,
@@ -52,12 +53,11 @@ void assign_constant_storage(const float* value, clustering::csize_t size, cudaM
 // computes covariance of a cluster
 void run_covariance(const input_t in,
     const clustering::asgn_t* assignments,
+    float* work_covariance,
     float* out,
     clustering::asgn_t cluster_id,
+    clustering::csize_t divisor,
     kernel_info info);
-// runs finish_covariance kernel
-void run_finish_covariance(
-    const float* in_cov_matrix, clustering::csize_t divisor, clustering::csize_t dim, float* out_cov_matrix);
 // runs store_covariance kernel
 void run_store_icovariance_data(
     float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim);

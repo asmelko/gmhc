@@ -26,15 +26,33 @@ __global__ void centroid(
     reduce_sum_block(tmp, in.dim, shared_mem);
 
     if (threadIdx.x == 0)
+    {
         for (csize_t i = 0; i < in.dim; ++i)
-            atomicAdd(out + i, tmp[i] / cluster_size);
+            out[blockIdx.x * in.dim + i] = tmp[i];
+    }
+}
+
+__global__ void reduce_centroid(const float* __restrict__ grid_centroid,
+    float* __restrict__ out_centroid,
+    csize_t grid_size,
+    csize_t divisor,
+    csize_t dim)
+{
+    for (csize_t i = threadIdx.x; i < dim; i += blockDim.x)
+    {
+        float sum = 0;
+        for (size_t j = 0; j < grid_size; j++)
+        {
+            sum += grid_centroid[j * dim + i];
+        }
+        out_centroid[i] = sum / divisor;
+    }
 }
 
 void run_centroid(
-    const input_t in, const asgn_t* assignments, float* out, asgn_t cetroid_id, csize_t cluster_size, kernel_info info)
+    const input_t in, const asgn_t* assignments, float* work_centroid, float* out, asgn_t cetroid_id, csize_t cluster_size, kernel_info info)
 {
-    CUCH(cudaMemset(out, 0, sizeof(float) * in.dim));
-    cudaDeviceSynchronize();
     centroid<<<info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float))>>>(
-        in, assignments, out, cetroid_id, cluster_size);
+        in, assignments, work_centroid, cetroid_id, cluster_size);
+    reduce_centroid<<<1, 32>>>(work_centroid, out, info.grid_dim, cluster_size, in.dim);
 }

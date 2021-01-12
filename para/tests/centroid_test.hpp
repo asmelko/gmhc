@@ -26,6 +26,7 @@ TEST(kernel, centroid_small)
 
     input_t cu_in;
     float* cu_out;
+    float* cu_work_out;
     asgn_t* cu_asgn;
     float host_res[4];
     kernel_info kernel(50, 512);
@@ -37,7 +38,7 @@ TEST(kernel, centroid_small)
 
     CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float)));
-    CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float)));
+    CUCH(cudaMalloc(&cu_work_out, kernel.grid_dim * data.dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
 
     CUCH(cudaMemcpy(
@@ -45,7 +46,7 @@ TEST(kernel, centroid_small)
     CUCH(cudaMemcpy(
         cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-    run_centroid(cu_in, cu_asgn, cu_out, 0, 1, kernel);
+    run_centroid(cu_in, cu_asgn, cu_work_out, cu_out, 0, 1, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -66,6 +67,7 @@ TEST(kernel, centroid_big)
 
     input_t cu_in;
     float* cu_out;
+    float* cu_work_out;
     asgn_t* cu_asgn;
     float* host_res = new float[data.dim + 1];
     kernel_info kernel(10, 256);
@@ -79,7 +81,7 @@ TEST(kernel, centroid_big)
 
     CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float)));
-    CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float)));
+    CUCH(cudaMalloc(&cu_work_out, kernel.grid_dim * data.dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
 
     CUCH(cudaMemcpy(
@@ -95,7 +97,7 @@ TEST(kernel, centroid_big)
 
     start = std::chrono::system_clock::now();
 
-    run_centroid(cu_in, cu_asgn, cu_out, 0, (csize_t)data.points, kernel);
+    run_centroid(cu_in, cu_asgn, cu_work_out, cu_out, 0, (csize_t)data.points, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());

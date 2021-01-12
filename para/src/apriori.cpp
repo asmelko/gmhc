@@ -6,7 +6,7 @@
 #include "kernels.cuh"
 #include "validator.hpp"
 
-#define KERNEL_INFO kernel_info(20, 1024)
+#define KERNEL_INFO kernel_info(6, 1024)
 
 using namespace clustering;
 
@@ -125,6 +125,7 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
     // compute new centroid
     run_centroid(input_t { cu_points, point_size, point_dim },
         cu_point_asgns,
+        shared.cu_work_centroid,
         cu_centroids + new_idx * point_dim,
         shared.id,
         cluster_data[new_idx].size,
@@ -160,9 +161,13 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
         assign_constant_storage(
             cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
 
-        run_covariance(input_t { cu_points, point_size, point_dim }, cu_point_asgns, tmp_cov, shared.id, KERNEL_INFO);
-
-        run_finish_covariance(tmp_cov, cluster_data[pos].size, point_dim, cov);
+        run_covariance(input_t { cu_points, point_size, point_dim },
+            cu_point_asgns,
+            shared.cu_work_covariance,
+            cov,
+            shared.id,
+            cluster_data[pos].size,
+            KERNEL_INFO);
 
         if (wf < 1)
         {
@@ -261,6 +266,7 @@ float clustering_context_t::compute_weight_factor(csize_t pos)
 void clustering_context_t::verify(pasgn_t id_pair, float dist)
 {
     CUCH(cudaDeviceSynchronize());
+    CUCH(cudaGetLastError());
 
     vld->set_icov(shared.cu_tmp_icov);
     vld->set_icmf(cu_mfactors + update_data.old_a);
