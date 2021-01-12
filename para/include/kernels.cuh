@@ -39,10 +39,12 @@ void run_min(const input_t in, chunk_t* out, const float* const* inverses, kerne
 chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chunk_size, kernel_info info);
 
 // computes centroid of a cluster
-void run_centroid(const input_t in,
+void run_centroid(const float* points,
     const clustering::asgn_t* assignments,
     float* work_centroid,
-    float* out,
+    float* out_centroid,
+    clustering::csize_t dim,
+    clustering::csize_t point_count,
     clustering::asgn_t cluster_id,
     clustering::csize_t cluster_size,
     kernel_info info);
@@ -51,11 +53,13 @@ void run_centroid(const input_t in,
 void assign_constant_storage(const float* value, clustering::csize_t size, cudaMemcpyKind kind);
 
 // computes covariance of a cluster
-void run_covariance(const input_t in,
+void run_covariance(const float* points,
     const clustering::asgn_t* assignments,
     float* work_covariance,
-    float* out,
-    clustering::asgn_t cluster_id,
+    float* out_covariance,
+    clustering::csize_t dim,
+    clustering::csize_t point_count,
+    clustering::asgn_t centroid_id,
     clustering::csize_t divisor,
     kernel_info info);
 // runs store_covariance kernel

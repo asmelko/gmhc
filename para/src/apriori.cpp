@@ -123,10 +123,12 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
     run_merge_clusters(cu_point_asgns, point_size, merged[0].id, merged[1].id, shared.id, KERNEL_INFO);
 
     // compute new centroid
-    run_centroid(input_t { cu_points, point_size, point_dim },
+    run_centroid(cu_points,
         cu_point_asgns,
         shared.cu_work_centroid,
         cu_centroids + new_idx * point_dim,
+        point_dim,
+        point_size,
         shared.id,
         cluster_data[new_idx].size,
         KERNEL_INFO);
@@ -161,10 +163,12 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
         assign_constant_storage(
             cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
 
-        run_covariance(input_t { cu_points, point_size, point_dim },
+        run_covariance(cu_points,
             cu_point_asgns,
             shared.cu_work_covariance,
             cov,
+            point_dim,
+            point_size,
             shared.id,
             cluster_data[pos].size,
             KERNEL_INFO);

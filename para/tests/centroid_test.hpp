@@ -46,7 +46,7 @@ TEST(kernel, centroid_small)
     CUCH(cudaMemcpy(
         cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-    run_centroid(cu_in, cu_asgn, cu_work_out, cu_out, 0, 1, kernel);
+    run_centroid(cu_in.data, cu_asgn, cu_work_out, cu_out, cu_in.dim, cu_in.count, 0, 1, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -97,7 +97,7 @@ TEST(kernel, centroid_big)
 
     start = std::chrono::system_clock::now();
 
-    run_centroid(cu_in, cu_asgn, cu_work_out, cu_out, 0, (csize_t)data.points, kernel);
+    run_centroid(cu_in.data, cu_asgn, cu_work_out, cu_out, cu_in.dim, cu_in.count, 0, (csize_t)data.points, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());

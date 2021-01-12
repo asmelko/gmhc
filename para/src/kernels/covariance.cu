@@ -58,10 +58,10 @@ __inline__ __device__ void point_covariance(
 #define BUFF_SIZE 50
 
 __global__ void covariance(const float* __restrict__ points,
-    csize_t dim,
-    csize_t count,
     const asgn_t* __restrict__ assignments,
     float* __restrict__ cov_matrix,
+    csize_t dim,
+    csize_t count,
     asgn_t cid)
 {
     extern __shared__ float shared_mem[];
@@ -104,10 +104,10 @@ __global__ void covariance(const float* __restrict__ points,
 }
 
 __global__ void finish_covariance(const float* __restrict__ in_cov_matrix,
+    float* __restrict__ out_cov_matrix,
     csize_t grid_size,
     csize_t divisor,
-    csize_t dim,
-    float* __restrict__ out_cov_matrix)
+    csize_t dim)
 {
     csize_t cov_size = ((dim + 1) * dim) / 2;
 
@@ -226,18 +226,20 @@ __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, con
 }
 
 
-void run_covariance(const input_t in,
+void run_covariance(const float* points,
     const asgn_t* assignments,
     float* work_covariance,
-    float* out,
+    float* out_covariance,
+    csize_t dim,
+    csize_t point_count,
     asgn_t centroid_id,
     csize_t divisor,
     kernel_info info)
 {
     covariance<<<info.grid_dim, info.block_dim, 32 * BUFF_SIZE * sizeof(float)>>>(
-        in.data, in.dim, in.count, assignments, work_covariance, centroid_id);
+        points, assignments, work_covariance, dim, point_count, centroid_id);
 
-    finish_covariance<<<1, 32>>>(work_covariance, info.grid_dim, divisor, in.dim, out);
+    finish_covariance<<<1, 32>>>(work_covariance, out_covariance, info.grid_dim, divisor, dim);
 }
 
 void run_store_icovariance_data(

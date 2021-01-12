@@ -5,30 +5,35 @@
 
 using namespace clustering;
 
-__global__ void centroid(
-    const input_t in, const asgn_t* __restrict__ assignments, float* __restrict__ out, asgn_t cid, csize_t cluster_size)
+__global__ void centroid(const float* __restrict__ points,
+    const asgn_t* __restrict__ assignments,
+    float* __restrict__ work_centroid,
+    csize_t dim,
+    csize_t count,
+    asgn_t cid,
+    csize_t cluster_size)
 {
     extern __shared__ float shared_mem[];
 
     float tmp[MAX_DIM];
 
-    memset(tmp, 0, in.dim * sizeof(float));
+    memset(tmp, 0, dim * sizeof(float));
 
-    for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < in.count; idx += gridDim.x * blockDim.x)
+    for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
     {
         if (assignments[idx] == cid)
         {
-            for (csize_t i = 0; i < in.dim; ++i)
-                tmp[i] += in.data[idx * in.dim + i];
+            for (csize_t i = 0; i < dim; ++i)
+                tmp[i] += points[idx * dim + i];
         }
     }
 
-    reduce_sum_block(tmp, in.dim, shared_mem);
+    reduce_sum_block(tmp, dim, shared_mem);
 
     if (threadIdx.x == 0)
     {
-        for (csize_t i = 0; i < in.dim; ++i)
-            out[blockIdx.x * in.dim + i] = tmp[i];
+        for (csize_t i = 0; i < dim; ++i)
+            work_centroid[blockIdx.x * dim + i] = tmp[i];
     }
 }
 
@@ -49,10 +54,17 @@ __global__ void reduce_centroid(const float* __restrict__ grid_centroid,
     }
 }
 
-void run_centroid(
-    const input_t in, const asgn_t* assignments, float* work_centroid, float* out, asgn_t cetroid_id, csize_t cluster_size, kernel_info info)
+void run_centroid(const float* points,
+    const asgn_t* assignments,
+    float* work_centroid,
+    float* out_centroid,
+    csize_t dim,
+    csize_t point_count,
+    asgn_t cetroid_id,
+    csize_t cluster_size,
+    kernel_info info)
 {
-    centroid<<<info.grid_dim, info.block_dim, 32 * (in.dim * sizeof(float))>>>(
-        in, assignments, work_centroid, cetroid_id, cluster_size);
-    reduce_centroid<<<1, 32>>>(work_centroid, out, info.grid_dim, cluster_size, in.dim);
+    centroid<<<info.grid_dim, info.block_dim, 32 * (dim * sizeof(float))>>>(
+        points, assignments, work_centroid, dim, point_count, cetroid_id, cluster_size);
+    reduce_centroid<<<1, 32>>>(work_centroid, out_centroid, info.grid_dim, cluster_size, dim);
 }

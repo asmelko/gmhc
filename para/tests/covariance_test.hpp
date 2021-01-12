@@ -49,7 +49,7 @@ TEST(kernel, covariance_small)
 
     assign_constant_storage(centroid, 3 * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
-    run_covariance(cu_in, cu_asgn, cu_work, cu_out, 0, 1, kernel);
+    run_covariance(cu_in.data, cu_asgn, cu_work, cu_out, cu_in.dim, cu_in.count, 0, 1, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -112,7 +112,7 @@ TEST(kernel, covariance_big)
     std::cout << "gpu prepare time: " << elapsed_seconds.count() << "\n";
 
     start = std::chrono::system_clock::now();
-    run_covariance(cu_in, cu_asgn, cu_work, cu_out, 0, (csize_t)data.points, kernel);
+    run_covariance(cu_in.data, cu_asgn, cu_work, cu_out, cu_in.dim, cu_in.count, 0, (csize_t)data.points, kernel);
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
     end = std::chrono::system_clock::now();
