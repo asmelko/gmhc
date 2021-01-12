@@ -8,7 +8,7 @@
 #include "serial_impl.hpp"
 
 using namespace clustering;
-
+/*
 TEST(para, apriori_small)
 {
     std::string input = "2 20 0 0 -1 0 1 0 0 1 0 -1 0 100 -1 100 1 100 0 99 0 101 0 250 -1 250 1 250 0 249 0 251 200 "
@@ -126,7 +126,7 @@ TEST(para, small)
 
         ASSERT_FALSE(vld.has_error());
     }
-}
+}*/
 
 TEST(para, nilsson)
 {
@@ -135,7 +135,7 @@ TEST(para, nilsson)
     gmhc para;
     validator vld;
 
-    auto thresh = 44;
+    auto thresh = (csize_t)data.points / 2;
 
     vld.initialize(
         data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_handling_kind::MAHAL);
