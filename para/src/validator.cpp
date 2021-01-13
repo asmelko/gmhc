@@ -68,6 +68,8 @@ void validator::initialize(const float* data_points,
     for (csize_t j = 0; j < point_dim_; j++)
         unit_matrix_[j * (point_dim_ + 1)] = 1.f;
 
+    asgns_.resize(point_count_);
+
     if (apriori_assignments)
         create_clusters(apriori_assignments);
     else
@@ -207,7 +209,8 @@ void print_pairs(csize_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
               << " =/= " << rhs.first << ", " << rhs.second << std::endl;
 }
 
-void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const float* lhs, const float* rhs)
+template<typename T>
+void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const T* lhs, const T* rhs)
 {
     std::cerr << "Iteration " << iteration << ": " << msg << std::endl;
 
@@ -261,6 +264,18 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
     }
 
     check_inverse(clusters_[new_clust]);
+
+    if (apr_sizes_.empty())
+        for (size_t i = 0; i < point_count_; i++)
+        {
+            if (asgns_[i] != point_asgns_[i])
+            {
+                print_arrays(iteration_, "assignments do not match", point_count_, point_asgns_.data(), asgns_.data());
+
+                error_ = true;
+                return false;
+            }
+        }
 
     if (error_)
         return false;
@@ -409,6 +424,12 @@ void validator::set_mf(const float* cu_cholesky, const int* cu_info)
 void validator::set_icmf(const float* value)
 {
     CUCH(cudaMemcpy(&icmf_, value, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+}
+
+void validator::set_asgns(const asgn_t* value)
+{
+    if (apr_sizes_.empty())
+        CUCH(cudaMemcpy(asgns_.data(), value, sizeof(asgn_t) * point_count_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
 }
 
 void validator::get_min(const pasgn_t& expected,

@@ -274,6 +274,7 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
 
     vld->set_icov(shared.cu_tmp_icov);
     vld->set_icmf(cu_mfactors + update_data.old_a);
+    vld->set_asgns(cu_point_asgns);
 
     // copy centroid
     std::vector<float> tmp_centr;
