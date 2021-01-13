@@ -47,7 +47,10 @@ __global__ void set_default_icov_mfs(float* __restrict__ mfs, csize_t size)
 
 void run_set_default_asgn(asgn_t* asgns, csize_t N) { set_default_asgn<<<50, 1024>>>(asgns, N); }
 
-void run_set_unit_matrix(float* matrix, csize_t size) { set_unit_matrix<<<1, size * size>>>(matrix, size); }
+void run_set_unit_matrix(float* matrix, csize_t size, cudaStream_t stream)
+{
+    set_unit_matrix<<<1, size * size, 0, stream>>>(matrix, size);
+}
 
 void run_set_default_neigh(neighbor_t* neighbors, csize_t count, kernel_info info)
 {

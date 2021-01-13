@@ -14,5 +14,5 @@ __global__ void merge_clusters(
 void run_merge_clusters(
     asgn_t* assignments, csize_t point_size, asgn_t old_A, asgn_t old_B, asgn_t new_C, kernel_info info)
 {
-    merge_clusters<<<info.grid_dim, info.block_dim>>>(assignments, point_size, old_A, old_B, new_C);
+    merge_clusters<<<info.grid_dim, info.block_dim, 0, info.stream>>>(assignments, point_size, old_A, old_B, new_C);
 }

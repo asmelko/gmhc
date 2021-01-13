@@ -6,8 +6,6 @@
 #include "kernels.cuh"
 #include "validator.hpp"
 
-#define KERNEL_INFO kernel_info(6, 1024)
-
 using namespace clustering;
 
 clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
@@ -28,6 +26,9 @@ void clustering_context_t::initialize(bool is_final_context)
     switched_to_full_maha = false;
     initialize_neighbors = true;
     is_final = is_final_context;
+
+    neighbor_info.stream = shared.streams[0];
+    rest_info = kernel_info(3, 1024, 0, shared.streams[1]);
 }
 
 void clustering_context_t::compute_neighbors()
@@ -41,17 +42,14 @@ void clustering_context_t::compute_neighbors()
             compute_data.mfactors = nullptr;
 
         run_neighbors<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, cluster_count == point_size, starting_info);
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, cluster_count == point_size, neighbor_info);
     }
     else
     {
         bool use_eucl = !switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID;
 
-        run_update_neighbors<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, starting_info);
-
         run_update_neighbors_new<shared_apriori_data_t::neighbors_size>(
-            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, starting_info);
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, neighbor_info);
     }
 }
 
@@ -61,6 +59,8 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 
     while (cluster_count > 1)
     {
+        CUCH(cudaStreamSynchronize(rest_info.stream));
+
         compute_neighbors();
 
         auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
@@ -94,24 +94,31 @@ void clustering_context_t::move_clusters(csize_t i, csize_t j)
     if (j == end_idx)
         return;
 
-    CUCH(cudaMemcpy(cu_centroids + j * point_dim,
+    CUCH(cudaMemcpyAsync(cu_centroids + j * point_dim,
         cu_centroids + end_idx * point_dim,
         sizeof(float) * point_dim,
-        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+        neighbor_info.stream));
 
     cluster_data[j] = cluster_data[end_idx];
 
-    CUCH(cudaMemcpy(cu_neighbors + j * shared.neighbors_size,
+    CUCH(cudaMemcpyAsync(cu_neighbors + j * shared.neighbors_size,
         cu_neighbors + end_idx * shared.neighbors_size,
         sizeof(neighbor_t) * shared.neighbors_size,
-        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+        neighbor_info.stream));
 
-    CUCH(cudaMemcpy(cu_inverses + j * icov_size,
+    CUCH(cudaMemcpyAsync(cu_inverses + j * icov_size,
         cu_inverses + end_idx * icov_size,
         sizeof(float) * icov_size,
-        cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+        neighbor_info.stream));
 
-    CUCH(cudaMemcpy(cu_mfactors + j, cu_mfactors + end_idx, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+    CUCH(cudaMemcpyAsync(cu_mfactors + j,
+        cu_mfactors + end_idx,
+        sizeof(float),
+        cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+        neighbor_info.stream));
 }
 
 void clustering_context_t::update_iteration_host(chunk_t min)
@@ -140,10 +147,19 @@ void clustering_context_t::update_iteration_host(chunk_t min)
 
 void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id)
 {
+    // start computing neighbor of all but new cluster
+    if (!(initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count)))
+    {
+        bool use_eucl = !switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID;
+
+        run_update_neighbors<shared_apriori_data_t::neighbors_size>(
+            compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, neighbor_info);
+    }
+
     auto new_idx = update_data.old_a;
 
     // updating point asgns
-    run_merge_clusters(cu_point_asgns, point_size, merged_A, merged_B, new_id, KERNEL_INFO);
+    run_merge_clusters(cu_point_asgns, point_size, merged_A, merged_B, new_id, rest_info);
 
     // compute new centroid
     run_centroid(cu_points,
@@ -154,7 +170,7 @@ void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merge
         point_size,
         new_id,
         cluster_data[new_idx].size,
-        KERNEL_INFO);
+        rest_info);
 
     // compute new inverse of covariance matrix
     compute_icov(new_idx, new_id);
@@ -167,14 +183,16 @@ void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
 
     if (cluster_data[pos].size == 2)
     {
-        run_set_unit_matrix(cov, point_dim);
+        run_set_unit_matrix(cov, point_dim, rest_info.stream);
     }
     else
     {
-        CUCH(cudaDeviceSynchronize()); // assign_constant_storage depends on run_centroid
+        CUCH(cudaStreamSynchronize(rest_info.stream)); // assign_constant_storage depends on run_centroid
 
-        assign_constant_storage(
-            cu_centroids + pos * point_dim, point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice);
+        assign_constant_storage(cu_centroids + pos * point_dim,
+            point_dim * sizeof(float),
+            cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+            rest_info.stream);
 
         run_covariance(cu_points,
             cu_point_asgns,
@@ -184,14 +202,17 @@ void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
             point_size,
             id,
             cluster_data[pos].size,
-            KERNEL_INFO);
+            rest_info);
 
         if (wf < 1)
         {
             if (subthreshold_kind != subthreshold_handling_kind::MAHAL0)
             {
-                CUCH(cudaMemcpy(
-                    tmp_cov, cov, sizeof(float) * point_dim * point_dim, cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+                CUCH(cudaMemcpyAsync(tmp_cov,
+                    cov,
+                    sizeof(float) * point_dim * point_dim,
+                    cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+                    rest_info.stream));
 
                 SOCH(cusolverDnSpotrf(shared.cusolver_handle,
                     cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
@@ -203,8 +224,13 @@ void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
                     shared.cu_info));
             }
 
-            run_transform_cov(
-                cov, point_dim, wf, subthreshold_kind != subthreshold_handling_kind::MAHAL0, tmp_cov, shared.cu_info);
+            run_transform_cov(cov,
+                point_dim,
+                wf,
+                subthreshold_kind != subthreshold_handling_kind::MAHAL0,
+                tmp_cov,
+                shared.cu_info,
+                rest_info.stream);
 
             if (vld)
                 vld->set_mf(tmp_cov, shared.cu_info);
@@ -226,8 +252,9 @@ void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
 
     if (euclidean_based_kind(subthreshold_kind) && wf < 1)
     {
-        run_set_unit_matrix(shared.cu_tmp_icov, point_dim);
-        run_store_icovariance_data(cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim);
+        run_set_unit_matrix(shared.cu_tmp_icov, point_dim, rest_info.stream);
+        run_store_icovariance_data(
+            cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim, rest_info.stream);
         return;
     }
 
@@ -246,17 +273,18 @@ void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
         shared.workspace_size,
         shared.cu_info));
 
-    CUCH(cudaDeviceSynchronize());
-    CUCH(cudaMemcpy(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+    CUCH(cudaStreamSynchronize(rest_info.stream));
+    CUCH(cudaMemcpyAsync(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost, rest_info.stream));
 
     if (info != 0)
     {
-        run_set_unit_matrix(shared.cu_tmp_icov, point_dim);
-        run_store_icovariance_data(cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim);
+        run_set_unit_matrix(shared.cu_tmp_icov, point_dim, rest_info.stream);
+        run_store_icovariance_data(
+            cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim, rest_info.stream);
         return;
     }
 
-    run_compute_store_icov_mf(cu_mfactors + pos, point_dim, cov);
+    run_compute_store_icov_mf(cu_mfactors + pos, point_dim, cov, rest_info.stream);
 
     SOCH(cusolverDnSpotri(shared.cusolver_handle,
         cublasFillMode_t::CUBLAS_FILL_MODE_LOWER,
@@ -267,7 +295,7 @@ void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
         shared.workspace_size,
         shared.cu_info));
 
-    run_store_icovariance_data(cu_inverses + pos * icov_size, nullptr, cov, 0, point_dim);
+    run_store_icovariance_data(cu_inverses + pos * icov_size, nullptr, cov, 0, point_dim, rest_info.stream);
 }
 
 float clustering_context_t::compute_weight_factor(csize_t pos)

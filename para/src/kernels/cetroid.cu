@@ -64,7 +64,7 @@ void run_centroid(const float* points,
     csize_t cluster_size,
     kernel_info info)
 {
-    centroid<<<info.grid_dim, info.block_dim, 32 * (dim * sizeof(float))>>>(
+    centroid<<<info.grid_dim, info.block_dim, 32 * (dim * sizeof(float)), info.stream>>>(
         points, assignments, work_centroid, dim, point_count, cetroid_id, cluster_size);
-    reduce_centroid<<<1, 32>>>(work_centroid, out_centroid, info.grid_dim, cluster_size, dim);
+    reduce_centroid<<<1, 32, 0, info.stream>>>(work_centroid, out_centroid, info.grid_dim, cluster_size, dim);
 }

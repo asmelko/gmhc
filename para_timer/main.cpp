@@ -26,7 +26,7 @@ std::string enum_to_string(clustering::subthreshold_handling_kind kind)
     }
 }
 
-void print_time(std::vector<std::chrono::duration<double>>& time, int reps, clustering::subthreshold_handling_kind kind)
+void print_time(std::vector<std::chrono::duration<double>>& time, size_t reps, clustering::subthreshold_handling_kind kind)
 {
     std::cout << enum_to_string(kind) << "\t";
 

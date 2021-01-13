@@ -34,6 +34,8 @@ struct shared_apriori_data_t
 
     // handle to CUSOLVER library
     cusolverDnHandle_t cusolver_handle;
+
+    cudaStream_t streams[2];
 };
 
 // Mahalanobis hierarchical clustering class

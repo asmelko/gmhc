@@ -35,7 +35,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
     maha_threshold_ = mahalanobis_threshold;
-    starting_info_ = kernel_info(6, 512);
+    starting_info_ = kernel_info(3, 512);
 
     CUCH(cudaSetDevice(0));
 
@@ -55,6 +55,11 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_upd_size, sizeof(csize_t)));
     CUCH(cudaMalloc(&common_.cu_info, sizeof(int)));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
+
+    CUCH(cudaStreamCreate(common_.streams));
+    CUCH(cudaStreamCreate(common_.streams + 1));
+
+    SOCH(cusolverDnSetStream(common_.cusolver_handle, common_.streams[1]));
 
     int workspace_size_f, workspace_size_i;
     SOCH(cusolverDnSpotrf_bufferSize(common_.cusolver_handle,
@@ -120,7 +125,7 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
     cluster.cluster_count = size;
     cluster.maha_threshold = maha_threshold_;
 
-    cluster.starting_info = starting_info_;
+    cluster.neighbor_info = starting_info_;
 
     cluster.cu_neighbors = cu_neighs_ + offset * common_.neighbors_size;
     cluster.cu_tmp_neighbors = cu_tmp_neighs_ + offset * common_.neighbors_size * starting_info_.grid_dim;
@@ -278,6 +283,9 @@ void gmhc::free()
 
     CUCH(cudaFree(common_.cu_work_centroid));
     CUCH(cudaFree(common_.cu_work_covariance));
+
+    CUCH(cudaStreamDestroy(common_.streams[0]));
+    CUCH(cudaStreamDestroy(common_.streams[1]));
 
     apr_ctxs_.clear();
 }

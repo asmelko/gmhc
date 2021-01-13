@@ -50,7 +50,8 @@ void run_centroid(const float* points,
     kernel_info info);
 
 // assigns data from an array of specific size to constant storage
-void assign_constant_storage(const float* value, clustering::csize_t size, cudaMemcpyKind kind);
+void assign_constant_storage(
+    const float* value, clustering::csize_t size, cudaMemcpyKind kind, cudaStream_t stream = (cudaStream_t)0);
 
 // computes covariance of a cluster
 void run_covariance(const float* points,
@@ -63,17 +64,23 @@ void run_covariance(const float* points,
     clustering::csize_t divisor,
     kernel_info info);
 // runs store_covariance kernel
-void run_store_icovariance_data(
-    float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim);
+void run_store_icovariance_data(float* icov_dest,
+    float* mf_dest,
+    const float* icov_src,
+    const float mf_src,
+    clustering::csize_t dim,
+    cudaStream_t stream = (cudaStream_t)0);
 
 void run_transform_cov(float* matrix,
     clustering::csize_t dim,
     float weight_factor,
     bool use_cholesky,
     const float* cholesky_decomp,
-    const int* cholesky_success);
+    const int* cholesky_success,
+    cudaStream_t stream = (cudaStream_t)0);
 
-void run_compute_store_icov_mf(float* dest, clustering::csize_t dim, const float* cholesky_decomp);
+void run_compute_store_icov_mf(
+    float* dest, clustering::csize_t dim, const float* cholesky_decomp, cudaStream_t stream = (cudaStream_t)0);
 
 
 // updates assignment array to merge clusters
@@ -118,7 +125,7 @@ void run_update_neighbors_new(centroid_data_t data,
     kernel_info info);
 
 // sets identity matrix
-void run_set_unit_matrix(float* matrix, clustering::csize_t size);
+void run_set_unit_matrix(float* matrix, clustering::csize_t size, cudaStream_t stream = (cudaStream_t)0);
 // sets initial assignments
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
 // sets initial inverse covariances

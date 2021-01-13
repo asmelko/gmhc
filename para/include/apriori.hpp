@@ -40,7 +40,8 @@ struct clustering_context_t
     bool switched_to_full_maha;
 
     // parameter for kernels
-    kernel_info starting_info;
+    kernel_info neighbor_info;
+    kernel_info rest_info;
 
     // device neighbor array
     neighbor_t* cu_neighbors;

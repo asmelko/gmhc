@@ -7,9 +7,9 @@ using namespace clustering;
 
 __constant__ float expected_point[MAX_DIM];
 
-void assign_constant_storage(const float* value, csize_t size, cudaMemcpyKind kind)
+void assign_constant_storage(const float* value, csize_t size, cudaMemcpyKind kind, cudaStream_t stream)
 {
-    CUCH(cudaMemcpyToSymbol(expected_point, value, size, (size_t)0, kind));
+    CUCH(cudaMemcpyToSymbolAsync(expected_point, value, size, (size_t)0, kind, stream));
 }
 
 __inline__ __device__ void reduce_sum_warp(float* __restrict__ cov, csize_t size, unsigned mask)
@@ -236,16 +236,20 @@ void run_covariance(const float* points,
     csize_t divisor,
     kernel_info info)
 {
-    covariance<<<info.grid_dim, info.block_dim, 32 * BUFF_SIZE * sizeof(float)>>>(
+    covariance<<<info.grid_dim, info.block_dim, 32 * BUFF_SIZE * sizeof(float), info.stream>>>(
         points, assignments, work_covariance, dim, point_count, centroid_id);
 
-    finish_covariance<<<1, 32>>>(work_covariance, out_covariance, info.grid_dim, divisor, dim);
+    finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, info.grid_dim, divisor, dim);
 }
 
-void run_store_icovariance_data(
-    float* icov_dest, float* mf_dest, const float* icov_src, const float mf_src, clustering::csize_t dim)
+void run_store_icovariance_data(float* icov_dest,
+    float* mf_dest,
+    const float* icov_src,
+    const float mf_src,
+    clustering::csize_t dim,
+    cudaStream_t stream)
 {
-    store_icov_data<<<1, 32>>>(icov_dest, mf_dest, icov_src, mf_src, dim);
+    store_icov_data<<<1, 32, 0, stream>>>(icov_dest, mf_dest, icov_src, mf_src, dim);
 }
 
 void run_transform_cov(float* matrix,
@@ -253,12 +257,13 @@ void run_transform_cov(float* matrix,
     float weight_factor,
     bool use_cholesky,
     const float* cholesky_decomp,
-    const int* cholesky_success)
+    const int* cholesky_success,
+    cudaStream_t stream)
 {
-    transform_cov<<<1, 32>>>(matrix, dim, weight_factor, use_cholesky, cholesky_decomp, cholesky_success);
+    transform_cov<<<1, 32, 0, stream>>>(matrix, dim, weight_factor, use_cholesky, cholesky_decomp, cholesky_success);
 }
 
-void run_compute_store_icov_mf(float* dest, csize_t dim, const float* cholesky_decomp)
+void run_compute_store_icov_mf(float* dest, csize_t dim, const float* cholesky_decomp, cudaStream_t stream)
 {
-    compute_store_icov_mf<<<1, 32>>>(dest, dim, cholesky_decomp);
+    compute_store_icov_mf<<<1, 32, 0, stream>>>(dest, dim, cholesky_decomp);
 }
