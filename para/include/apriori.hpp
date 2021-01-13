@@ -84,8 +84,8 @@ public:
     // initializes the context
     void initialize(bool is_final);
 
-    // performs one iteration of clustering
-    pasgnd_t<float> iterate();
+    // performs context clustering
+    std::vector<pasgnd_t<float>> run();
 
 private:
     // initializes/updates neighbor array

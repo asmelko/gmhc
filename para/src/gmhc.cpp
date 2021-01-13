@@ -222,6 +222,15 @@ void gmhc::move_apriori()
     apr_ctxs_.front().is_final = true;
 }
 
+void copy(std::vector<gmhc::res_t>& dst, const std::vector<gmhc::res_t>& src)
+{
+    auto orig_size = dst.size();
+    auto new_size = src.size();
+
+    dst.resize(orig_size + new_size);
+    std::memcpy(dst.data() + orig_size, src.data(), new_size * sizeof(gmhc::res_t));
+}
+
 std::vector<gmhc::res_t> gmhc::run()
 {
     std::vector<res_t> ret;
@@ -232,22 +241,18 @@ std::vector<gmhc::res_t> gmhc::run()
     {
         for (auto& ctx : apr_ctxs_)
         {
-            while (ctx.cluster_count > 1)
-            {
-                auto tmp = ctx.iterate();
-                ret.push_back(tmp);
-            }
+            auto ctx_ret = ctx.run();
+
+            copy(ret, ctx_ret);
         }
 
         move_apriori();
     }
 
     // compute rest
-    while (final.cluster_count > 1)
-    {
-        auto tmp = final.iterate();
-        ret.push_back(tmp);
-    }
+    auto ctx_ret = final.run();
+
+    copy(ret, ctx_ret);
 
     return ret;
 }
@@ -272,7 +277,7 @@ void gmhc::free()
     SOCH(cusolverDnDestroy(common_.cusolver_handle));
 
     CUCH(cudaFree(common_.cu_work_centroid));
-    CUCH(cudaFree(common_.cu_work_covariance)); 
+    CUCH(cudaFree(common_.cu_work_covariance));
 
     apr_ctxs_.clear();
 }

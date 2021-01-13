@@ -30,30 +30,35 @@ void clustering_context_t::initialize(bool is_final_context)
     is_final = is_final_context;
 }
 
-gmhc::res_t clustering_context_t::iterate()
+std::vector<gmhc::res_t> clustering_context_t::run()
 {
-    cluster_data_t data[2];
+    std::vector<gmhc::res_t> res;
 
-    compute_neighbors();
+    while (cluster_count > 1) {
+        compute_neighbors();
 
-    auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
+        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
 
-    data[0] = cluster_data[min.min_i];
-    data[1] = cluster_data[min.min_j];
+        cluster_data_t data[2];
+        data[0] = cluster_data[min.min_i];
+        data[1] = cluster_data[min.min_j];
 
-    move_clusters(min.min_i, min.min_j);
+        move_clusters(min.min_i, min.min_j);
 
-    update_iteration(data);
+        update_iteration(data);
 
-    if (data[0].id > data[1].id)
-        std::swap(data[0].id, data[1].id);
+        if (data[0].id > data[1].id)
+            std::swap(data[0].id, data[1].id);
 
-    pasgn_t ret(data[0].id, data[1].id);
+        pasgn_t ret(data[0].id, data[1].id);
 
-    if (vld)
-        verify(ret, min.min_dist);
+        if (vld)
+            verify(ret, min.min_dist);
 
-    return std::make_pair(ret, min.min_dist);
+        res.emplace_back(ret, min.min_dist);
+    }
+
+    return res;
 }
 
 void clustering_context_t::compute_neighbors()
