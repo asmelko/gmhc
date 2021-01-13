@@ -30,37 +30,6 @@ void clustering_context_t::initialize(bool is_final_context)
     is_final = is_final_context;
 }
 
-std::vector<gmhc::res_t> clustering_context_t::run()
-{
-    std::vector<gmhc::res_t> res;
-
-    while (cluster_count > 1) {
-        compute_neighbors();
-
-        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
-
-        cluster_data_t data[2];
-        data[0] = cluster_data[min.min_i];
-        data[1] = cluster_data[min.min_j];
-
-        move_clusters(min.min_i, min.min_j);
-
-        update_iteration(data);
-
-        if (data[0].id > data[1].id)
-            std::swap(data[0].id, data[1].id);
-
-        pasgn_t ret(data[0].id, data[1].id);
-
-        if (vld)
-            verify(ret, min.min_dist);
-
-        res.emplace_back(ret, min.min_dist);
-    }
-
-    return res;
-}
-
 void clustering_context_t::compute_neighbors()
 {
     if (initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count))
@@ -86,12 +55,41 @@ void clustering_context_t::compute_neighbors()
     }
 }
 
+std::vector<gmhc::res_t> clustering_context_t::run()
+{
+    std::vector<gmhc::res_t> res;
+
+    while (cluster_count > 1)
+    {
+        compute_neighbors();
+
+        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
+
+        pasgn_t merged_ids(cluster_data[min.min_i].id, cluster_data[min.min_j].id);
+        asgn_t new_id = shared.id;
+
+        update_iteration_host(min);
+
+        move_clusters(min.min_i, min.min_j);
+
+        update_iteration_device(merged_ids.first, merged_ids.second, new_id);
+
+        // append to res
+        if (merged_ids.first > merged_ids.second)
+            std::swap(merged_ids.first, merged_ids.second);
+        res.emplace_back(merged_ids, min.min_dist);
+
+        // verify
+        if (vld)
+            verify(merged_ids, min.min_dist);
+    }
+
+    return res;
+}
+
 void clustering_context_t::move_clusters(csize_t i, csize_t j)
 {
-    update_data.old_a = i;
-    update_data.old_b = j;
-
-    csize_t end_idx = --cluster_count;
+    csize_t end_idx = cluster_count;
 
     if (j == end_idx)
         return;
@@ -116,16 +114,36 @@ void clustering_context_t::move_clusters(csize_t i, csize_t j)
     CUCH(cudaMemcpy(cu_mfactors + j, cu_mfactors + end_idx, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 }
 
-void clustering_context_t::update_iteration(const cluster_data_t* merged)
+void clustering_context_t::update_iteration_host(chunk_t min)
+{
+    --cluster_count;
+
+    update_data.old_a = min.min_i;
+    update_data.old_b = min.min_j;
+
+    auto new_idx = update_data.old_a;
+    auto merged_A_size = cluster_data[min.min_i].size;
+    auto merged_B_size = cluster_data[min.min_j].size;
+
+    // update cluster data
+    cluster_data[new_idx].id = shared.id++;
+    cluster_data[new_idx].size = merged_A_size + merged_B_size;
+
+    if (cluster_data[new_idx].size >= maha_threshold)
+    {
+        if (merged_A_size < maha_threshold && merged_B_size < maha_threshold)
+            ++maha_cluster_count;
+        else if (merged_A_size >= maha_threshold && merged_B_size >= maha_threshold)
+            --maha_cluster_count;
+    }
+}
+
+void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id)
 {
     auto new_idx = update_data.old_a;
 
-    // update cluster data
-    cluster_data[new_idx].id = shared.id;
-    cluster_data[new_idx].size = merged[0].size + merged[1].size;
-
     // updating point asgns
-    run_merge_clusters(cu_point_asgns, point_size, merged[0].id, merged[1].id, shared.id, KERNEL_INFO);
+    run_merge_clusters(cu_point_asgns, point_size, merged_A, merged_B, new_id, KERNEL_INFO);
 
     // compute new centroid
     run_centroid(cu_points,
@@ -134,25 +152,15 @@ void clustering_context_t::update_iteration(const cluster_data_t* merged)
         cu_centroids + new_idx * point_dim,
         point_dim,
         point_size,
-        shared.id,
+        new_id,
         cluster_data[new_idx].size,
         KERNEL_INFO);
 
     // compute new inverse of covariance matrix
-    compute_icov(new_idx);
-
-    ++shared.id;
-
-    if (cluster_data[new_idx].size >= maha_threshold)
-    {
-        if (merged[0].size < maha_threshold && merged[1].size < maha_threshold)
-            ++maha_cluster_count;
-        else if (merged[0].size >= maha_threshold && merged[1].size >= maha_threshold)
-            --maha_cluster_count;
-    }
+    compute_icov(new_idx, new_id);
 }
 
-void clustering_context_t::compute_covariance(csize_t pos, float wf)
+void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
 {
     float* tmp_cov = shared.cu_tmp_icov + point_dim * point_dim;
     float* cov = shared.cu_tmp_icov;
@@ -174,7 +182,7 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
             cov,
             point_dim,
             point_size,
-            shared.id,
+            id,
             cluster_data[pos].size,
             KERNEL_INFO);
 
@@ -212,7 +220,7 @@ bool euclidean_based_kind(subthreshold_handling_kind kind)
     return kind == subthreshold_handling_kind::EUCLID || kind == subthreshold_handling_kind::EUCLID_MAHAL;
 }
 
-void clustering_context_t::compute_icov(csize_t pos)
+void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
 {
     auto wf = compute_weight_factor(pos);
 
@@ -223,7 +231,7 @@ void clustering_context_t::compute_icov(csize_t pos)
         return;
     }
 
-    compute_covariance(pos, wf);
+    compute_covariance(pos, id, wf);
 
     auto cov = shared.cu_tmp_icov;
 

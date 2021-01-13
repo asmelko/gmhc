@@ -74,7 +74,7 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
     csize_t dim,
     csize_t count,
     csize_t x,
-    bool is_new)
+    csize_t new_idx)
 {
     float* this_centroid = shared_mem;
     float* this_icov = shared_mem + dim;
@@ -100,7 +100,7 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
 
     csize_t idx = threadIdx.x + blockIdx.x * blockDim.x;
 
-    if (is_new)
+    if (x == new_idx)
     {
         for (; idx < x * warpSize; idx += blockDim.x * gridDim.x)
         {
@@ -125,6 +125,9 @@ __inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroi
     for (; idx < count * warpSize; idx += blockDim.x * gridDim.x)
     {
         auto y = idx / warpSize;
+        if (y == new_idx)
+            continue;
+
         auto curr_mf = mfactors ? mfactors[y] : 1;
         point_neighbors_mat_warp<N>(local_neighbors,
             centroids + y * dim,
@@ -170,6 +173,7 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     neighbor_t* __restrict__ work_neighbors,
     csize_t* __restrict__ updated,
     const csize_t* __restrict__ upd_count,
+    csize_t new_idx,
     csize_t dim,
     csize_t count)
 {
@@ -179,7 +183,7 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
 
     for (csize_t i = 0; i < update_count; ++i)
         point_neighbors_mat<N>(
-            centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, updated[i], false);
+            centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, updated[i], new_idx);
 }
 
 template<csize_t N>
@@ -195,5 +199,5 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     extern __shared__ float shared_mem[];
 
     point_neighbors_mat<N>(
-        centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, new_idx, true);
+        centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, new_idx, new_idx);
 }
