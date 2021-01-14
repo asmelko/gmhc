@@ -35,7 +35,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
     maha_threshold_ = mahalanobis_threshold;
-    starting_info_ = kernel_info(3, 512);
+    starting_info_ = kernel_info(12, 512);
 
     CUCH(cudaSetDevice(0));
 
@@ -81,6 +81,9 @@ bool gmhc::initialize(const float* data_points,
 
     CUCH(cudaMalloc(&common_.cu_work_centroid, sizeof(float) * data_point_dim * starting_info_.grid_dim));
     CUCH(cudaMalloc(&common_.cu_work_covariance, sizeof(float) * icov_size * starting_info_.grid_dim));
+
+    CUCH(cudaMalloc(&common_.cu_asgn_idxs_, sizeof(csize_t) * data_points_size));
+    CUCH(cudaMalloc(&common_.cu_idxs_size_, sizeof(csize_t)));
 
     run_set_default_icovs(cu_icov_, data_points_size, data_point_dim, starting_info_);
     run_set_default_icov_mfs(cu_icov_mf_, data_points_size, starting_info_);

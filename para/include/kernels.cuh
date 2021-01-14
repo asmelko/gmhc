@@ -40,13 +40,11 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chun
 
 // computes centroid of a cluster
 void run_centroid(const float* points,
-    const clustering::asgn_t* assignments,
+    const clustering::csize_t* idxs,
     float* work_centroid,
     float* out_centroid,
-    clustering::csize_t dim,
-    clustering::csize_t point_count,
-    clustering::asgn_t cluster_id,
     clustering::csize_t cluster_size,
+    clustering::csize_t dim,
     kernel_info info);
 
 // assigns data from an array of specific size to constant storage
@@ -55,13 +53,11 @@ void assign_constant_storage(
 
 // computes covariance of a cluster
 void run_covariance(const float* points,
-    const clustering::asgn_t* assignments,
+    const clustering::csize_t* assignment_idxs,
     float* work_covariance,
     float* out_covariance,
+    clustering::csize_t cluster_size,
     clustering::csize_t dim,
-    clustering::csize_t point_count,
-    clustering::asgn_t centroid_id,
-    clustering::csize_t divisor,
     kernel_info info);
 // runs store_covariance kernel
 void run_store_icovariance_data(float* icov_dest,
@@ -85,6 +81,8 @@ void run_compute_store_icov_mf(
 
 // updates assignment array to merge clusters
 void run_merge_clusters(clustering::asgn_t* assignments,
+    clustering::csize_t* assignment_idxs,
+    clustering::csize_t* idxs_size,
     clustering::csize_t point_size,
     clustering::asgn_t old_A,
     clustering::asgn_t old_B,

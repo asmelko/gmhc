@@ -27,6 +27,8 @@ TEST(kernel, covariance_small)
     input_t cu_in;
     float* cu_out;
     float* cu_work;
+    csize_t* cu_idxs;
+    csize_t* cu_size;
     asgn_t* cu_asgn;
     float host_res[9];
     float centroid[3] = { -1.29547f, 8.00796f, -7.49481f };
@@ -41,6 +43,8 @@ TEST(kernel, covariance_small)
     CUCH(cudaMalloc(&cu_out, 9 * sizeof(float)));
     CUCH(cudaMalloc(&cu_work, kernel.grid_dim * 6 * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
+    CUCH(cudaMalloc(&cu_idxs, data.points * sizeof(csize_t)));
+    CUCH(cudaMalloc(&cu_size, sizeof(csize_t)));
 
     CUCH(cudaMemcpy(
         cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -49,7 +53,9 @@ TEST(kernel, covariance_small)
 
     assign_constant_storage(centroid, 3 * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
 
-    run_covariance(cu_in.data, cu_asgn, cu_work, cu_out, cu_in.dim, cu_in.count, 0, 1, kernel);
+    run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
+
+    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 1, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -80,6 +86,8 @@ TEST(kernel, covariance_big)
     input_t cu_in;
     float* cu_out;
     float* cu_work;
+    csize_t* cu_idxs;
+    csize_t* cu_size;
     asgn_t* cu_asgn;
     float* host_res = new float[data.dim * data.dim];
     kernel_info kernel(1, 32);
@@ -96,6 +104,8 @@ TEST(kernel, covariance_big)
     CUCH(cudaMalloc(&cu_out, data.dim * data.dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_work, kernel.grid_dim * cov_size * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
+    CUCH(cudaMalloc(&cu_idxs, data.points * sizeof(csize_t)));
+    CUCH(cudaMalloc(&cu_size, sizeof(csize_t)));
 
     CUCH(cudaMemcpy(
         cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -106,13 +116,14 @@ TEST(kernel, covariance_big)
     CUCH(cudaDeviceSynchronize());
 
     assign_constant_storage(centroid.data(), (csize_t)data.dim * sizeof(float), cudaMemcpyKind::cudaMemcpyHostToDevice);
+    run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
     auto end = std::chrono::system_clock::now();
 
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "gpu prepare time: " << elapsed_seconds.count() << "\n";
 
     start = std::chrono::system_clock::now();
-    run_covariance(cu_in.data, cu_asgn, cu_work, cu_out, cu_in.dim, cu_in.count, 0, (csize_t)data.points, kernel);
+    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, (csize_t)data.points, cu_in.dim, kernel);
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
     end = std::chrono::system_clock::now();

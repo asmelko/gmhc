@@ -28,7 +28,7 @@ void clustering_context_t::initialize(bool is_final_context)
     is_final = is_final_context;
 
     neighbor_info.stream = shared.streams[0];
-    rest_info = kernel_info(3, 1024, 0, shared.streams[1]);
+    rest_info = kernel_info(9, 1024, 0, shared.streams[1]);
 }
 
 void clustering_context_t::compute_neighbors()
@@ -159,17 +159,16 @@ void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merge
     auto new_idx = update_data.old_a;
 
     // updating point asgns
-    run_merge_clusters(cu_point_asgns, point_size, merged_A, merged_B, new_id, rest_info);
+    run_merge_clusters(
+        cu_point_asgns, shared.cu_asgn_idxs_, shared.cu_idxs_size_, point_size, merged_A, merged_B, new_id, rest_info);
 
     // compute new centroid
     run_centroid(cu_points,
-        cu_point_asgns,
+        shared.cu_asgn_idxs_,
         shared.cu_work_centroid,
         cu_centroids + new_idx * point_dim,
-        point_dim,
-        point_size,
-        new_id,
         cluster_data[new_idx].size,
+        point_dim,
         rest_info);
 
     // compute new inverse of covariance matrix
@@ -195,13 +194,11 @@ void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
             rest_info.stream);
 
         run_covariance(cu_points,
-            cu_point_asgns,
+            shared.cu_asgn_idxs_,
             shared.cu_work_covariance,
             cov,
-            point_dim,
-            point_size,
-            id,
             cluster_data[pos].size,
+            point_dim,
             rest_info);
 
         if (wf < 1)

@@ -29,6 +29,9 @@ struct shared_apriori_data_t
     // next available id
     asgn_t id;
 
+    csize_t* cu_asgn_idxs_;
+    csize_t* cu_idxs_size_;
+
     // number of closest neighbors for each cluster
     static constexpr csize_t neighbors_size = 1;
 

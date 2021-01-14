@@ -6,12 +6,10 @@
 using namespace clustering;
 
 __global__ void centroid(const float* __restrict__ points,
-    const asgn_t* __restrict__ assignments,
+    const clustering::csize_t* idxs,
     float* __restrict__ work_centroid,
-    csize_t dim,
     csize_t count,
-    asgn_t cid,
-    csize_t cluster_size)
+    csize_t dim)
 {
     extern __shared__ float shared_mem[];
 
@@ -21,11 +19,9 @@ __global__ void centroid(const float* __restrict__ points,
 
     for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
     {
-        if (assignments[idx] == cid)
-        {
-            for (csize_t i = 0; i < dim; ++i)
-                tmp[i] += points[idx * dim + i];
-        }
+        auto aidx = idxs[idx];
+        for (csize_t i = 0; i < dim; ++i)
+            tmp[i] += points[aidx * dim + i];
     }
 
     reduce_sum_block(tmp, dim, shared_mem);
@@ -55,16 +51,19 @@ __global__ void reduce_centroid(const float* __restrict__ grid_centroid,
 }
 
 void run_centroid(const float* points,
-    const asgn_t* assignments,
+    const clustering::csize_t* idxs,
     float* work_centroid,
     float* out_centroid,
-    csize_t dim,
-    csize_t point_count,
-    asgn_t cetroid_id,
     csize_t cluster_size,
+    csize_t dim,
     kernel_info info)
 {
-    centroid<<<info.grid_dim, info.block_dim, 32 * (dim * sizeof(float)), info.stream>>>(
-        points, assignments, work_centroid, dim, point_count, cetroid_id, cluster_size);
-    reduce_centroid<<<1, 32, 0, info.stream>>>(work_centroid, out_centroid, info.grid_dim, cluster_size, dim);
+    auto block_dim = ((cluster_size + 31) / 32) * 32;
+    auto grid_dim = (block_dim + 1023) / 1024;
+    block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
+    grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
+
+    centroid<<<grid_dim, block_dim, 32 * (dim * sizeof(float)), info.stream>>>(
+        points, idxs, work_centroid, cluster_size, dim);
+    reduce_centroid<<<1, 32, 0, info.stream>>>(work_centroid, out_centroid, grid_dim, cluster_size, dim);
 }

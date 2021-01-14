@@ -58,11 +58,10 @@ __inline__ __device__ void point_covariance(
 #define BUFF_SIZE 50
 
 __global__ void covariance(const float* __restrict__ points,
-    const asgn_t* __restrict__ assignments,
+    const csize_t* __restrict__ asgn_idx,
     float* __restrict__ cov_matrix,
-    csize_t dim,
     csize_t count,
-    asgn_t cid)
+    csize_t dim)
 {
     extern __shared__ float shared_mem[];
     float cov_point[BUFF_SIZE];
@@ -80,14 +79,13 @@ __global__ void covariance(const float* __restrict__ points,
 
         for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
         {
-            if (assignments[idx] == cid)
+            auto aidx = asgn_idx[idx];
+
+            for (csize_t point_idx = cov_idx; point_idx < end; point_idx++)
             {
-                for (csize_t point_idx = cov_idx; point_idx < end; point_idx++)
-                {
-                    auto coords = compute_coordinates(dim, point_idx);
-                    cov_point[point_idx - cov_idx] += (points[idx * dim + coords.x] - expected_point[coords.x])
-                        * (points[idx * dim + coords.y] - expected_point[coords.y]);
-                }
+                auto coords = compute_coordinates(dim, point_idx);
+                cov_point[point_idx - cov_idx] += (points[aidx * dim + coords.x] - expected_point[coords.x])
+                    * (points[aidx * dim + coords.y] - expected_point[coords.y]);
             }
         }
 
@@ -227,19 +225,22 @@ __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, con
 
 
 void run_covariance(const float* points,
-    const asgn_t* assignments,
+    const csize_t* assignment_idxs,
     float* work_covariance,
     float* out_covariance,
+    csize_t cluster_size,
     csize_t dim,
-    csize_t point_count,
-    asgn_t centroid_id,
-    csize_t divisor,
     kernel_info info)
 {
-    covariance<<<info.grid_dim, info.block_dim, 32 * BUFF_SIZE * sizeof(float), info.stream>>>(
-        points, assignments, work_covariance, dim, point_count, centroid_id);
+    auto block_dim = ((cluster_size + 31) / 32) * 32;
+    auto grid_dim = (block_dim + 1023) / 1024;
+    block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
+    grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
 
-    finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, info.grid_dim, divisor, dim);
+    covariance<<<grid_dim, block_dim, 32 * BUFF_SIZE * sizeof(float), info.stream>>>(
+        points, assignment_idxs, work_covariance, cluster_size, dim);
+
+    finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, grid_dim, cluster_size, dim);
 }
 
 void run_store_icovariance_data(float* icov_dest,
