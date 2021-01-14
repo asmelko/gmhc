@@ -35,6 +35,14 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t c
 #include "reduce.cuh"
 #include "update.cuh"
 
+void tune_info(kernel_info& info, size_t size, bool use_eucl) {
+    auto multiplier = use_eucl ? 1 : 32;
+    auto block_dim = ((size + 31) / 32) * 32 * multiplier;
+    auto grid_dim = (block_dim + 1023) / 1024;
+    info.block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
+    info.grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
+}
+
 template<csize_t N>
 void run_update_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
@@ -44,6 +52,7 @@ void run_update_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
+    tune_info(info, size, use_eucl);
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
@@ -86,6 +95,7 @@ void run_update_neighbors_new(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
+    tune_info(info, size, use_eucl);
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
@@ -108,6 +118,7 @@ void run_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
+    tune_info(info, size, use_eucl);
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
