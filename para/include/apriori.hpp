@@ -91,18 +91,18 @@ public:
 private:
     // initializes/updates neighbor array
     void compute_neighbors();
-    // reorders data according to the merged clusters i and j
-    void move_clusters(csize_t i, csize_t j);
+    // reorders data so the last array element is moved to the index pos
+    void move_clusters(csize_t pos);
     // updates data for new cluster
     void update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id);
     void update_iteration_host(chunk_t min);
     // computes inverse covariance matrix for new cluster
-    void compute_icov(csize_t pos, asgn_t id);
+    void compute_icov(csize_t pos);
     //computes weight factor for new cluster
     float compute_weight_factor(csize_t pos);
 
     // computes covariance matrix for new cluster
-    void compute_covariance(csize_t pos, asgn_t id, float wf);
+    void compute_covariance(csize_t pos, float wf);
 
     // verifies the iteration
     void verify(pasgn_t id_pair, float dist);

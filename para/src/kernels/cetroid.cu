@@ -1,5 +1,7 @@
 #include <device_launch_parameters.h>
 
+#include <cub/block/block_reduce.cuh>
+
 #include "common_kernels.cuh"
 #include "kernels.cuh"
 
@@ -11,7 +13,8 @@ __global__ void centroid(const float* __restrict__ points,
     csize_t count,
     csize_t dim)
 {
-    extern __shared__ float shared_mem[];
+    typedef cub::BlockReduce<float, 1024> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
 
     float tmp[MAX_DIM];
 
@@ -24,12 +27,12 @@ __global__ void centroid(const float* __restrict__ points,
             tmp[i] += points[aidx * dim + i];
     }
 
-    reduce_sum_block(tmp, dim, shared_mem);
-
-    if (threadIdx.x == 0)
+    for (csize_t i = 0; i < dim; i++) 
     {
-        for (csize_t i = 0; i < dim; ++i)
-            work_centroid[blockIdx.x * dim + i] = tmp[i];
+        auto aggregate = BlockReduce(temp_storage).Sum(tmp[i]);
+
+        if (threadIdx.x == 0)
+            work_centroid[blockIdx.x * dim + i] = aggregate;
     }
 }
 
@@ -63,7 +66,7 @@ void run_centroid(const float* points,
     block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
     grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
 
-    centroid<<<grid_dim, block_dim, 32 * (dim * sizeof(float)), info.stream>>>(
+    centroid<<<grid_dim, 1024, 0, info.stream>>>(
         points, idxs, work_centroid, cluster_size, dim);
     reduce_centroid<<<1, 32, 0, info.stream>>>(work_centroid, out_centroid, grid_dim, cluster_size, dim);
 }

@@ -1,5 +1,7 @@
 #include <device_launch_parameters.h>
 
+#include <cub/block/block_reduce.cuh>
+
 #include "common_kernels.cuh"
 #include "kernels.cuh"
 
@@ -12,58 +14,18 @@ void assign_constant_storage(const float* value, csize_t size, cudaMemcpyKind ki
     CUCH(cudaMemcpyToSymbolAsync(expected_point, value, size, (size_t)0, kind, stream));
 }
 
-__inline__ __device__ void reduce_sum_warp(float* __restrict__ cov, csize_t size, unsigned mask)
-{
-    for (csize_t i = 0; i < size; ++i)
-    {
-        float tmp = cov[i];
-        for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
-            tmp += __shfl_down_sync(mask, tmp, offset);
-        if (threadIdx.x % warpSize == 0)
-            cov[i] = tmp;
-    }
-}
+#define BUFF_SIZE 32
 
-__inline__ __device__ void reduce_sum_block(float* __restrict__ shared_mem, csize_t shared_chunks, csize_t cov_size)
-{
-    float* tmp_cov;
-    unsigned mask = __ballot_sync(0xFFFFFFFF, threadIdx.x < shared_chunks);
-    if (threadIdx.x < shared_chunks)
-    {
-        tmp_cov = shared_mem + cov_size * threadIdx.x;
-        reduce_sum_warp(tmp_cov, cov_size, mask);
-    }
-
-    __syncthreads();
-
-    auto ciel_div = (shared_chunks + warpSize - 1) / warpSize;
-
-    mask = __ballot_sync(0xFFFFFFFF, threadIdx.x < ciel_div);
-    if (threadIdx.x < ciel_div)
-    {
-        tmp_cov = shared_mem + cov_size * threadIdx.x * warpSize;
-        reduce_sum_warp(tmp_cov, cov_size, mask);
-    }
-}
-
-__inline__ __device__ void point_covariance(
-    const float* __restrict__ point, csize_t dim, float* __restrict__ shared_mem)
-{
-    csize_t idx = 0;
-    for (csize_t i = 0; i < dim; ++i)
-        for (csize_t j = i; j < dim; ++j)
-            atomicAdd(shared_mem + idx++, point[i] * point[j]);
-}
-
-#define BUFF_SIZE 50
-
+template<size_t DIM_X>
 __global__ void covariance(const float* __restrict__ points,
     const csize_t* __restrict__ asgn_idx,
     float* __restrict__ cov_matrix,
     csize_t count,
     csize_t dim)
 {
-    extern __shared__ float shared_mem[];
+    typedef cub::BlockReduce<float, DIM_X> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage temp_storage;
+
     float cov_point[BUFF_SIZE];
 
     csize_t cov_idx = 0;
@@ -89,14 +51,14 @@ __global__ void covariance(const float* __restrict__ points,
             }
         }
 
-        __syncthreads();
-
-        reduce_sum_block(cov_point, need, shared_mem);
-
-        if (threadIdx.x == 0)
+        for (csize_t i = 0; i < need; i++)
         {
-            memcpy(cov_matrix + blockIdx.x * cov_size + cov_idx, cov_point, need * sizeof(float));
+            float aggregate = BlockReduce(temp_storage).Sum(cov_point[i]);
+
+            if (threadIdx.x == 0)
+                cov_matrix[blockIdx.x * cov_size + cov_idx + i] = aggregate;
         }
+
         cov_idx += need;
     }
 }
@@ -237,8 +199,18 @@ void run_covariance(const float* points,
     block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
     grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
 
-    covariance<<<grid_dim, block_dim, 32 * BUFF_SIZE * sizeof(float), info.stream>>>(
-        points, assignment_idxs, work_covariance, cluster_size, dim);
+    if (block_dim == 32)
+        covariance<32><<<grid_dim, 32, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+    else if (block_dim <= 64)
+        covariance<64><<<grid_dim, 64, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+    else if (block_dim <= 128)
+        covariance<128><<<grid_dim, 128, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+    else if (block_dim <= 256)
+        covariance<256><<<grid_dim, 256, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+    else if (block_dim <= 512)
+        covariance<512><<<grid_dim, 512, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+    else
+        covariance<1024><<<grid_dim, 1024, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
 
     finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, grid_dim, cluster_size, dim);
 }

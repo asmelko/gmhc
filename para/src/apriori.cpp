@@ -70,7 +70,7 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 
         update_iteration_host(min);
 
-        move_clusters(min.min_i, min.min_j);
+        move_clusters(min.min_j);
 
         update_iteration_device(merged_ids.first, merged_ids.second, new_id);
 
@@ -87,34 +87,34 @@ std::vector<gmhc::res_t> clustering_context_t::run()
     return res;
 }
 
-void clustering_context_t::move_clusters(csize_t i, csize_t j)
+void clustering_context_t::move_clusters(csize_t pos)
 {
     csize_t end_idx = cluster_count;
 
-    if (j == end_idx)
+    if (pos == end_idx)
         return;
 
-    CUCH(cudaMemcpyAsync(cu_centroids + j * point_dim,
+    CUCH(cudaMemcpyAsync(cu_centroids + pos * point_dim,
         cu_centroids + end_idx * point_dim,
         sizeof(float) * point_dim,
         cudaMemcpyKind::cudaMemcpyDeviceToDevice,
         neighbor_info.stream));
 
-    cluster_data[j] = cluster_data[end_idx];
+    cluster_data[pos] = cluster_data[end_idx];
 
-    CUCH(cudaMemcpyAsync(cu_neighbors + j * shared.neighbors_size,
+    CUCH(cudaMemcpyAsync(cu_neighbors + pos * shared.neighbors_size,
         cu_neighbors + end_idx * shared.neighbors_size,
         sizeof(neighbor_t) * shared.neighbors_size,
         cudaMemcpyKind::cudaMemcpyDeviceToDevice,
         neighbor_info.stream));
 
-    CUCH(cudaMemcpyAsync(cu_inverses + j * icov_size,
+    CUCH(cudaMemcpyAsync(cu_inverses + pos * icov_size,
         cu_inverses + end_idx * icov_size,
         sizeof(float) * icov_size,
         cudaMemcpyKind::cudaMemcpyDeviceToDevice,
         neighbor_info.stream));
 
-    CUCH(cudaMemcpyAsync(cu_mfactors + j,
+    CUCH(cudaMemcpyAsync(cu_mfactors + pos,
         cu_mfactors + end_idx,
         sizeof(float),
         cudaMemcpyKind::cudaMemcpyDeviceToDevice,
@@ -172,10 +172,10 @@ void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merge
         rest_info);
 
     // compute new inverse of covariance matrix
-    compute_icov(new_idx, new_id);
+    compute_icov(new_idx);
 }
 
-void clustering_context_t::compute_covariance(csize_t pos, asgn_t id, float wf)
+void clustering_context_t::compute_covariance(csize_t pos, float wf)
 {
     float* tmp_cov = shared.cu_tmp_icov + point_dim * point_dim;
     float* cov = shared.cu_tmp_icov;
@@ -243,7 +243,7 @@ bool euclidean_based_kind(subthreshold_handling_kind kind)
     return kind == subthreshold_handling_kind::EUCLID || kind == subthreshold_handling_kind::EUCLID_MAHAL;
 }
 
-void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
+void clustering_context_t::compute_icov(csize_t pos)
 {
     auto wf = compute_weight_factor(pos);
 
@@ -255,7 +255,7 @@ void clustering_context_t::compute_icov(csize_t pos, asgn_t id)
         return;
     }
 
-    compute_covariance(pos, id, wf);
+    compute_covariance(pos, wf);
 
     auto cov = shared.cu_tmp_icov;
 
