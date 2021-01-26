@@ -1,13 +1,13 @@
 #include <iostream>
 
 #include "../para/include/gmhc.hpp"
-#include "gmhclust_C_export.h"
+#include "c_gmhclust_export.h"
 
 using namespace clustering;
 
 extern "C"
 {
-    GMHCLUST_C_EXPORT void gmhclust_C(const double* data_points,
+    C_GMHCLUST_EXPORT void c_gmhclust(const double* data_points,
         const int* data_points_size,
         const int* data_point_dim,
         const double* mahalanobis_threshold,
