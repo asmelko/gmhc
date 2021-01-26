@@ -36,7 +36,7 @@ extern "C"
         for (size_t i = 0; i < data.size(); ++i)
             data[i] = (float)data_points[i];
 
-        gmhclust.initialize(data.data(), size, dim, threshold, kind);
+        gmhclust.initialize(data.data(), size, dim, threshold, kind, *normalize);
 
         auto res = gmhclust.run();
 

@@ -76,6 +76,9 @@ struct clustering_context_t
     //flag that states that this is last/only apriori context left to cluster
     bool is_final;
 
+    // mhca normalization flag
+    bool normalize;
+
     // verification validator
     validator* vld;
 
@@ -83,7 +86,7 @@ public:
     clustering_context_t(shared_apriori_data_t& shared_data);
 
     // initializes the context
-    void initialize(bool is_final);
+    void initialize(bool is_final, bool normalize);
 
     // performs context clustering
     std::vector<pasgnd_t<float>> run();

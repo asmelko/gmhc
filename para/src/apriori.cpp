@@ -12,7 +12,7 @@ clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
     : shared(shared_data)
 {}
 
-void clustering_context_t::initialize(bool is_final_context)
+void clustering_context_t::initialize(bool is_final_context, bool normalize_flag)
 {
     compute_data.centroids = cu_centroids;
     compute_data.inverses = cu_inverses;
@@ -26,9 +26,10 @@ void clustering_context_t::initialize(bool is_final_context)
     switched_to_full_maha = false;
     initialize_neighbors = true;
     is_final = is_final_context;
+    normalize = normalize_flag;
 
     neighbor_info.stream = shared.streams[0];
-    rest_info = kernel_info(9, 1024, 0, shared.streams[1]);
+    rest_info = kernel_info(neighbor_info.grid_dim / 2, 1024, 0, shared.streams[1]);
 }
 
 void clustering_context_t::compute_neighbors()
@@ -38,7 +39,7 @@ void clustering_context_t::compute_neighbors()
         initialize_neighbors = false;
         switched_to_full_maha = maha_cluster_count == cluster_count;
 
-        if (switched_to_full_maha)
+        if (switched_to_full_maha && !normalize)
             compute_data.mfactors = nullptr;
 
         run_neighbors<shared_apriori_data_t::neighbors_size>(

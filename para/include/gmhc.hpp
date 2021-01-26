@@ -56,6 +56,8 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_icov_mf_;
     // device assignments array
     asgn_t* cu_point_asgns_;
+    //mhca normalization flag
+    bool normalize_;
 
     // device neighbor array
     neighbor_t* cu_neighs_;
@@ -89,6 +91,7 @@ public:
         csize_t data_point_dim,
         csize_t mahalanobis_threshold,
         subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL, 
+        bool normalize = false,
         const asgn_t* apriori_assignments = nullptr,
         validator* vld = nullptr);
 

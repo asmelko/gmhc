@@ -13,6 +13,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t data_point_dim,
     csize_t mahalanobis_threshold,
     subthreshold_handling_kind subthreshold_kind,
+    bool normalize,
     const asgn_t* apriori_assignments,
     validator* vld)
 {
@@ -30,14 +31,18 @@ bool gmhc::initialize(const float* data_points,
     hierarchical_clustering::initialize(data_points, data_points_size, data_point_dim);
 
     subthreshold_kind_ = subthreshold_kind;
+    normalize_ = normalize;
 
     common_.id = (asgn_t)data_points_size;
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
     maha_threshold_ = mahalanobis_threshold;
-    starting_info_ = kernel_info(16, 512);
 
     CUCH(cudaSetDevice(0));
+
+    cudaDeviceProp deviceProp;
+    CUCH(cudaGetDeviceProperties(&deviceProp, 0));
+    starting_info_ = kernel_info(deviceProp.multiProcessorCount, 512);
 
     CUCH(cudaMalloc(&cu_points_, data_points_size * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_centroids_, data_points_size * data_point_dim * sizeof(float)));
@@ -145,7 +150,7 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
 
     cluster.vld = vld;
 
-    cluster.initialize(apriori_count_ == 0);
+    cluster.initialize(apriori_count_ == 0, normalize_);
 }
 
 void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
