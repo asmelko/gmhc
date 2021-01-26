@@ -41,7 +41,7 @@ gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", norma
 	merge<-matrix(0L,count-1,2)
     height<-matrix(0.0,count-1,1)
 
-	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, kind, normalize, m=merge, h=height)
+	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, as.integer(kind), normalize, m=merge, h=height)
 
 	return(list(merge=res$m, height=res$h))
 } 

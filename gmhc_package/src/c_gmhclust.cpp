@@ -5,7 +5,7 @@ using namespace clustering;
 
 extern "C"
 {
-    csize_t transform_merging(csize_t m, csize_t n)
+    int transform_merging(csize_t m, csize_t n)
     {
         if (m < n)
             return -(m + 1);
@@ -34,7 +34,10 @@ extern "C"
         for (size_t i = 0; i < data.size(); ++i)
             data[i] = (float)data_points[i];
 
-        gmhclust.initialize(data.data(), size, dim, threshold, kind, *normalize);
+        bool ok = gmhclust.initialize(data.data(), size, dim, threshold, kind, *normalize);
+
+        if (!ok)
+            return;
 
         auto res = gmhclust.run();
 
