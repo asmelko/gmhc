@@ -11,7 +11,7 @@ extern "C"
         const int* data_points_size,
         const int* data_point_dim,
         const double* mahalanobis_threshold,
-        const int* subthreshold_kind,
+        const int* subthreshold_kind,  
         int* merging,
         double* heights)
     {

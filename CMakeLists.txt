@@ -57,4 +57,4 @@ IF (BUILD_GMHC_PARA)
     ADD_SUBDIRECTORY(para_timer)
 ENDIF (BUILD_GMHC_PARA)
 
-add_subdirectory(Rgmhc)
+add_subdirectory(gmhc_package)
