@@ -54,3 +54,20 @@ An example output for 4 points in a dataset would look like this:
 1 4 1.2
 3 5 0.1
 ```
+## R package build guide
+
+To build the package, use CMake configure and build commands in a build directory. Specifically, build target `gmhc_package`.
+
+See the following steps (last step to work, you need to have root rights):
+```
+cd gmhc
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target gmhc_package
+```
+Building the specified target installs `gmhc` package to the default R package directory. 
+Then in R session, it can be used as follows:
+```
+library('gmhc')
+?gmhclust
+```
