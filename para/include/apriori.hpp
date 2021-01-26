@@ -10,10 +10,10 @@ class validator;
 
 enum class subthreshold_handling_kind
 {
-    MAHAL,
-    EUCLID,
-    MAHAL0,
-    EUCLID_MAHAL
+    MAHAL = 0,
+    EUCLID = 1,
+    MAHAL0 = 2,
+    EUCLID_MAHAL = 3
 };
 
 struct shared_apriori_data_t;

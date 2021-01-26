@@ -12,6 +12,7 @@ extern "C"
         const int* data_point_dim,
         const double* mahalanobis_threshold,
         const int* subthreshold_kind,  
+        const bool* normalize,
         int* merging,
         double* heights)
     {
@@ -26,6 +27,7 @@ extern "C"
         std::cout << "dim " << *data_point_dim << std::endl;
         std::cout << "t " << *mahalanobis_threshold << std::endl;
         std::cout << "k " << *subthreshold_kind << std::endl;
+        std::cout << "norm " << *normalize << std::endl;
         std::cout << "data[0] " << data_points[0] << std::endl;
         std::cout << "data[1] " << data_points[1] << std::endl;
 
