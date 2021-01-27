@@ -232,40 +232,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
         print_pairs(iteration_, min_pair, pair_v);
 
         error_ = true;
-        return false;
     }
-
-    if (float_diff(min_dist, dist_v))
-    {
-        std::cerr << "Iteration " << iteration_ << ": distances do not match: " << min_dist << " =/= " << dist_v
-                  << std::endl;
-
-        error_ = true;
-        return false;
-    }
-
-    if (float_diff(clusters_[new_clust].centroid.data(), centroid_v, point_dim_))
-    {
-        print_arrays(
-            iteration_, "centroids do not match", point_dim_, clusters_[new_clust].centroid.data(), centroid_v);
-
-        error_ = true;
-        return false;
-    }
-
-    std::memcpy(clusters_[new_clust].centroid.data(), centroid_v, point_dim_ * sizeof(float));
-
-    auto this_cov = compute_covariance(clusters_[new_clust]);
-
-    if (float_diff(this_cov, cov_, point_dim_ * point_dim_))
-    {
-        print_arrays(iteration_, "covariances do not match", point_dim_ * point_dim_, this_cov.data(), cov_.data());
-
-        error_ = true;
-        return false;
-    }
-
-    check_inverse(clusters_[new_clust]);
 
     if (apr_sizes_.empty())
         for (size_t i = 0; i < point_count_; i++)
@@ -278,6 +245,41 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
                 return false;
             }
         }
+
+    if (float_diff(min_dist, dist_v))
+    {
+        std::cerr << "Iteration " << iteration_ << ": distances do not match: " << min_dist << " =/= " << dist_v
+                  << std::endl;
+
+        error_ = true;
+    }
+
+    bool centroid_ok = true;
+    if (float_diff(clusters_[new_clust].centroid.data(), centroid_v, point_dim_))
+    {
+        print_arrays(
+            iteration_, "centroids do not match", point_dim_, clusters_[new_clust].centroid.data(), centroid_v);
+
+        error_ = true;
+        centroid_ok = false;
+    }
+
+    if (centroid_ok)
+    {
+        std::memcpy(clusters_[new_clust].centroid.data(), centroid_v, point_dim_ * sizeof(float));
+
+        auto this_cov = compute_covariance(clusters_[new_clust]);
+
+        if (float_diff(this_cov, cov_, point_dim_ * point_dim_))
+        {
+            print_arrays(iteration_, "covariances do not match", point_dim_ * point_dim_, this_cov.data(), cov_.data());
+
+            error_ = true;
+            return false;
+        }
+    }
+
+    check_inverse(clusters_[new_clust]);
 
     if (error_)
         return false;
