@@ -228,6 +228,8 @@ void gmhc::move_apriori()
             icov_size * sizeof(float),
             cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
+        CUCH(cudaMemcpy(cu_icov_mf_ + i, ctx.cu_mfactors, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
+
         apr_ctxs_.front().cluster_count += apr_ctxs_[i].cluster_count;
         apr_ctxs_.front().maha_cluster_count += apr_ctxs_[i].maha_cluster_count;
     }

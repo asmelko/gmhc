@@ -51,6 +51,7 @@ void validator::initialize(const float* data_points,
     csize_t data_point_dim,
     csize_t maha_threshold,
     subthreshold_handling_kind subthreshold_kind,
+    bool normalize,
     const asgn_t* apriori_assignments)
 {
     points_ = data_points;
@@ -58,6 +59,7 @@ void validator::initialize(const float* data_points,
     point_dim_ = data_point_dim;
     maha_threshold_ = maha_threshold;
     subthreshold_kind_ = subthreshold_kind;
+    normalize_ = normalize;
     error_ = false;
 
     id_ = (asgn_t)point_count_;
@@ -465,9 +467,9 @@ void validator::get_min(const pasgn_t& expected,
             float* r_icov = clusters_[j].icov.data();
             float l_mf = 1, r_mf = 1;
 
-            if (maha_cluster_count_ != cluster_count_)
+            if (normalize_ || maha_cluster_count_ != cluster_count_)
             {
-                if (subthreshold_kind_ == subthreshold_handling_kind::EUCLID)
+                if (subthreshold_kind_ == subthreshold_handling_kind::EUCLID && maha_cluster_count_ != cluster_count_)
                 {
                     l_icov = unit_matrix_.data();
                     r_icov = unit_matrix_.data();

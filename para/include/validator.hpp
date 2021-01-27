@@ -30,6 +30,7 @@ class validator
     csize_t point_dim_;
     csize_t maha_threshold_;
     subthreshold_handling_kind subthreshold_kind_;
+    bool normalize_;
 
     asgn_t id_;
     csize_t cluster_count_;
@@ -56,6 +57,7 @@ public:
         csize_t data_point_dim,
         csize_t maha_threshold,
         subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL,
+        bool normalize = false,
         const asgn_t* apriori_assignments = nullptr);
 
     // verify one iteration

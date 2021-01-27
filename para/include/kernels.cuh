@@ -100,7 +100,7 @@ void run_neighbors(centroid_data_t data,
 
 // retrieves the minimum from a neighbor array
 template<clustering::csize_t N>
-chunk_t run_neighbors_min(const neighbor_t* neighbors, clustering::csize_t size, chunk_t* result);
+chunk_t run_neighbors_min(const neighbor_t* neighbors, clustering::csize_t size, chunk_t* result, kernel_info info);
 
 // updates neighbor array
 template<clustering::csize_t N>

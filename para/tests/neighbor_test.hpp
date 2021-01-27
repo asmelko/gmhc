@@ -58,7 +58,7 @@ TEST(kernel, neighbor_small)
         kernel);
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
-    host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out);
+    host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out, kernel_info());
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -117,7 +117,7 @@ TEST(kernel, neighbor_big)
         (asgn_t)data.points,
         true,
         kernel);
-    host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out);
+    host_res = run_neighbors_min<neigh_number>(cu_n, (asgn_t)data.points, cu_out, kernel_info());
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());

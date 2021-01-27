@@ -75,7 +75,7 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 
         compute_neighbors();
 
-        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min);
+        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min, neighbor_info);
 
         pasgn_t merged_ids(cluster_data[min.min_i].id, cluster_data[min.min_j].id);
         asgn_t new_id = shared.id;
@@ -198,8 +198,6 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
     }
     else
     {
-        CUCH(cudaStreamSynchronize(rest_info.stream)); // assign_constant_storage depends on run_centroid
-
         assign_constant_storage(cu_centroids + pos * point_dim,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyDeviceToDevice,
