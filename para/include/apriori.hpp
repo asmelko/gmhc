@@ -103,9 +103,11 @@ private:
     void compute_icov(csize_t pos);
     //computes weight factor for new cluster
     float compute_weight_factor(csize_t pos);
-
     // computes covariance matrix for new cluster
     void compute_covariance(csize_t pos, float wf);
+
+    bool need_recompute_neighbors();
+    bool can_use_euclidean_distance();
 
     // verifies the iteration
     void verify(pasgn_t id_pair, float dist);

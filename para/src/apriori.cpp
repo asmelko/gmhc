@@ -32,9 +32,20 @@ void clustering_context_t::initialize(bool is_final_context, bool normalize_flag
     rest_info = kernel_info(neighbor_info.grid_dim / 2, 1024, 0, shared.streams[1]);
 }
 
+bool clustering_context_t::need_recompute_neighbors()
+{
+    return initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count);
+}
+
+bool clustering_context_t::can_use_euclidean_distance()
+{
+    return (!switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID)
+        || (maha_cluster_count == 0 && subthreshold_kind == subthreshold_handling_kind::EUCLID_MAHAL);
+}
+
 void clustering_context_t::compute_neighbors()
 {
-    if (initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count))
+    if (need_recompute_neighbors())
     {
         initialize_neighbors = false;
         switched_to_full_maha = maha_cluster_count == cluster_count;
@@ -47,7 +58,7 @@ void clustering_context_t::compute_neighbors()
     }
     else
     {
-        bool use_eucl = !switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID;
+        bool use_eucl = can_use_euclidean_distance();
 
         run_update_neighbors_new<shared_apriori_data_t::neighbors_size>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, neighbor_info);
@@ -149,9 +160,9 @@ void clustering_context_t::update_iteration_host(chunk_t min)
 void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id)
 {
     // start computing neighbor of all but new cluster
-    if (!(initialize_neighbors || (is_final && !switched_to_full_maha && maha_cluster_count == cluster_count)))
+    if (!need_recompute_neighbors())
     {
-        bool use_eucl = !switched_to_full_maha && subthreshold_kind == subthreshold_handling_kind::EUCLID;
+        bool use_eucl = can_use_euclidean_distance();
 
         run_update_neighbors<shared_apriori_data_t::neighbors_size>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, neighbor_info);

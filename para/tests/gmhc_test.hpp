@@ -41,6 +41,7 @@ TEST(para, apriori_small)
             (csize_t)data.dim,
             thresh,
             subthreshold_kind,
+            false,
             apriori_asgn.data(),
             &vld);
 
@@ -80,6 +81,7 @@ TEST(para, apriori_big)
             (csize_t)data.dim,
             thresh,
             subthreshold_kind,
+            false,
             apriori_asgn.data(),
             &vld);
 
@@ -119,7 +121,7 @@ TEST(para, small)
         vld.initialize(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind);
 
         para.initialize(
-            data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind, nullptr, &vld);
+            data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, subthreshold_kind, false, nullptr, &vld);
 
         para.run();
         para.free();
@@ -144,6 +146,7 @@ TEST(para, nilsson)
         (csize_t)data.dim,
         thresh,
         subthreshold_handling_kind::MAHAL,
+        false,
         nullptr,
         &vld);
 
