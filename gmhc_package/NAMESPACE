@@ -1,0 +1,3 @@
+useDynLib(c_gmhclust)
+
+export('gmhclust')

@@ -57,3 +57,10 @@ __global__ void reduce_u(const neighbor_t* __restrict__ neighbors,
     for (csize_t idx = threadIdx.x + blockIdx.x * blockDim.x; idx < count * warpSize; idx += blockDim.x * gridDim.x)
         point_reduce<N>(neighbors, to_reduce, reduced, updated[idx / warpSize]);
 }
+
+template<csize_t N>
+__global__ void reduce_u(
+    const neighbor_t* __restrict__ neighbors, neighbor_t* __restrict__ reduced, csize_t new_idx, csize_t to_reduce)
+{
+    point_reduce<N>(neighbors, to_reduce, reduced, new_idx);
+}

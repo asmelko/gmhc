@@ -30,6 +30,7 @@ class validator
     csize_t point_dim_;
     csize_t maha_threshold_;
     subthreshold_handling_kind subthreshold_kind_;
+    bool normalize_;
 
     asgn_t id_;
     csize_t cluster_count_;
@@ -48,6 +49,7 @@ class validator
     // variables to set from ouside
     // matrices to verify
     std::vector<float> cov_, icov_;
+    std::vector<asgn_t> asgns_;
     float mf_, icmf_;
 public:
     void initialize(const float* data_points,
@@ -55,6 +57,7 @@ public:
         csize_t data_point_dim,
         csize_t maha_threshold,
         subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL,
+        bool normalize = false,
         const asgn_t* apriori_assignments = nullptr);
 
     // verify one iteration
@@ -67,6 +70,7 @@ public:
     void set_icov(const float* arr);
     void set_mf(const float* cholesky, const int* info);
     void set_icmf(const float* value);
+    void set_asgns(const asgn_t* value);
 
     // adjusted diff of floats
     // respect slight differences of CPU and GPU floating point computation

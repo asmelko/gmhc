@@ -35,6 +35,15 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t c
 #include "reduce.cuh"
 #include "update.cuh"
 
+void tune_info(kernel_info& info, size_t size, bool use_eucl)
+{
+    auto multiplier = use_eucl ? 1 : 32;
+    auto block_dim = ((size + 31) / 32) * 32 * multiplier;
+    auto grid_dim = (block_dim + 1023) / 1024;
+    info.block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
+    info.grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
+}
+
 template<csize_t N>
 void run_update_neighbors(centroid_data_t data,
     neighbor_t* tmp_neighbors,
@@ -44,16 +53,17 @@ void run_update_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
+    tune_info(info, size, use_eucl);
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
-    CUCH(cudaMemset(upd_data.update_size, 0, sizeof(csize_t)));
+    CUCH(cudaMemsetAsync(upd_data.update_size, 0, sizeof(csize_t), info.stream));
 
-    update<N><<<info.grid_dim, info.block_dim>>>(
+    update<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
         act_neighbors, upd_data.to_update, upd_data.update_size, size, upd_data.old_a, upd_data.old_b);
 
     if (use_eucl)
-        neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids,
+        neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
             act_neighbors,
             tmp_neighbors,
             upd_data.to_update,
@@ -62,7 +72,7 @@ void run_update_neighbors(centroid_data_t data,
             data.dim,
             size);
     else
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids,
+        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
             data.inverses,
             data.mfactors,
             act_neighbors,
@@ -73,8 +83,32 @@ void run_update_neighbors(centroid_data_t data,
             data.dim,
             size);
 
-    reduce_u<N><<<info.grid_dim, info.block_dim>>>(
+    reduce_u<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
         tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
+}
+
+template<csize_t N>
+void run_update_neighbors_new(centroid_data_t data,
+    neighbor_t* tmp_neighbors,
+    neighbor_t* act_neighbors,
+    csize_t size,
+    csize_t new_idx,
+    bool use_eucl,
+    kernel_info info)
+{
+    tune_info(info, size, use_eucl);
+    csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
+    csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
+
+    if (use_eucl)
+        neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
+            data.centroids, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
+    else
+        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
+            data.centroids, data.inverses, data.mfactors, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
+
+    reduce_u<N>
+        <<<info.grid_dim, info.block_dim, 0, info.stream>>>(tmp_neighbors, act_neighbors, new_idx, info.grid_dim);
 }
 
 template<csize_t N>
@@ -85,6 +119,7 @@ void run_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
+    tune_info(info, size, use_eucl);
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
@@ -98,14 +133,12 @@ void run_neighbors(centroid_data_t data,
 }
 
 template<csize_t N>
-chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* result)
+chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* result, kernel_info info)
 {
-    neighbor_min<N><<<1, 1024>>>(neighbors, size, result);
-
-    CUCH(cudaDeviceSynchronize());
+    neighbor_min<N><<<1, 1024, 0, info.stream>>>(neighbors, size, result);
 
     chunk_t res;
-    CUCH(cudaMemcpy(&res, result, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost));
+    CUCH(cudaMemcpyAsync(&res, result, sizeof(chunk_t), cudaMemcpyKind::cudaMemcpyDeviceToHost, info.stream));
 
     if (res.min_i > res.min_j)
         std::swap(res.min_i, res.min_j);
@@ -127,7 +160,14 @@ chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* re
         update_data_t upd_data,                                                                                        \
         bool use_eucl,                                                                                                 \
         kernel_info info);                                                                                             \
-    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, csize_t size, chunk_t* result);
+    template void run_update_neighbors_new<N>(centroid_data_t data,                                                    \
+        neighbor_t * tmp_neighbors,                                                                                    \
+        neighbor_t * act_neighbors,                                                                                    \
+        csize_t size,                                                                                                  \
+        csize_t new_idx,                                                                                               \
+        bool use_eucl,                                                                                                 \
+        kernel_info info);                                                                                             \
+    template chunk_t run_neighbors_min<N>(const neighbor_t* neighbors, csize_t size, chunk_t* result, kernel_info info);
 
 INIT_TEMPLATES(1)
 INIT_TEMPLATES(2)

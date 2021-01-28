@@ -10,10 +10,10 @@ class validator;
 
 enum class subthreshold_handling_kind
 {
-    MAHAL,
-    EUCLID,
-    MAHAL0,
-    EUCLID_MAHAL
+    MAHAL = 0,
+    EUCLID = 1,
+    MAHAL0 = 2,
+    EUCLID_MAHAL = 3
 };
 
 struct shared_apriori_data_t;
@@ -40,7 +40,8 @@ struct clustering_context_t
     bool switched_to_full_maha;
 
     // parameter for kernels
-    kernel_info starting_info;
+    kernel_info neighbor_info;
+    kernel_info rest_info;
 
     // device neighbor array
     neighbor_t* cu_neighbors;
@@ -75,6 +76,9 @@ struct clustering_context_t
     //flag that states that this is last/only apriori context left to cluster
     bool is_final;
 
+    // mhca normalization flag
+    bool normalize;
+
     // verification validator
     validator* vld;
 
@@ -82,25 +86,28 @@ public:
     clustering_context_t(shared_apriori_data_t& shared_data);
 
     // initializes the context
-    void initialize(bool is_final);
+    void initialize(bool is_final, bool normalize);
 
-    // performs one iteration of clustering
-    pasgnd_t<float> iterate();
+    // performs context clustering
+    std::vector<pasgnd_t<float>> run();
 
 private:
     // initializes/updates neighbor array
     void compute_neighbors();
-    // reorders data according to the merged clusters i and j
-    void move_clusters(csize_t i, csize_t j);
+    // reorders data so the last array element is moved to the index pos
+    void move_clusters(csize_t pos);
     // updates data for new cluster
-    void update_iteration(const cluster_data_t* merged);
+    void update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id);
+    void update_iteration_host(chunk_t min);
     // computes inverse covariance matrix for new cluster
     void compute_icov(csize_t pos);
     //computes weight factor for new cluster
     float compute_weight_factor(csize_t pos);
-
     // computes covariance matrix for new cluster
     void compute_covariance(csize_t pos, float wf);
+
+    bool need_recompute_neighbors();
+    bool can_use_euclidean_distance();
 
     // verifies the iteration
     void verify(pasgn_t id_pair, float dist);

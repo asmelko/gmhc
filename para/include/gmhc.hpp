@@ -22,14 +22,23 @@ struct shared_apriori_data_t
     float* cu_workspace;
     int workspace_size;
 
+    //reduce arrays for centroid and covariance kernel
+    float* cu_work_centroid;
+    float* cu_work_covariance;
+
     // next available id
     asgn_t id;
+
+    csize_t* cu_asgn_idxs_;
+    csize_t* cu_idxs_size_;
 
     // number of closest neighbors for each cluster
     static constexpr csize_t neighbors_size = 1;
 
     // handle to CUSOLVER library
     cusolverDnHandle_t cusolver_handle;
+
+    cudaStream_t streams[2];
 };
 
 // Mahalanobis hierarchical clustering class
@@ -47,6 +56,8 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_icov_mf_;
     // device assignments array
     asgn_t* cu_point_asgns_;
+    //mhca normalization flag
+    bool normalize_;
 
     // device neighbor array
     neighbor_t* cu_neighs_;
@@ -80,6 +91,7 @@ public:
         csize_t data_point_dim,
         csize_t mahalanobis_threshold,
         subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL, 
+        bool normalize = false,
         const asgn_t* apriori_assignments = nullptr,
         validator* vld = nullptr);
 

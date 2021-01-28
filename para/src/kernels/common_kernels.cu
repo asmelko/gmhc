@@ -24,8 +24,8 @@ __device__ float euclidean_norm(const float* __restrict__ l_point, const float* 
 
 __device__ void reduce_sum_warp(float* __restrict__ point, csize_t dim)
 {
-    for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
-        for (csize_t i = 0; i < dim; ++i)
+    for (csize_t i = 0; i < dim; ++i)
+        for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
             point[i] += __shfl_down_sync(0xFFFFFFFF, point[i], offset);
 }
 

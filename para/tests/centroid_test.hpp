@@ -26,6 +26,9 @@ TEST(kernel, centroid_small)
 
     input_t cu_in;
     float* cu_out;
+    float* cu_work_out;
+    csize_t* cu_idxs;
+    csize_t* cu_size;
     asgn_t* cu_asgn;
     float host_res[4];
     kernel_info kernel(50, 512);
@@ -37,15 +40,19 @@ TEST(kernel, centroid_small)
 
     CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float)));
-    CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float)));
+    CUCH(cudaMalloc(&cu_work_out, kernel.grid_dim * data.dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
+    CUCH(cudaMalloc(&cu_idxs, data.points * sizeof(csize_t)));
+    CUCH(cudaMalloc(&cu_size, sizeof(csize_t)));
 
     CUCH(cudaMemcpy(
         cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
     CUCH(cudaMemcpy(
         cu_asgn, assignments.data(), sizeof(uint32_t) * data.points, cudaMemcpyKind::cudaMemcpyHostToDevice));
 
-    run_centroid(cu_in, cu_asgn, cu_out, 0, 1, kernel);
+    run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
+
+    run_centroid(cu_in.data, cu_idxs, cu_work_out, cu_out,1, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -66,6 +73,9 @@ TEST(kernel, centroid_big)
 
     input_t cu_in;
     float* cu_out;
+    float* cu_work_out;
+    csize_t* cu_idxs;
+    csize_t* cu_size;
     asgn_t* cu_asgn;
     float* host_res = new float[data.dim + 1];
     kernel_info kernel(10, 256);
@@ -79,8 +89,10 @@ TEST(kernel, centroid_big)
 
     CUCH(cudaMalloc(&cu_in.data, sizeof(float) * data.points * data.dim));
     CUCH(cudaMalloc(&cu_out, data.dim * sizeof(float)));
-    CUCH(cudaMemset(cu_out, 0, data.dim * sizeof(float)));
+    CUCH(cudaMalloc(&cu_work_out, kernel.grid_dim * data.dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_asgn, data.points * sizeof(uint32_t)));
+    CUCH(cudaMalloc(&cu_idxs, data.points * sizeof(csize_t)));
+    CUCH(cudaMalloc(&cu_size, sizeof(csize_t)));
 
     CUCH(cudaMemcpy(
         cu_in.data, data.data.data(), sizeof(float) * data.points * data.dim, cudaMemcpyKind::cudaMemcpyHostToDevice));
@@ -93,9 +105,11 @@ TEST(kernel, centroid_big)
     std::chrono::duration<double> elapsed_seconds = end - start;
     std::cout << "gpu prepare time: " << elapsed_seconds.count() << "\n";
 
+    run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
+
     start = std::chrono::system_clock::now();
 
-    run_centroid(cu_in, cu_asgn, cu_out, 0, (csize_t)data.points, kernel);
+    run_centroid(cu_in.data, cu_idxs, cu_work_out, cu_out, (csize_t)data.points, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());

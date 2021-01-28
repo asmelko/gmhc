@@ -24,6 +24,7 @@ int main(int argc, char** argv)
         .set_constraint([](const std::string& value) {
             return value == "MAHAL" || value == "MAHAL0" || value == "EUCLID" || value == "EUCLID_MAHAL";
         });
+    cmd.add_option("n,normalize", "Normalization flag.", true).add_parameter<bool>(value_type<bool>(), "NORM");
 
     auto parsed = cmd.parse(argc, argv);
 
@@ -67,11 +68,15 @@ int main(int argc, char** argv)
 
     auto threshold = parsed["threshold"]->get_value<float>();
 
+    bool normalize = false;
+    if (parsed["normalize"])
+        normalize = parsed["normalize"]->get_value<bool>();
+
     gmhc gmhclust;
     auto actual_thresholh = (csize_t)((float)data.points * threshold);
 
     bool init = gmhclust.initialize(
-        data.data.data(), (csize_t)data.points, (csize_t)data.dim, actual_thresholh, kind, apr_asgn);
+        data.data.data(), (csize_t)data.points, (csize_t)data.dim, actual_thresholh, kind, normalize, apr_asgn);
 
     if (!init)
         return 1;

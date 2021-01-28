@@ -11,7 +11,7 @@ ELSE ()
 ENDIF()
 
 OPTION(BUILD_GMHC_TESTS "build tests" ON)
-OPTION(BUILD_GMHC_SERIAL "build CPU serial implementation" ON)
+OPTION(BUILD_GMHC_SERIAL "build CPU serial implementation" OFF)
 OPTION(BUILD_GMHC_PARA "build GPU parallel implementation" ON)
 
 
@@ -56,3 +56,5 @@ IF (BUILD_GMHC_PARA)
     ADD_SUBDIRECTORY(para)
     ADD_SUBDIRECTORY(para_timer)
 ENDIF (BUILD_GMHC_PARA)
+
+add_subdirectory(gmhc_package)

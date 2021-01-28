@@ -51,6 +51,7 @@ void validator::initialize(const float* data_points,
     csize_t data_point_dim,
     csize_t maha_threshold,
     subthreshold_handling_kind subthreshold_kind,
+    bool normalize,
     const asgn_t* apriori_assignments)
 {
     points_ = data_points;
@@ -58,6 +59,7 @@ void validator::initialize(const float* data_points,
     point_dim_ = data_point_dim;
     maha_threshold_ = maha_threshold;
     subthreshold_kind_ = subthreshold_kind;
+    normalize_ = normalize;
     error_ = false;
 
     id_ = (asgn_t)point_count_;
@@ -67,6 +69,8 @@ void validator::initialize(const float* data_points,
     unit_matrix_ = std::vector<float>(point_dim_ * point_dim_, 0.f);
     for (csize_t j = 0; j < point_dim_; j++)
         unit_matrix_[j * (point_dim_ + 1)] = 1.f;
+
+    asgns_.resize(point_count_);
 
     if (apriori_assignments)
         create_clusters(apriori_assignments);
@@ -207,7 +211,8 @@ void print_pairs(csize_t iteration, const pasgn_t& lhs, const pasgn_t& rhs)
               << " =/= " << rhs.first << ", " << rhs.second << std::endl;
 }
 
-void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const float* lhs, const float* rhs)
+template<typename T>
+void print_arrays(csize_t iteration, const std::string& msg, csize_t size, const T* lhs, const T* rhs)
 {
     std::cerr << "Iteration " << iteration << ": " << msg << std::endl;
 
@@ -261,6 +266,18 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
     }
 
     check_inverse(clusters_[new_clust]);
+
+    if (apr_sizes_.empty())
+        for (size_t i = 0; i < point_count_; i++)
+        {
+            if (asgns_[i] != point_asgns_[i])
+            {
+                print_arrays(iteration_, "assignments do not match", point_count_, point_asgns_.data(), asgns_.data());
+
+                error_ = true;
+                return false;
+            }
+        }
 
     if (error_)
         return false;
@@ -411,6 +428,12 @@ void validator::set_icmf(const float* value)
     CUCH(cudaMemcpy(&icmf_, value, sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 }
 
+void validator::set_asgns(const asgn_t* value)
+{
+    if (apr_sizes_.empty())
+        CUCH(cudaMemcpy(asgns_.data(), value, sizeof(asgn_t) * point_count_, cudaMemcpyKind::cudaMemcpyDeviceToHost));
+}
+
 void validator::get_min(const pasgn_t& expected,
     pasgn_t& min_pair,
     std::pair<csize_t, csize_t>& min_idx,
@@ -444,9 +467,9 @@ void validator::get_min(const pasgn_t& expected,
             float* r_icov = clusters_[j].icov.data();
             float l_mf = 1, r_mf = 1;
 
-            if (maha_cluster_count_ != cluster_count_)
+            if (normalize_ || maha_cluster_count_ != cluster_count_)
             {
-                if (subthreshold_kind_ == subthreshold_handling_kind::EUCLID)
+                if (subthreshold_kind_ == subthreshold_handling_kind::EUCLID && maha_cluster_count_ != cluster_count_)
                 {
                     l_icov = unit_matrix_.data();
                     r_icov = unit_matrix_.data();
@@ -481,31 +504,44 @@ void validator::get_min(const pasgn_t& expected,
 
 std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& expected, recompute_f recompute)
 {
-    pasgn_t min_pair;
-    std::pair<csize_t, csize_t> min_idx, expected_idx;
-    float min_dist = FLT_INF;
-    float expected_dist = FLT_INF;
+    pasgn_t v_min_pair;
+    std::pair<csize_t, csize_t> v_min_idx, ve_idx;
+    float v_min_dist = FLT_INF;
+    float ve_dist = FLT_INF;
 
-    get_min(expected.first, min_pair, min_idx, expected_idx, expected_dist, min_dist);
+    get_min(expected.first, v_min_pair, v_min_idx, ve_idx, ve_dist, v_min_dist);
 
-    if (expected.first != min_pair) // 0.001f
+    if (expected.first != v_min_pair) // 0.001f
     {
-        bool good = true;
-        if (expected.first.first != min_pair.first && expected.first.second != min_pair.second)
-            good = recompute(min_pair) >= expected.second;
-        else
-            good = !float_diff(expected_dist, min_dist, 0.001f) && !float_diff(expected.second, min_dist, 0.001f);
+        float recomputed_dist = 0;
+        bool recomputable = expected.first.first != v_min_pair.first && expected.first.second != v_min_pair.second;
+
+        bool good = !float_diff(ve_dist, v_min_dist, 0.001f) && !float_diff(expected.second, v_min_dist, 0.001f);
+
+        if (recomputable)
+        {
+            recomputed_dist = recompute(v_min_pair);
+            good &= recomputed_dist >= expected.second && !float_diff(recomputed_dist, v_min_dist, 0.001f);
+        }
 
         if (good)
         {
             std::cout << "validator branching" << std::endl;
-            min_pair = expected.first;
-            min_dist = expected.second;
-            min_idx = expected_idx;
+            std::cout << "recomputed: " << recomputable << std::endl;
+            std::cout << "expected pair: " << expected.first.first << " " << expected.first.second << std::endl;
+            std::cout << "validator min pair: " << v_min_pair.first << " " << v_min_pair.second << std::endl;
+            std::cout << "expected dist: " << expected.second << std::endl;
+            std::cout << "validator min dist: " << v_min_dist << std::endl;
+            if (recomputable)
+                std::cout << "recomputed dist: " << recomputed_dist << std::endl;
+
+            v_min_pair = expected.first;
+            v_min_dist = expected.second;
+            v_min_idx = ve_idx;
         }
     }
 
-    csize_t cluster_size = update_asgns(point_asgns_.data(), point_count_, min_pair, id_);
+    csize_t cluster_size = update_asgns(point_asgns_.data(), point_count_, v_min_pair, id_);
 
     cluster c;
     c.id = id_;
@@ -516,14 +552,15 @@ std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& ex
 
     if (c.size >= maha_threshold_)
     {
-        if (clusters_[min_idx.first].size >= maha_threshold_ && clusters_[min_idx.second].size >= maha_threshold_)
+        if (clusters_[v_min_idx.first].size >= maha_threshold_ && clusters_[v_min_idx.second].size >= maha_threshold_)
             --maha_cluster_count_;
-        else if (clusters_[min_idx.first].size < maha_threshold_ && clusters_[min_idx.second].size < maha_threshold_)
+        else if (clusters_[v_min_idx.first].size < maha_threshold_
+            && clusters_[v_min_idx.second].size < maha_threshold_)
             ++maha_cluster_count_;
     }
 
-    clusters_.erase(clusters_.begin() + min_idx.second);
-    clusters_[min_idx.first] = std::move(c);
+    clusters_.erase(clusters_.begin() + v_min_idx.second);
+    clusters_[v_min_idx.first] = std::move(c);
 
     ++id_;
     ++iteration_;
@@ -532,7 +569,7 @@ std::tuple<pasgn_t, csize_t, float> validator::iterate(const pasgnd_t<float>& ex
     if (apr_idx_ != apr_sizes_.size())
         --apr_sizes_[apr_idx_];
 
-    return std::tie(min_pair, min_idx.first, min_dist);
+    return std::tie(v_min_pair, v_min_idx.first, v_min_dist);
 }
 
 bool validator::float_diff(float a, float b, float d) { return float_diff(&a, &b, 1, d); }

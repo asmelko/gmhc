@@ -1,6 +1,8 @@
 #ifndef COMMON_STRUCTURES_CUH
 #define COMMON_STRUCTURES_CUH
 
+#include <cuda_runtime.h>
+
 #include "clustering.hpp"
 
 // this file contains structures used in kernels or to pass parameters to kernels
@@ -67,16 +69,22 @@ struct centroid_data_t
 struct kernel_info
 {
     // 1D dimension of grid
-    unsigned int grid_dim;
+    unsigned int grid_dim = 1;
     // 1D dimension of block
-    unsigned int block_dim;
+    unsigned int block_dim = 32;
     // size of shared memory
-    clustering::csize_t shared_size;
+    clustering::csize_t shared_size = 0;
+    // assigned stream
+    cudaStream_t stream = (cudaStream_t)0;
 
-    kernel_info(unsigned int grid_dim, unsigned int block_dim, clustering::csize_t shared_size = 0)
+    kernel_info(unsigned int grid_dim,
+        unsigned int block_dim,
+        clustering::csize_t shared_size = 0,
+        cudaStream_t stream = (cudaStream_t)0)
         : grid_dim(grid_dim)
         , block_dim(block_dim)
         , shared_size(shared_size)
+        , stream(stream)
     {}
 
     kernel_info() = default;
