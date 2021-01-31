@@ -1,6 +1,6 @@
 #include <algorithm>
 #include <device_launch_parameters.h>
-
+#include <iostream>
 #include "kernels.cuh"
 #include "neighbor_common.cuh"
 
@@ -32,7 +32,6 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t c
 
 #include "neighbor_eucl.cuh"
 #include "neighbor_maha.cuh"
-#include "reduce.cuh"
 #include "update.cuh"
 
 void tune_info(kernel_info& info, size_t size, bool use_eucl)
@@ -53,7 +52,7 @@ void run_update_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
-    tune_info(info, size, use_eucl);
+    info.block_dim = 1024;
     csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
     csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
 
@@ -63,6 +62,8 @@ void run_update_neighbors(centroid_data_t data,
         act_neighbors, upd_data.to_update, upd_data.update_size, size, upd_data.old_a, upd_data.old_b);
 
     if (use_eucl)
+    {
+        tune_info(info, size, use_eucl);
         neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
             act_neighbors,
             tmp_neighbors,
@@ -71,8 +72,12 @@ void run_update_neighbors(centroid_data_t data,
             upd_data.old_a,
             data.dim,
             size);
+
+        reduce_u<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
+            tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
+    }
     else
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
+        neighbors_mat_u<N><<<1, 1, 0, info.stream>>>(data.centroids,
             data.inverses,
             data.mfactors,
             act_neighbors,
@@ -81,10 +86,10 @@ void run_update_neighbors(centroid_data_t data,
             upd_data.update_size,
             upd_data.old_a,
             data.dim,
-            size);
-
-    reduce_u<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
-        tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
+            size,
+            info.block_dim,
+            info.grid_dim,
+            shared_mat);
 }
 
 template<csize_t N>
@@ -104,8 +109,8 @@ void run_update_neighbors_new(centroid_data_t data,
         neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
             data.centroids, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
     else
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
-            data.centroids, data.inverses, data.mfactors, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
+        point_neighbors_mat<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
+            data.centroids, data.inverses, data.mfactors, act_neighbors, tmp_neighbors, data.dim, size, new_idx, new_idx);
 
     reduce_u<N>
         <<<info.grid_dim, info.block_dim, 0, info.stream>>>(tmp_neighbors, act_neighbors, new_idx, info.grid_dim);
@@ -126,8 +131,10 @@ void run_neighbors(centroid_data_t data,
     if (use_eucl)
         neighbors<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids, tmp_neighbors, data.dim, size);
     else
+        std::cout << "bad nei";
+        /*
         neighbors_mat<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
-            data.centroids, data.inverses, data.mfactors, tmp_neighbors, data.dim, size);
+            data.centroids, data.inverses, data.mfactors, tmp_neighbors, data.dim, size);*/
 
     reduce<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors, act_neighbors, size, info.grid_dim);
 }
