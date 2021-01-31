@@ -40,7 +40,6 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chun
 
 // computes centroid of a cluster
 void run_centroid(const float* points,
-    const clustering::csize_t* idxs,
     float* work_centroid,
     float* out_centroid,
     clustering::csize_t cluster_size,
@@ -53,7 +52,6 @@ void assign_constant_storage(
 
 // computes covariance of a cluster
 void run_covariance(const float* points,
-    const clustering::csize_t* assignment_idxs,
     float* work_covariance,
     float* out_covariance,
     clustering::csize_t cluster_size,

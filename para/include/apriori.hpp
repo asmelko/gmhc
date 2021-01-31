@@ -59,6 +59,8 @@ struct clustering_context_t
     // device multiplication factor array
     float* cu_mfactors;
 
+    float** points;
+
     // device assignments array
     asgn_t* cu_point_asgns;
 
@@ -73,7 +75,7 @@ struct clustering_context_t
 
     // shared data among each clustering context
     shared_apriori_data_t& shared;
-    //flag that states that this is last/only apriori context left to cluster
+    // flag that states that this is last/only apriori context left to cluster
     bool is_final;
 
     // mhca normalization flag
@@ -101,7 +103,7 @@ private:
     void update_iteration_host(chunk_t min);
     // computes inverse covariance matrix for new cluster
     void compute_icov(csize_t pos);
-    //computes weight factor for new cluster
+    // computes weight factor for new cluster
     float compute_weight_factor(csize_t pos);
     // computes covariance matrix for new cluster
     void compute_covariance(csize_t pos, float wf);

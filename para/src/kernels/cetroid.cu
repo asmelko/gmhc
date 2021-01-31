@@ -8,7 +8,6 @@
 using namespace clustering;
 
 __global__ void centroid(const float* __restrict__ points,
-    const clustering::csize_t* idxs,
     float* __restrict__ work_centroid,
     csize_t count,
     csize_t dim)
@@ -22,9 +21,8 @@ __global__ void centroid(const float* __restrict__ points,
 
     for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
     {
-        auto aidx = idxs[idx];
         for (csize_t i = 0; i < dim; ++i)
-            tmp[i] += points[aidx * dim + i];
+            tmp[i] += points[idx * dim + i];
     }
 
     for (csize_t i = 0; i < dim; i++) 
@@ -54,7 +52,6 @@ __global__ void reduce_centroid(const float* __restrict__ grid_centroid,
 }
 
 void run_centroid(const float* points,
-    const clustering::csize_t* idxs,
     float* work_centroid,
     float* out_centroid,
     csize_t cluster_size,
@@ -67,6 +64,6 @@ void run_centroid(const float* points,
     grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
 
     centroid<<<grid_dim, 1024, 0, info.stream>>>(
-        points, idxs, work_centroid, cluster_size, dim);
+        points, work_centroid, cluster_size, dim);
     reduce_centroid<<<1, 32, 0, info.stream>>>(work_centroid, out_centroid, grid_dim, cluster_size, dim);
 }

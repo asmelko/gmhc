@@ -30,6 +30,14 @@ void clustering_context_t::initialize(bool is_final_context, bool normalize_flag
 
     neighbor_info.stream = shared.streams[0];
     rest_info = kernel_info(neighbor_info.grid_dim / 2, 1024, 0, shared.streams[1]);
+
+    points = new float*[point_size];
+
+    for (csize_t i = 0; i < point_size; i++)
+    {
+        cudaMalloc(points + i, point_dim * sizeof(float));
+        cudaMemcpy(points[i], cu_points + i * point_dim, point_dim * sizeof(float), cudaMemcpyDeviceToDevice);
+    }
 }
 
 bool clustering_context_t::need_recompute_neighbors()
@@ -75,10 +83,31 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 
         compute_neighbors();
 
-        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min, neighbor_info);
+        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(
+            cu_neighbors, cluster_count, shared.cu_min, neighbor_info);
 
         pasgn_t merged_ids(cluster_data[min.min_i].id, cluster_data[min.min_j].id);
         asgn_t new_id = shared.id;
+
+        float* new_points;
+
+        cudaMalloc(
+            &new_points, (cluster_data[min.min_i].size + cluster_data[min.min_j].size) * point_dim * sizeof(float));
+
+        cudaMemcpyAsync(new_points,
+            points[min.min_i],
+            cluster_data[min.min_i].size * point_dim * sizeof(float),
+            cudaMemcpyDeviceToDevice,
+            rest_info.stream);
+        cudaMemcpyAsync(new_points + cluster_data[min.min_i].size * point_dim,
+            points[min.min_j],
+            cluster_data[min.min_j].size * point_dim * sizeof(float),
+            cudaMemcpyDeviceToDevice,
+            rest_info.stream);
+
+        //cudaFree(points[min.min_i]);
+        //cudaFree(points[min.min_j]);
+        points[min.min_i] = new_points;
 
         update_iteration_host(min);
 
@@ -113,6 +142,7 @@ void clustering_context_t::move_clusters(csize_t pos)
         neighbor_info.stream));
 
     cluster_data[pos] = cluster_data[end_idx];
+    points[pos] = points[end_idx];
 
     CUCH(cudaMemcpyAsync(cu_neighbors + pos * shared.neighbors_size,
         cu_neighbors + end_idx * shared.neighbors_size,
@@ -170,13 +200,8 @@ void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merge
 
     auto new_idx = update_data.old_a;
 
-    // updating point asgns
-    run_merge_clusters(
-        cu_point_asgns, shared.cu_asgn_idxs_, shared.cu_idxs_size_, point_size, merged_A, merged_B, new_id, rest_info);
-
     // compute new centroid
-    run_centroid(cu_points,
-        shared.cu_asgn_idxs_,
+    run_centroid(points[new_idx],
         shared.cu_work_centroid,
         cu_centroids + new_idx * point_dim,
         cluster_data[new_idx].size,
@@ -203,8 +228,7 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
             cudaMemcpyKind::cudaMemcpyDeviceToDevice,
             rest_info.stream);
 
-        run_covariance(cu_points,
-            shared.cu_asgn_idxs_,
+        run_covariance(points[pos],
             shared.cu_work_covariance,
             cov,
             cluster_data[pos].size,

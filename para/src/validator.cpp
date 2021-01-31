@@ -233,7 +233,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
 
         error_ = true;
     }
-
+    /*
     if (apr_sizes_.empty())
         for (size_t i = 0; i < point_count_; i++)
         {
@@ -244,7 +244,7 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
                 error_ = true;
                 return false;
             }
-        }
+        }*/
 
     if (float_diff(min_dist, dist_v))
     {
