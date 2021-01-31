@@ -166,4 +166,10 @@ void run_compare_nei(const neighbor_t* lhs,
 // debug kernel - trivial minimum retrieval algorithm
 chunk_t run_simple_min(const float* clusters, clustering::csize_t dim, clustering::csize_t count, chunk_t* out);
 
+void run_minus(
+    const float* x, const float* y, float* z, clustering::csize_t dim, clustering::csize_t count, kernel_info info);
+void run_singular_vals(float* x, clustering::csize_t dim, clustering::csize_t cluster_size, cudaStream_t stream);
+
+
+
 #endif

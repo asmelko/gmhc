@@ -17,10 +17,7 @@ void assign_constant_storage(const float* value, csize_t size, cudaMemcpyKind ki
 #define BUFF_SIZE 32
 
 template<size_t DIM_X>
-__global__ void covariance(const float* __restrict__ points,
-    float* __restrict__ cov_matrix,
-    csize_t count,
-    csize_t dim)
+__global__ void covariance(const float* __restrict__ points, float* __restrict__ cov_matrix, csize_t count, csize_t dim)
 {
     typedef cub::BlockReduce<float, DIM_X> BlockReduce;
     __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -235,4 +232,36 @@ void run_transform_cov(float* matrix,
 void run_compute_store_icov_mf(float* dest, csize_t dim, const float* cholesky_decomp, cudaStream_t stream)
 {
     compute_store_icov_mf<<<1, 32, 0, stream>>>(dest, dim, cholesky_decomp);
+}
+
+__global__ void minus(
+    const float* __restrict__ x, const float* __restrict__ y, float* __restrict__ z, csize_t dim, csize_t count)
+{
+    for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count * dim; idx += gridDim.x * blockDim.x)
+    {
+        auto r = idx / dim;
+        auto c = idx % dim;
+        z[c * dim + r] = x[idx] - y[c];
+    }
+}
+
+void run_minus(const float* x, const float* y, float* z, csize_t dim, csize_t count, kernel_info info)
+{
+    minus<<<info.grid_dim, info.block_dim, 0, info.stream>>>(x, y, z, dim, count);
+}
+
+__global__ void singular_vals(float* __restrict__ x, csize_t dim, csize_t cluster_size)
+{
+    for (csize_t idx = threadIdx.x; idx < dim; idx += blockDim.x)
+    {
+        auto val = x[idx];
+        x[idx] = 0;
+        val = sqrtf((val * val) / cluster_size);
+        x[idx * (dim + 1)] = val;
+    }
+}
+
+void run_singular_vals(float* x, csize_t dim, csize_t cluster_size, cudaStream_t stream)
+{
+    singular_vals<<<1, 32, 0, stream>>>(x, dim, cluster_size);
 }

@@ -24,7 +24,7 @@ set_target_properties(para PROPERTIES
 
 TARGET_INCLUDE_DIRECTORIES(para PUBLIC include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
 
-TARGET_LINK_LIBRARIES(para cusolver)
+TARGET_LINK_LIBRARIES(para cusolver cublas)
 
 ADD_EXECUTABLE(gmhclust "main.cpp")
 

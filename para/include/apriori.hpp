@@ -3,6 +3,8 @@
 
 #include "clustering.hpp"
 #include "structures.hpp"
+#include <cusolverDn.h>
+#include <cublas_v2.h>
 
 namespace clustering {
 
@@ -60,6 +62,17 @@ struct clustering_context_t
     float* cu_mfactors;
 
     float** points;
+    float* tmp_points;
+
+    float* S;
+    float* U;
+    float* V;
+    float* C;
+    float* svd_work=nullptr;
+    int svd_work_size = 0;
+    gesvdjInfo_t svd_info;
+
+    cublasHandle_t cublas_handle;
 
     // device assignments array
     asgn_t* cu_point_asgns;

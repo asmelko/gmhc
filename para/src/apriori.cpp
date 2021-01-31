@@ -38,6 +38,16 @@ void clustering_context_t::initialize(bool is_final_context, bool normalize_flag
         cudaMalloc(points + i, point_dim * sizeof(float));
         cudaMemcpy(points[i], cu_points + i * point_dim, point_dim * sizeof(float), cudaMemcpyDeviceToDevice);
     }
+
+    cudaMalloc(&tmp_points, point_dim * point_size * sizeof(float));
+    cudaMalloc(&U, point_size * point_size * sizeof(float));
+    cudaMalloc(&V, point_dim * point_size * sizeof(float));
+    cudaMalloc(&S, point_dim * point_dim* sizeof(float));
+    cudaMalloc(&C, point_dim * point_dim * sizeof(float));
+    cusolverDnCreateGesvdjInfo(&svd_info);
+
+    cublasCreate(&cublas_handle);
+    cublasSetStream(cublas_handle, rest_info.stream);
 }
 
 bool clustering_context_t::need_recompute_neighbors()
@@ -105,8 +115,8 @@ std::vector<gmhc::res_t> clustering_context_t::run()
             cudaMemcpyDeviceToDevice,
             rest_info.stream);
 
-        //cudaFree(points[min.min_i]);
-        //cudaFree(points[min.min_j]);
+        // cudaFree(points[min.min_i]);
+        // cudaFree(points[min.min_j]);
         points[min.min_i] = new_points;
 
         update_iteration_host(min);
@@ -223,18 +233,112 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
     }
     else
     {
+        
         assign_constant_storage(cu_centroids + pos * point_dim,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyDeviceToDevice,
             rest_info.stream);
 
-        run_covariance(points[pos],
-            shared.cu_work_covariance,
-            cov,
+        run_covariance(points[pos], shared.cu_work_covariance, cov, cluster_data[pos].size, point_dim, rest_info);
+
+        
+       run_print_centroid(cov, point_dim * point_dim, 1);
+
+        run_minus(
+            points[pos], cu_centroids + pos * point_dim, tmp_points, point_dim, cluster_data[pos].size, rest_info);
+
+        int tmp_size;
+        auto status = cusolverDnSgesvdj_bufferSize(shared.cusolver_handle,
+            cusolverEigMode_t::CUSOLVER_EIG_MODE_VECTOR,
+            1,
             cluster_data[pos].size,
             point_dim,
-            rest_info);
+            tmp_points,
+            cluster_data[pos].size,
+            S,
+            U,
+            cluster_data[pos].size,
+            V,
+            point_dim,
+            &tmp_size,
+            svd_info);
 
+        if (tmp_size > svd_work_size)
+        {
+            svd_work_size = tmp_size;
+            if (svd_work)
+                cudaFree(svd_work);
+            cudaMalloc(&svd_work, (size_t)svd_work_size*sizeof(float));
+        }
+
+        status = cusolverDnSgesvdj(shared.cusolver_handle,
+            cusolverEigMode_t::CUSOLVER_EIG_MODE_VECTOR,
+            1,
+            cluster_data[pos].size,
+            point_dim,
+            tmp_points,
+            cluster_data[pos].size,
+            S,
+            U,
+            cluster_data[pos].size,
+            V,
+            point_dim,
+            svd_work,
+            svd_work_size,
+            shared.cu_info,
+            svd_info);
+
+        int info;
+        CUCH(cudaMemcpyAsync(
+            &info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost, rest_info.stream));
+
+        if (info != 0)
+        {
+            exit(42);
+        }
+
+        auto m = std::min(point_dim, cluster_data[pos].size);
+        run_singular_vals(S, m, cluster_data[pos].size, rest_info.stream);
+
+        //run_print_centroid(V, point_dim * m, 1);
+        run_print_centroid(S, m * m, 1);
+        cudaMemsetAsync(C, 0, point_dim * m * sizeof(float), rest_info.stream);
+        float alpha = 1;
+        float beta = 0;
+        auto bstatus = cublasSgemm(cublas_handle,
+            cublasOperation_t::CUBLAS_OP_N,
+            cublasOperation_t::CUBLAS_OP_N,
+            point_dim,
+            m,
+            m,
+            &alpha,
+            V,
+            point_dim,
+            S,
+            m,
+            &beta,
+            C,
+            point_dim);
+        cudaMemsetAsync(cov, 0, point_dim * point_dim * sizeof(float), rest_info.stream);
+
+        bstatus = cublasSgemm(cublas_handle,
+            cublasOperation_t::CUBLAS_OP_N,
+            cublasOperation_t::CUBLAS_OP_T,
+            point_dim,
+            point_dim,
+            m,
+            &alpha,
+            C,
+            point_dim,
+            C,
+            m,
+            &beta,
+            cov,
+            point_dim);
+
+        
+       run_print_centroid(cov, point_dim * point_dim, 1);
+        
         if (wf < 1)
         {
             if (subthreshold_kind != subthreshold_handling_kind::MAHAL0)
