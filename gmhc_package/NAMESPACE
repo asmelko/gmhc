@@ -1,3 +1,3 @@
-useDynLib(c_gmhclust)
+useDynLib(libc_gmhclust)
 
 export('gmhclust')
