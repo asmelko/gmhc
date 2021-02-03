@@ -241,7 +241,7 @@ __global__ void minus(
     {
         auto r = idx / dim;
         auto c = idx % dim;
-        z[c * dim + r] = x[idx] - y[c];
+        z[c * count + r] = x[idx] - y[c];
     }
 }
 
