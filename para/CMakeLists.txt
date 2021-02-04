@@ -3,7 +3,10 @@ PROJECT(para CXX CUDA)
 
 set(CMAKE_CUDA_ARCHITECTURES OFF)
 
-set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -gencode=arch=compute_50,code=sm_50 -gencode=arch=compute_52,code=sm_52 -gencode=arch=compute_70,code=sm_70")
+include(FindCUDA)
+cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS Auto)
+list(APPEND CUDA_NVCC_FLAGS ${CUDA_ARCH_FLAGS})
+
 SET(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -g")
 
 FILE(GLOB_RECURSE PARA_SRC "${PROJECT_SOURCE_DIR}/src/*")
