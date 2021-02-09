@@ -1,5 +1,6 @@
 #include <device_launch_parameters.h>
 
+#include <cub/block/block_exchange.cuh>
 #include <cub/block/block_reduce.cuh>
 
 #include "common_kernels.cuh"
@@ -60,6 +61,58 @@ __global__ void covariance(const float* __restrict__ points,
         }
 
         cov_idx += need;
+    }
+}
+
+template<size_t DIM_X>
+__global__ void covariance_warp(const float* __restrict__ points,
+    const csize_t* __restrict__ asgn_idx,
+    float* __restrict__ cov_matrix,
+    csize_t count,
+    csize_t dim)
+{
+    __shared__ float tmp[DIM_X];
+
+    csize_t cov_size = ((dim + 1) * dim) / 2;
+    csize_t run = 0;
+    auto lane_id = threadIdx.x % warpSize;
+    auto warp_id = threadIdx.x / warpSize;
+    auto warps = DIM_X / warpSize;
+
+    while (run < cov_size)
+    {
+        float cov_point = 0;
+        auto point_idx = run + lane_id;
+
+
+        if (point_idx < cov_size)
+        {
+            auto coords = compute_coordinates(dim, point_idx);
+
+            for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count * warpSize;
+                 idx += gridDim.x * blockDim.x)
+            {
+                auto aidx = asgn_idx[idx / warpSize];
+
+                cov_point += (points[aidx * dim + coords.x] - expected_point[coords.x])
+                    * (points[aidx * dim + coords.y] - expected_point[coords.y]);
+            }
+
+            tmp[lane_id * warps + warp_id] = cov_point;
+            __syncthreads();
+
+            if (threadIdx.x < warpSize)
+            {
+                cov_point = tmp[threadIdx.x * warps];
+                for (csize_t i = 1; i < warps; i++)
+                    cov_point += tmp[threadIdx.x * warps + 1];
+                cov_matrix[blockIdx.x * cov_size + run + threadIdx.x] = cov_point;
+            }
+        }
+
+
+
+        run += warpSize;
     }
 }
 
@@ -210,7 +263,8 @@ void run_covariance(const float* points,
     else if (block_dim <= 512)
         covariance<512><<<grid_dim, 512, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
     else
-        covariance<1024><<<grid_dim, 1024, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<1024>
+            <<<grid_dim, 1024, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
 
     finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, grid_dim, cluster_size, dim);
 }
