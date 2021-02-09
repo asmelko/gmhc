@@ -1,3 +1,5 @@
+#include <stack>
+
 #include "../para/include/gmhc.hpp"
 #include "c_gmhclust_export.h"
 
@@ -8,9 +10,34 @@ extern "C"
     int transform_merging(csize_t m, csize_t n)
     {
         if (m < n)
-            return -(m + 1);
+            return -(int)(m + 1);
         else
             return m - n + 1;
+    }
+
+    void leaf_ordering(const int* merging, csize_t leaves, int* ordering)
+    {
+        int merge_pairs = leaves - 1;
+        std::stack<int> s;
+
+        int order = 0;
+        s.push(merge_pairs);
+
+        while (s.size())
+        {
+            auto cluster = s.top();
+            s.pop();
+
+            if (cluster < 0)
+            {
+                ordering[order++] = -cluster;
+            }
+            else
+            {
+                s.push(merging[cluster - 1 + merge_pairs]);
+                s.push(merging[cluster - 1]);
+            }
+        }
     }
 
     C_GMHCLUST_EXPORT void c_gmhclust(const double* data_points,
@@ -20,7 +47,8 @@ extern "C"
         const int* subthreshold_kind,
         const bool* normalize,
         int* merging,
-        double* heights)
+        double* heights,
+        int* ordering)
     {
         gmhc gmhclust;
 
@@ -47,6 +75,8 @@ extern "C"
             merging[i + size - 1] = transform_merging(res[i].first.second, size);
             heights[i] = res[i].second;
         }
+
+        leaf_ordering(merging, size, ordering);
 
         gmhclust.free();
     }

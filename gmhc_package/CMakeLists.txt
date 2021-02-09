@@ -22,6 +22,6 @@ add_dependencies(gmhc_package c_gmhclust)
 
 add_custom_command(TARGET gmhc_package POST_BUILD
     COMMAND R ARGS CMD build .
-    COMMAND R ARGS CMD INSTALL gmhc_0.0.1.tar.gz
+    COMMAND R ARGS CMD INSTALL gmhc_0.0.2.tar.gz
     WORKING_DIRECTORY ${PROJECT_BINARY_DIR}/package
 )

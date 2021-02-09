@@ -39,9 +39,14 @@ gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", norma
 	count<-dim(dataMatrix)[2] 
 
 	merge<-matrix(0L,count-1,2)
-    height<-matrix(0.0,count-1,1)
+    height<-rep(0.0, count-1)
+    ordering<-rep(0L, count)
 
-	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, as.integer(kind), normalize, m=merge, h=height)
+	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, as.integer(kind), normalize, m=merge, h=height, o=ordering)
 
-	return(list(merge=res$m, height=res$h))
+	clust<-list(merge=res$m,height=res$h,order=res$o,labels=rownames(dataMatrix),
+        method='mahalanobis-average',dist.method='euclidean')
+    class(clust)<-'hclust'
+
+	return(clust)
 } 
