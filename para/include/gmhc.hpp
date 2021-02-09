@@ -3,6 +3,7 @@
 
 #include <cusolverDn.h>
 
+#include "../para_timer/timer.hpp"
 #include "apriori.hpp"
 
 namespace clustering {
@@ -22,7 +23,7 @@ struct shared_apriori_data_t
     float* cu_workspace;
     int workspace_size;
 
-    //reduce arrays for centroid and covariance kernel
+    // reduce arrays for centroid and covariance kernel
     float* cu_work_centroid;
     float* cu_work_covariance;
 
@@ -39,6 +40,8 @@ struct shared_apriori_data_t
     cusolverDnHandle_t cusolver_handle;
 
     cudaStream_t streams[2];
+
+    time_info timer;
 };
 
 // Mahalanobis hierarchical clustering class
@@ -56,7 +59,7 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_icov_mf_;
     // device assignments array
     asgn_t* cu_point_asgns_;
-    //mhca normalization flag
+    // mhca normalization flag
     bool normalize_;
 
     // device neighbor array
@@ -90,7 +93,7 @@ public:
         csize_t data_points_size,
         csize_t data_point_dim,
         csize_t mahalanobis_threshold,
-        subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL, 
+        subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL,
         bool normalize = false,
         const asgn_t* apriori_assignments = nullptr,
         validator* vld = nullptr);
@@ -98,6 +101,8 @@ public:
     virtual std::vector<res_t> run() override;
 
     virtual void free() override;
+
+    time_info& timer();
 
 private:
     // method sets fields of apriori clusters

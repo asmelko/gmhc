@@ -299,3 +299,5 @@ void gmhc::free()
 
     apr_ctxs_.clear();
 }
+
+time_info& gmhc::timer() { return common_.timer; }

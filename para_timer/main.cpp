@@ -1,9 +1,10 @@
 #include <chrono>
 #include <climits>
+#include <iomanip>
 #include <iostream>
 #include <istream>
-#include <iomanip>
 #include <numeric>
+#include <tuple>
 
 #include "../para/include/gmhc.hpp"
 #include "option.hpp"
@@ -26,21 +27,43 @@ std::string enum_to_string(clustering::subthreshold_handling_kind kind)
     }
 }
 
-void print_time(std::vector<std::chrono::duration<double>>& time, size_t reps, clustering::subthreshold_handling_kind kind)
+using microbench_t = std::tuple<float, float>;
+
+void print_time(std::vector<std::chrono::duration<double>>& time,
+    microbench_t micro_time,
+    clustering::subthreshold_handling_kind kind)
 {
     std::cout << enum_to_string(kind) << "\t";
 
-    auto sum = std::accumulate(time.begin(), time.end(), std::chrono::duration<double>::zero());
-    auto mean = sum / reps;
-    std::cout << mean.count() << "\t";
+    {
+        auto sum = std::accumulate(time.begin(), time.end(), std::chrono::duration<double>::zero());
+        auto mean = sum / time.size();
+        std::cout << mean.count() << "\t";
 
-    double std_dev = 0;
-    for (auto t : time)
-        std_dev += (t - mean).count() * (t - mean).count();
-    std_dev /= reps;
-    std_dev = std::sqrt(std_dev);
-    std::cout << std_dev << std::endl;
-    time.clear();
+        double std_dev = 0;
+        for (auto t : time)
+            std_dev += (t - mean).count() * (t - mean).count();
+        std_dev /= time.size();
+        std_dev = std::sqrt(std_dev);
+        std::cout << std_dev << "\t";
+        time.clear();
+    }
+    {
+        std::cout << std::get<0>(micro_time) << "\t";
+        std::cout << std::get<1>(micro_time) << std::endl;
+    }
+}
+
+microbench_t compute_micro_time(const clustering::time_info& timer)
+{
+    microbench_t t;
+    {
+        std::get<0>(t) = std::accumulate(timer.cov_time.begin(), timer.cov_time.end(), 0.f) / 1000;
+    }
+    {
+        std::get<1>(t) = std::accumulate(timer.nei_time.begin(), timer.nei_time.end(), 0.f) / 1000;
+    }
+    return t;
 }
 
 int measure(const float* data, clustering::csize_t count, clustering::csize_t dim, size_t repetitions)
@@ -48,7 +71,7 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
     using namespace clustering;
 
     std::cout << std::fixed << std::setprecision(6);
-    std::cout << "kind\ttime    \tstd.dev" << std::endl; 
+    std::cout << "kind\ttime    \tstd.dev    \tcov      \tnei" << std::endl;
 
     auto threshold = (csize_t)(count * 0.5);
 
@@ -64,6 +87,10 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
     gmhc gmhclust;
 
     std::vector<std::chrono::duration<double>> run_time;
+    std::vector<float> cov_time;
+    std::vector<float> nei_time;
+    microbench_t micro_res;
+
     std::vector<double> processed_time;
     size_t enum_size = 4;
 
@@ -73,6 +100,8 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
 
         for (size_t j = 0; j < repetitions; j++)
         {
+            gmhclust.timer().initialize();
+
             auto start = std::chrono::system_clock::now();
 
             if (!gmhclust.initialize(data, count, dim, threshold, kind))
@@ -83,8 +112,12 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
             auto end = std::chrono::system_clock::now();
 
             run_time.push_back(end - start);
+
+            if (j == repetitions - 1)
+                micro_res = compute_micro_time(gmhclust.timer());
+            gmhclust.timer().free();
         }
-        print_time(run_time, repetitions, kind);
+        print_time(run_time, micro_res, kind);
     }
 
     return 0;
