@@ -8,7 +8,7 @@
 #include "serial_impl.hpp"
 
 using namespace clustering;
-/*
+
 TEST(para, apriori_small)
 {
     std::string input = "2 20 0 0 -1 0 1 0 0 1 0 -1 0 100 -1 100 1 100 0 99 0 101 0 250 -1 250 1 250 0 249 0 251 200 "
@@ -63,52 +63,6 @@ TEST(para, apriori_small)
     }
 }
 
-TEST(para, apriori_big)
-{
-    auto data = reader::read_data_from_file<float>("big");
-
-    gmhc para;
-    bool normalize = true;
-
-    auto thresh = 20;
-
-    std::vector<asgn_t> apriori_asgn;
-
-    for (csize_t i = 0; i < data.points; i++)
-        apriori_asgn.push_back(rand() % thresh);
-
-    for (size_t i = 0; i < 4; i++)
-    {
-        printf("computing subthreshold %zd\n", i);
-
-        validator vld;
-
-        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
-
-        vld.initialize(data.data.data(),
-            (csize_t)data.points,
-            (csize_t)data.dim,
-            thresh,
-            subthreshold_kind,
-            normalize,
-            apriori_asgn.data());
-
-        para.initialize(data.data.data(),
-            (csize_t)data.points,
-            (csize_t)data.dim,
-            thresh,
-            subthreshold_kind,
-            normalize,
-            apriori_asgn.data(),
-            &vld);
-
-        para.run();
-        para.free();
-
-        ASSERT_FALSE(vld.has_error());
-    }
-}
-*/
 TEST(para, small)
 {
     std::string input =
@@ -157,6 +111,52 @@ TEST(para, small)
 
             ASSERT_FALSE(vld.has_error());
         }
+    }
+}
+
+TEST(para, apriori_big)
+{
+    auto data = reader::read_data_from_file<float>("big");
+
+    gmhc para;
+    bool normalize = true;
+
+    auto thresh = 20;
+
+    std::vector<asgn_t> apriori_asgn;
+
+    for (csize_t i = 0; i < data.points; i++)
+        apriori_asgn.push_back(rand() % thresh);
+
+    for (size_t i = 0; i < 4; i++)
+    {
+        printf("computing subthreshold %zd\n", i);
+
+        validator vld;
+
+        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
+
+        vld.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            normalize,
+            apriori_asgn.data());
+
+        para.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            normalize,
+            apriori_asgn.data(),
+            &vld);
+
+        para.run();
+        para.free();
+
+        ASSERT_FALSE(vld.has_error());
     }
 }
 

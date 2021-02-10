@@ -6,7 +6,8 @@
 
 #include "../common_kernels.cuh"
 
-template<clustering::csize_t N> __device__ void add_neighbor(neighbor_t* __restrict__ neighbors, neighbor_t neighbor)
+template<clustering::csize_t N>
+__device__ __inline__ void add_neighbor(neighbor_t* __restrict__ neighbors, neighbor_t neighbor)
 {
     neighbor_t prev_min;
     clustering::csize_t i = 0;
@@ -31,8 +32,15 @@ template<clustering::csize_t N> __device__ void add_neighbor(neighbor_t* __restr
     }
 }
 
+template<>
+__device__ __inline__ void add_neighbor<1>(neighbor_t* __restrict__ neighbors, neighbor_t neighbor)
+{
+    if (neighbors->distance > neighbor.distance)
+        *neighbors = neighbor;
+}
+
 template<clustering::csize_t N>
-__device__ void merge_neighbors(const neighbor_t* __restrict__ l_neighbors,
+__device__ __inline__ void merge_neighbors(const neighbor_t* __restrict__ l_neighbors,
     const neighbor_t* __restrict__ r_neighbors,
     neighbor_t* __restrict__ res)
 {
@@ -47,8 +55,17 @@ __device__ void merge_neighbors(const neighbor_t* __restrict__ l_neighbors,
     }
 }
 
+template<>
+__device__ __inline__ void merge_neighbors<1>(const neighbor_t* __restrict__ l_neighbors,
+    const neighbor_t* __restrict__ r_neighbors,
+    neighbor_t* __restrict__ res)
+{
+    *res = l_neighbors->distance < r_neighbors->distance ? *l_neighbors : *r_neighbors;
+}
 
-template<clustering::csize_t N> __device__ void reduce_min_warp(neighbor_t* __restrict__ neighbors)
+
+template<clustering::csize_t N>
+__device__ __inline__ void reduce_min_warp(neighbor_t* __restrict__ neighbors)
 {
     for (unsigned int offset = warpSize / 2; offset > 0; offset /= 2)
     {
@@ -66,7 +83,7 @@ template<clustering::csize_t N> __device__ void reduce_min_warp(neighbor_t* __re
 }
 
 template<clustering::csize_t N>
-__device__ void reduce_min_block(
+__device__ __inline__ void reduce_min_block(
     neighbor_t* __restrict__ neighbors, neighbor_t* __restrict__ shared_mem, bool reduce_warp = true)
 {
     if (reduce_warp)

@@ -1,5 +1,7 @@
-
+#include "centroid_test.hpp"
+#include "covariance_test.hpp"
 #include "gmhc_test.hpp"
+#include "neighbor_test.hpp"
 
 int main(int argc, char** argv)
 {
