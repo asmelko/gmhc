@@ -3,9 +3,16 @@ PROJECT(para CXX CUDA)
 
 set(CMAKE_CUDA_ARCHITECTURES OFF)
 
-include(FindCUDA)
-cuda_select_nvcc_arch_flags(CUDA_ARCH_FLAGS Auto)
-list(APPEND CUDA_NVCC_FLAGS ${CUDA_ARCH_FLAGS})
+execute_process(COMMAND nvcc -lcuda ${PROJECT_SOURCE_DIR}/cmake/cuda_check.cu -o ${PROJECT_BINARY_DIR}/cuda_check)
+execute_process(COMMAND ${PROJECT_BINARY_DIR}/cuda_check
+                  RESULT_VARIABLE CUDA_RETURN_CODE
+                  OUTPUT_VARIABLE ARCH)
+if(${CUDA_RETURN_CODE} EQUAL 0)
+	 message(STATUS "CUDA Architecture: ${ARCH}")
+	 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} ${ARCH}")
+else()
+    message(ERROR "unsupported architecture")
+endif()
 
 SET(CMAKE_CUDA_FLAGS_DEBUG "${CMAKE_CUDA_FLAGS_DEBUG} -G -g")
 

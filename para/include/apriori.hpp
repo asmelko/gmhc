@@ -12,8 +12,8 @@ enum class subthreshold_handling_kind
 {
     MAHAL = 0,
     EUCLID = 1,
-    MAHAL0 = 2,
-    EUCLID_MAHAL = 3
+    EUCLID_MAHAL = 2,
+    MAHAL0 = 3
 };
 
 struct shared_apriori_data_t;

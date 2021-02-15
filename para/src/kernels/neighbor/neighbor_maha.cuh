@@ -2,6 +2,7 @@
 
 #include "kernels.cuh"
 #include "neighbor_common.cuh"
+#include "reduce.cuh"
 
 using namespace clustering;
 
@@ -65,17 +66,18 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
 }
 
 template<csize_t N>
-__inline__ __device__ void point_neighbors_mat(const float* __restrict__ centroids,
+__global__ void point_neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
     neighbor_t* __restrict__ work_neighbors,
-    float* __restrict__ shared_mem,
     csize_t dim,
     csize_t count,
     csize_t x,
     csize_t new_idx)
 {
+    extern __shared__ float shared_mem[];
+
     float* this_centroid = shared_mem;
     float* this_icov = shared_mem + dim;
     float this_mf = mfactors ? mfactors[x] : 1;
@@ -156,13 +158,34 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
+    neighbor_t* __restrict__ work_neighbors,
     csize_t dim,
-    csize_t count)
+    csize_t count,
+    csize_t max_threads,
+    csize_t max_blocks)
 {
-    extern __shared__ float shared_mem[];
-
     for (csize_t x = 0; x < count; ++x)
-        point_neighbors_mat<N>(centroids, inverses, mfactors, nullptr, neighbors, shared_mem, dim, count, x, false);
+    {
+        auto work = count - x;
+
+        auto threads = work * warpSize;
+        auto blocks = (threads + max_threads - 1) / max_threads;
+        threads = threads > max_threads ? max_threads : threads;
+        blocks = blocks > max_blocks ? max_blocks : blocks;
+
+        auto warps = threads / warpSize;
+        csize_t shared_new = (dim + warps + 1) * dim * sizeof(float);
+        auto shared_size = max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
+
+        cudaStream_t s;
+        cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
+
+        point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
+            centroids, inverses, mfactors, nullptr, work_neighbors, dim, count, x, 0);
+        reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, x, blocks);
+
+        cudaStreamDestroy(s);
+    }
 }
 
 template<csize_t N>
@@ -175,29 +198,35 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     const csize_t* __restrict__ upd_count,
     csize_t new_idx,
     csize_t dim,
-    csize_t count)
+    csize_t count,
+    csize_t max_threads,
+    csize_t max_blocks)
 {
-    extern __shared__ float shared_mem[];
-
     auto update_count = *upd_count;
 
     for (csize_t i = 0; i < update_count; ++i)
-        point_neighbors_mat<N>(
-            centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, updated[i], new_idx);
-}
+    {
+        auto idx = updated[i];
 
-template<csize_t N>
-__global__ void neighbors_mat_u(const float* __restrict__ centroids,
-    const float* __restrict__ inverses,
-    const float* __restrict__ mfactors,
-    neighbor_t* __restrict__ neighbors,
-    neighbor_t* __restrict__ work_neighbors,
-    csize_t new_idx,
-    csize_t dim,
-    csize_t count)
-{
-    extern __shared__ float shared_mem[];
+        auto work = count - idx;
 
-    point_neighbors_mat<N>(
-        centroids, inverses, mfactors, neighbors, work_neighbors, shared_mem, dim, count, new_idx, new_idx);
+        auto threads = work * warpSize;
+        auto blocks = (threads + max_threads - 1) / max_threads;
+        threads = threads > max_threads ? max_threads : threads;
+        blocks = blocks > max_blocks ? max_blocks : blocks;
+
+        auto warps = threads / warpSize;
+        csize_t shared_new = (dim + warps + 1) * dim * sizeof(float);
+        auto shared_size = max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
+
+        cudaStream_t s;
+        cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
+
+        point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
+            centroids, inverses, mfactors, neighbors, work_neighbors, dim, count, idx, new_idx);
+        reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, idx, blocks);
+
+        cudaStreamDestroy(s);
+    }
+    //printf("finished\n");
 }

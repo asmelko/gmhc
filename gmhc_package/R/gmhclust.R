@@ -10,9 +10,7 @@
 ## their size and shape gets reflected in distance computation.
 #' @param normalize Boolean; if TRUE, cluster size
 #' will be ignored when computing Mahalanobis distance from the cluster.
-#' @return Returns list(merge, height);
-#' merge is the (n-1) x 2 matrix describing the iterative merging of observations and clusters (column-major style)
-#' height is the 1 x (n-1) matrix that stores the heights of the n-1 clusters
+#' @return Returns hclust object that describes the clustering process
 gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", normalize=FALSE) {
 
 	if (!is.double(dataMatrix))

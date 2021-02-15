@@ -3,6 +3,7 @@
 
 #include <cusolverDn.h>
 
+#include "../para_timer/timer.hpp"
 #include "apriori.hpp"
 
 namespace clustering {
@@ -36,6 +37,8 @@ struct shared_apriori_data_t
     cusolverDnHandle_t cusolver_handle;
 
     cudaStream_t streams[2];
+
+    time_info timer;
 };
 
 // Mahalanobis hierarchical clustering class
@@ -93,6 +96,8 @@ public:
     virtual std::vector<pasgnd_t<float>> run() override;
 
     virtual void free() override;
+
+    time_info& timer();
 
 private:
     // method sets fields of apriori clusters

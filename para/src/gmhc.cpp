@@ -306,3 +306,6 @@ void gmhc<N>::free()
 
     apr_ctxs_.clear();
 }
+
+template<csize_t N>
+time_info& gmhc<N>::timer() { return common_.timer; }
