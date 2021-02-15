@@ -61,7 +61,7 @@
       "configurationType": "RelWithDebInfo",
       "cmakeExecutable": "/mnt/home/smelko/cmake-3.15.2/bin/cmake",
       "remoteCopySourcesExclusionList": [ ".vs", ".git", "build" ],
-      "cmakeCommandArgs": "-DBUILD_GMHC_SERIAL=false -DBUILD_GMHC_TESTS=false",
+      "cmakeCommandArgs": "-DBUILD_GMHC_SERIAL=false -DBUILD_GMHC_TESTS=true",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "inheritEnvironments": [ "linux_x64" ],

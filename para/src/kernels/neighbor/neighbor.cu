@@ -32,16 +32,20 @@ __global__ void neighbor_min(const neighbor_t* __restrict__ neighbors, csize_t c
 
 #include "neighbor_eucl.cuh"
 #include "neighbor_maha.cuh"
-#include "reduce.cuh"
 #include "update.cuh"
 
-void tune_info(kernel_info& info, size_t size, bool use_eucl)
+template <csize_t N>
+void tune_info(kernel_info& info, size_t size, bool use_eucl, size_t dim)
 {
     auto multiplier = use_eucl ? 1 : 32;
     auto block_dim = ((size + 31) / 32) * 32 * multiplier;
     auto grid_dim = (block_dim + 1023) / 1024;
     info.block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
     info.grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
+    
+    auto warps = info.block_dim / 32;
+    csize_t shared_new = (dim + warps + 1) * dim * sizeof(float);
+    info.shared_size = std::max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
 }
 
 template<csize_t N>
@@ -53,17 +57,15 @@ void run_update_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
-    tune_info(info, size, use_eucl);
-    csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
-    csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
-
     CUCH(cudaMemsetAsync(upd_data.update_size, 0, sizeof(csize_t), info.stream));
 
     update<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
         act_neighbors, upd_data.to_update, upd_data.update_size, size, upd_data.old_a, upd_data.old_b);
 
     if (use_eucl)
-        neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
+    {
+        tune_info<N>(info, size, use_eucl, data.dim);
+        neighbors_u<N><<<info.grid_dim, info.block_dim, info.shared_size, info.stream>>>(data.centroids,
             act_neighbors,
             tmp_neighbors,
             upd_data.to_update,
@@ -71,8 +73,12 @@ void run_update_neighbors(centroid_data_t data,
             upd_data.old_a,
             data.dim,
             size);
+
+        reduce_u<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
+            tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
+    }
     else
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(data.centroids,
+        neighbors_mat_u<N><<<1, 1, 0, info.stream>>>(data.centroids,
             data.inverses,
             data.mfactors,
             act_neighbors,
@@ -81,10 +87,9 @@ void run_update_neighbors(centroid_data_t data,
             upd_data.update_size,
             upd_data.old_a,
             data.dim,
-            size);
-
-    reduce_u<N><<<info.grid_dim, info.block_dim, 0, info.stream>>>(
-        tmp_neighbors, act_neighbors, upd_data.to_update, upd_data.update_size, info.grid_dim);
+            size,
+            info.block_dim,
+            info.grid_dim);
 }
 
 template<csize_t N>
@@ -96,16 +101,21 @@ void run_update_neighbors_new(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
-    tune_info(info, size, use_eucl);
-    csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
-    csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
+    tune_info<N>(info, size, use_eucl, data.dim);
 
     if (use_eucl)
-        neighbors_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
+        neighbors_u<N><<<info.grid_dim, info.block_dim, info.shared_size, info.stream>>>(
             data.centroids, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
     else
-        neighbors_mat_u<N><<<info.grid_dim, info.block_dim, shared_mat, info.stream>>>(
-            data.centroids, data.inverses, data.mfactors, act_neighbors, tmp_neighbors, new_idx, data.dim, size);
+        point_neighbors_mat<N><<<info.grid_dim, info.block_dim, info.shared_size, info.stream>>>(data.centroids,
+            data.inverses,
+            data.mfactors,
+            act_neighbors,
+            tmp_neighbors,
+            data.dim,
+            size,
+            new_idx,
+            new_idx);
 
     reduce_u<N>
         <<<info.grid_dim, info.block_dim, 0, info.stream>>>(tmp_neighbors, act_neighbors, new_idx, info.grid_dim);
@@ -119,17 +129,22 @@ void run_neighbors(centroid_data_t data,
     bool use_eucl,
     kernel_info info)
 {
-    tune_info(info, size, use_eucl);
-    csize_t shared_new = (data.dim + 33) * data.dim * sizeof(float);
-    csize_t shared_mat = std::max(shared_new, 32 * (csize_t)sizeof(neighbor_t) * N);
-
     if (use_eucl)
-        neighbors<N><<<info.grid_dim, info.block_dim, shared_mat>>>(data.centroids, tmp_neighbors, data.dim, size);
+    {
+        tune_info<N>(info, size, use_eucl, data.dim);
+        neighbors<N><<<info.grid_dim, info.block_dim, info.shared_size>>>(data.centroids, tmp_neighbors, data.dim, size);
+        reduce<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors, act_neighbors, size, info.grid_dim);
+    }
     else
-        neighbors_mat<N><<<info.grid_dim, info.block_dim, shared_mat>>>(
-            data.centroids, data.inverses, data.mfactors, tmp_neighbors, data.dim, size);
-
-    reduce<N><<<info.grid_dim, info.block_dim>>>(tmp_neighbors, act_neighbors, size, info.grid_dim);
+        neighbors_mat<N><<<1, 1>>>(data.centroids,
+            data.inverses,
+            data.mfactors,
+            act_neighbors,
+            tmp_neighbors,
+            data.dim,
+            size,
+            info.block_dim,
+            info.grid_dim);
 }
 
 template<csize_t N>

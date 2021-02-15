@@ -16,7 +16,7 @@ TEST(para, apriori_small)
 
     auto data = reader::read_data_from_string<float>(input);
 
-    gmhc para;
+    gmhc<1> para;
     bool normalize = false;
 
     auto thresh = 5;
@@ -63,52 +63,6 @@ TEST(para, apriori_small)
     }
 }
 
-TEST(para, apriori_big)
-{
-    auto data = reader::read_data_from_file<float>("big");
-
-    gmhc para;
-    bool normalize = true;
-
-    auto thresh = 20;
-
-    std::vector<asgn_t> apriori_asgn;
-
-    for (csize_t i = 0; i < data.points; i++)
-        apriori_asgn.push_back(rand() % thresh);
-
-    for (size_t i = 0; i < 4; i++)
-    {
-        printf("computing subthreshold %zd\n", i);
-
-        validator vld;
-
-        subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
-
-        vld.initialize(data.data.data(),
-            (csize_t)data.points,
-            (csize_t)data.dim,
-            thresh,
-            subthreshold_kind,
-            normalize,
-            apriori_asgn.data());
-
-        para.initialize(data.data.data(),
-            (csize_t)data.points,
-            (csize_t)data.dim,
-            thresh,
-            subthreshold_kind,
-            normalize,
-            apriori_asgn.data(),
-            &vld);
-
-        para.run();
-        para.free();
-
-        ASSERT_FALSE(vld.has_error());
-    }
-}
-
 TEST(para, small)
 {
     std::string input =
@@ -123,7 +77,7 @@ TEST(para, small)
 
     auto data = reader::read_data_from_string<float>(input);
 
-    gmhc para;
+    gmhc<1> para;
     bool normalize = true;
 
     auto thresh = 5;
@@ -160,11 +114,62 @@ TEST(para, small)
     }
 }
 
+TEST(para, apriori_big)
+{
+    auto data = reader::read_data_from_file<float>("big");
+
+    gmhc<1> para;
+    bool normalize = true;
+
+    auto thresh = 20;
+
+    std::vector<asgn_t> apriori_asgn;
+
+    for (csize_t i = 0; i < data.points; i++)
+        apriori_asgn.push_back(rand() % thresh);
+
+    for (size_t j = 0; j < 2; j++)
+    {
+        normalize = !normalize;
+        printf("computing mormalize %d\n", normalize);
+        for (size_t i = 0; i < 4; i++)
+        {
+            printf("computing subthreshold %zd\n", i);
+
+            validator vld;
+
+            subthreshold_handling_kind subthreshold_kind = (subthreshold_handling_kind)i;
+
+        vld.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            normalize,
+            apriori_asgn.data());
+
+        para.initialize(data.data.data(),
+            (csize_t)data.points,
+            (csize_t)data.dim,
+            thresh,
+            subthreshold_kind,
+            normalize,
+            apriori_asgn.data(),
+            &vld);
+
+            para.run();
+            para.free();
+
+            ASSERT_FALSE(vld.has_error());
+        }
+    }
+}
+
 TEST(para, nilsson)
 {
     auto data = reader::read_data_from_binary_file<float>("nilsson");
 
-    gmhc para;
+    gmhc<1> para;
     validator vld;
 
     auto thresh = 44;

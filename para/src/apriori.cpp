@@ -50,6 +50,8 @@ bool clustering_context_t<N>::can_use_euclidean_distance()
 template<csize_t N>
 void clustering_context_t<N>::compute_neighbors()
 {
+    shared.timer.record(shared.timer.nei_new_start, neighbor_info.stream);
+
     if (need_recompute_neighbors())
     {
         initialize_neighbors = false;
@@ -68,6 +70,8 @@ void clustering_context_t<N>::compute_neighbors()
         run_update_neighbors_new<N>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, neighbor_info);
     }
+
+    shared.timer.record(shared.timer.nei_new_stop, neighbor_info.stream);
 }
 
 template<csize_t N>
@@ -78,6 +82,8 @@ std::vector<pasgnd_t<float>> clustering_context_t<N>::run()
     while (cluster_count > 1)
     {
         CUCH(cudaStreamSynchronize(rest_info.stream));
+
+        shared.timer.record_iteration();
 
         compute_neighbors();
 
@@ -168,6 +174,7 @@ void clustering_context_t<N>::update_iteration_host(chunk_t min)
 template<csize_t N>
 void clustering_context_t<N>::update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id)
 {
+    shared.timer.record(shared.timer.nei_rest_start, neighbor_info.stream);
     // start computing neighbor of all but new cluster
     if (!need_recompute_neighbors())
     {
@@ -176,6 +183,7 @@ void clustering_context_t<N>::update_iteration_device(asgn_t merged_A, asgn_t me
         run_update_neighbors<N>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, neighbor_info);
     }
+    shared.timer.record(shared.timer.nei_rest_stop, neighbor_info.stream);
 
     auto new_idx = update_data.old_a;
 
@@ -213,6 +221,8 @@ void clustering_context_t<N>::compute_covariance(csize_t pos, float wf)
             cudaMemcpyKind::cudaMemcpyDeviceToDevice,
             rest_info.stream);
 
+        shared.timer.record(shared.timer.cov_start, rest_info.stream);
+
         run_covariance(cu_points,
             shared.cu_asgn_idxs_,
             shared.cu_work_covariance,
@@ -220,6 +230,8 @@ void clustering_context_t<N>::compute_covariance(csize_t pos, float wf)
             cluster_data[pos].size,
             point_dim,
             rest_info);
+
+        shared.timer.record(shared.timer.cov_stop, rest_info.stream);
 
         if (wf < 1)
         {

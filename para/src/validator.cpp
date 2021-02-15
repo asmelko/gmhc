@@ -232,8 +232,19 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
         print_pairs(iteration_, min_pair, pair_v);
 
         error_ = true;
-        return false;
     }
+
+    if (apr_sizes_.empty())
+        for (size_t i = 0; i < point_count_; i++)
+        {
+            if (asgns_[i] != point_asgns_[i])
+            {
+                print_arrays(iteration_, "assignments do not match", point_count_, point_asgns_.data(), asgns_.data());
+
+                error_ = true;
+                return false;
+            }
+        }
 
     if (float_diff(min_dist, dist_v))
     {
@@ -241,28 +252,31 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
                   << std::endl;
 
         error_ = true;
-        return false;
     }
 
+    bool centroid_ok = true;
     if (float_diff(clusters_[new_clust].centroid.data(), centroid_v, point_dim_))
     {
         print_arrays(
             iteration_, "centroids do not match", point_dim_, clusters_[new_clust].centroid.data(), centroid_v);
 
         error_ = true;
-        return false;
+        centroid_ok = false;
     }
 
-    std::memcpy(clusters_[new_clust].centroid.data(), centroid_v, point_dim_ * sizeof(float));
-
-    auto this_cov = compute_covariance(clusters_[new_clust]);
-
-    if (float_diff(this_cov, cov_, point_dim_ * point_dim_))
+    if (centroid_ok)
     {
-        print_arrays(iteration_, "covariances do not match", point_dim_ * point_dim_, this_cov.data(), cov_.data());
+        std::memcpy(clusters_[new_clust].centroid.data(), centroid_v, point_dim_ * sizeof(float));
 
-        error_ = true;
-        return false;
+        auto this_cov = compute_covariance(clusters_[new_clust]);
+
+        if (float_diff(this_cov, cov_, point_dim_ * point_dim_))
+        {
+            print_arrays(iteration_, "covariances do not match", point_dim_ * point_dim_, this_cov.data(), cov_.data());
+
+            error_ = true;
+            return false;
+        }
     }
 
     check_inverse(clusters_[new_clust]);
