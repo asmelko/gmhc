@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     if (parsed["normalize"])
         normalize = parsed["normalize"]->get_value<bool>();
 
-    gmhc gmhclust;
+    gmhc<1> gmhclust;
     auto actual_thresholh = (csize_t)((float)data.points * threshold);
 
     bool init = gmhclust.initialize(

@@ -301,7 +301,7 @@ public:
 private:
     virtual std::unique_ptr<parsed_param_base> parse(std::string param) const
     {
-        T val;
+        T val {};
         bool parse_ok = value_type<T>::parse(std::move(param), val);
         bool constr_ok = true;
         if (constraint_ && parse_ok)

@@ -172,5 +172,5 @@ chunk_t run_neighbors_min(const neighbor_t* neighbors, csize_t size, chunk_t* re
 INIT_TEMPLATES(1)
 INIT_TEMPLATES(2)
 INIT_TEMPLATES(3)
+INIT_TEMPLATES(4)
 INIT_TEMPLATES(5)
-INIT_TEMPLATES(10)

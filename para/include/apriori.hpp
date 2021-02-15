@@ -19,6 +19,7 @@ enum class subthreshold_handling_kind
 struct shared_apriori_data_t;
 
 // structure that describes a dataset to cluster
+template<csize_t Neighs>
 struct clustering_context_t
 {
     subthreshold_handling_kind subthreshold_kind;
@@ -73,7 +74,7 @@ struct clustering_context_t
 
     // shared data among each clustering context
     shared_apriori_data_t& shared;
-    //flag that states that this is last/only apriori context left to cluster
+    // flag that states that this is last/only apriori context left to cluster
     bool is_final;
 
     // mhca normalization flag
@@ -101,7 +102,7 @@ private:
     void update_iteration_host(chunk_t min);
     // computes inverse covariance matrix for new cluster
     void compute_icov(csize_t pos);
-    //computes weight factor for new cluster
+    // computes weight factor for new cluster
     float compute_weight_factor(csize_t pos);
     // computes covariance matrix for new cluster
     void compute_covariance(csize_t pos, float wf);
@@ -114,6 +115,12 @@ private:
     // helper method that independently computes distance between clusters
     float recompute_dist(pasgn_t expected_id);
 };
+
+template class clustering_context_t<1>;
+template class clustering_context_t<2>;
+template class clustering_context_t<3>;
+template class clustering_context_t<4>;
+template class clustering_context_t<5>;
 
 } // namespace clustering
 
