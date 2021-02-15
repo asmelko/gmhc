@@ -293,6 +293,7 @@ void clustering_context_t::compute_icov(csize_t pos)
         shared.workspace_size,
         shared.cu_info));
 
+    /*
     CUCH(cudaStreamSynchronize(rest_info.stream));
     CUCH(cudaMemcpyAsync(&info, shared.cu_info, sizeof(int), cudaMemcpyKind::cudaMemcpyDeviceToHost, rest_info.stream));
 
@@ -302,7 +303,7 @@ void clustering_context_t::compute_icov(csize_t pos)
         run_store_icovariance_data(
             cu_inverses + pos * icov_size, cu_mfactors + pos, shared.cu_tmp_icov, 1, point_dim, rest_info.stream);
         return;
-    }
+    }*/
 
     run_compute_store_icov_mf(cu_mfactors + pos, point_dim, cov, rest_info.stream);
 

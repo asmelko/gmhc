@@ -1,3 +1,4 @@
+#pragma once
 #include <device_launch_parameters.h>
 
 #include "kernels.cuh"
