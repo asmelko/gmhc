@@ -10,14 +10,18 @@ __inline__ __device__ void point_neighbors_thread(neighbor_t* __restrict__ neigh
     const float* __restrict__ this_centroid,
     const float* __restrict__ curr_centroid,
     csize_t dim,
-    csize_t idx)
+    csize_t idx,
+    bool new_idx = false)
 {
     float dist = euclidean_norm(this_centroid, curr_centroid, dim);
 
     if ((isinf(dist) || isnan(dist)))
         dist = FLT_MAX;
 
-    add_neighbor<N>(neighbors, neighbor_t { dist, idx });
+    if (new_idx)
+        add_neighbor_disruptive<N>(neighbors, neighbor_t { dist, idx });
+    else
+        add_neighbor<N>(neighbors, neighbor_t { dist, idx });
 }
 
 template<csize_t N>
@@ -45,7 +49,10 @@ __device__ void point_neighbor(const float* __restrict__ centroids,
     if (x == new_idx)
     {
         for (; y < x; y += blockDim.x * gridDim.x)
-            point_neighbors_thread<N>(neighbors + y * N, shared_mem, centroids + y * dim, dim, x);
+        {
+            bool special_case = x == count - 1 && y == count - 2;
+            point_neighbors_thread<N>(neighbors + y * N, shared_mem, centroids + y * dim, dim, x, true && !special_case);
+        }
 
         y += 1;
     }
