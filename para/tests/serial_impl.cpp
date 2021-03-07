@@ -97,8 +97,8 @@ std::vector<float> serial_covariance(const reader::data_t<float>& data, const as
                         * ((data.data.data() + k * data.dim)[j] - (data.data.data() + l * data.dim)[j]);
                 }
             }
-            cov[i + data.dim * j] = res / (count * count * 2);
-            cov[j + data.dim * i] = res / (count * count * 2);
+            cov[i + data.dim * j] = res / (count * count * 2) - 1;
+            cov[j + data.dim * i] = res / (count * count * 2) - 1;
         }
     return cov;
 }
@@ -123,8 +123,8 @@ std::vector<float> serial_covariance_by_centroid(
 
                 res += (data.data[k * data.dim + i] - centroid[i]) * (data.data[k * data.dim + j] - centroid[j]);
             }
-            cov[i + data.dim * j] = res / count;
-            cov[j + data.dim * i] = res / count;
+            cov[i + data.dim * j] = res / count - 1;
+            cov[j + data.dim * i] = res / count - 1;
         }
     return cov;
 }

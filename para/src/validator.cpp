@@ -340,8 +340,8 @@ std::vector<float> validator::compute_covariance(const cluster& c)
                     res +=
                         (points_[k * point_dim_ + i] - c.centroid[i]) * (points_[k * point_dim_ + j] - c.centroid[j]);
                 }
-                cov[i + point_dim_ * j] = (res / count);
-                cov[j + point_dim_ * i] = (res / count);
+                cov[i + point_dim_ * j] = (res / count - 1);
+                cov[j + point_dim_ * i] = (res / count - 1);
             }
     }
 

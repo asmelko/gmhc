@@ -23,6 +23,7 @@ TEST(kernel, covariance_small)
     auto data = reader::read_data_from_string<float>(input);
 
     auto assignments = create_assignments(data.points, true);
+    assignments[1] = 0;// be at least 2 points
 
     input_t cu_in;
     float* cu_out;
@@ -55,7 +56,7 @@ TEST(kernel, covariance_small)
 
     run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
 
-    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 1, cu_in.dim, kernel);
+    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 2, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
