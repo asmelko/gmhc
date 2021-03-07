@@ -49,7 +49,7 @@ void tune_info(kernel_info& info, size_t size, bool use_eucl, size_t dim)
 }
 
 constexpr csize_t eucl_nei = 1;
-constexpr csize_t maha_nei = 1;
+constexpr csize_t maha_nei = 2;
 
 template<csize_t Storage>
 void run_update_neighbors(centroid_data_t data,

@@ -66,8 +66,6 @@ void clustering_context_t::compute_neighbors()
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, neighbor_info);
     }
 
-    run_print_nei(cu_neighbors, 2, cluster_count);
-
     shared.timer.record(shared.timer.nei_new_stop, neighbor_info.stream);
 }
 
@@ -83,9 +81,20 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 
         compute_neighbors();
 
-        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(cu_neighbors, cluster_count, shared.cu_min, neighbor_info);
+        auto min = run_neighbors_min<shared_apriori_data_t::neighbors_size>(
+            cu_neighbors, cluster_count, shared.cu_min, neighbor_info);
 
         pasgn_t merged_ids(cluster_data[min.min_i].id, cluster_data[min.min_j].id);
+
+        // append to res
+        if (merged_ids.first > merged_ids.second)
+            std::swap(merged_ids.first, merged_ids.second);
+        res.emplace_back(merged_ids, min.min_dist);
+
+        // do not further update structures
+        if (cluster_count == 2 && is_final)
+            break;
+
         asgn_t new_id = shared.id;
 
         update_iteration_host(min);
@@ -93,11 +102,6 @@ std::vector<gmhc::res_t> clustering_context_t::run()
         move_clusters(min.min_j);
 
         update_iteration_device(merged_ids.first, merged_ids.second, new_id);
-
-        // append to res
-        if (merged_ids.first > merged_ids.second)
-            std::swap(merged_ids.first, merged_ids.second);
-        res.emplace_back(merged_ids, min.min_dist);
 
         // verify
         if (vld)
