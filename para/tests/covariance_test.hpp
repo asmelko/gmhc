@@ -23,6 +23,7 @@ TEST(kernel, covariance_small)
     auto data = reader::read_data_from_string<float>(input);
 
     auto assignments = create_assignments(data.points, true);
+    assignments[1] = 0;// be at least 2 points
 
     input_t cu_in;
     float* cu_out;
@@ -31,7 +32,9 @@ TEST(kernel, covariance_small)
     csize_t* cu_size;
     asgn_t* cu_asgn;
     float host_res[9];
-    float centroid[3] = { -1.29547f, 8.00796f, -7.49481f };
+    float centroid[3] = {
+        (data.data[0] + data.data[3]) / 2, (data.data[1] + data.data[4]) / 2, (data.data[2] + data.data[5]) / 2
+    };
     kernel_info kernel(1, 32);
 
     cu_in.count = (csize_t)data.points;
@@ -55,14 +58,14 @@ TEST(kernel, covariance_small)
 
     run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
 
-    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 1, cu_in.dim, kernel);
+    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 2, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
 
     CUCH(cudaMemcpy(&host_res, cu_out, 9 * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToHost));
 
-    auto res = serial_covariance(data, assignments.data(), 0);
+    auto res = serial_covariance_by_centroid(data, assignments.data(), centroid, 0);
 
     EXPECT_FLOAT_EQ(host_res[0], res[0]);
     EXPECT_FLOAT_EQ(host_res[1], res[1]);

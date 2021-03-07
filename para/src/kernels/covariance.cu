@@ -78,7 +78,7 @@ __global__ void finish_covariance(const float* __restrict__ in_cov_matrix,
         {
             sum += in_cov_matrix[j * cov_size + i];
         }
-        sum /= divisor;
+        sum /= divisor - 1;
 
         auto coords = compute_coordinates(dim, i);
         out_cov_matrix[coords.x + coords.y * dim] = sum;
