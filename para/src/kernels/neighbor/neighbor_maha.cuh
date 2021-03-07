@@ -41,7 +41,8 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
     float this_mf,
     float* __restrict__ work_centroid,
     csize_t dim,
-    csize_t idx)
+    csize_t idx,
+    bool new_idx = false)
 {
     float dist = 0;
 
@@ -61,7 +62,10 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
     {
         dist = (isinf(dist) || isnan(dist)) ? FLT_MAX : dist / 2;
 
-        add_neighbor<N>(neighbors, neighbor_t { dist, idx });
+        if (new_idx)
+            add_neighbor_disruptive<N>(neighbors, neighbor_t { dist, idx });
+        else
+            add_neighbor<N>(neighbors, neighbor_t { dist, idx });
     }
 }
 
@@ -117,7 +121,8 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
                 this_mf,
                 work_centroid,
                 dim,
-                x);
+                x,
+                true && !(x == count - 1 && y == count - 2));
         }
         idx += warpSize;
     }
@@ -228,5 +233,5 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
 
         cudaStreamDestroy(s);
     }
-    //printf("finished\n");
+    // printf("finished\n");
 }

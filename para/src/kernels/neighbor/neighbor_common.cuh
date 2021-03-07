@@ -40,6 +40,41 @@ __device__ __inline__ void add_neighbor<1>(neighbor_t* __restrict__ neighbors, n
 }
 
 template<clustering::csize_t N>
+__device__ __inline__ void add_neighbor_disruptive(neighbor_t* __restrict__ neighbors, neighbor_t neighbor)
+{
+    neighbor_t prev_min;
+    clustering::csize_t i = 0;
+    for (; i < N; ++i)
+    {
+        if (neighbors[i].distance == FLT_INF)
+            return;
+        else if (neighbors[i].distance > neighbor.distance)
+        {
+            prev_min = neighbors[i];
+            neighbors[i] = neighbor;
+            break;
+        }
+    }
+
+    for (++i; i < N; i++)
+    {
+        if (prev_min.distance == FLT_INF)
+            return;
+
+        neighbor_t tmp = neighbors[i];
+        neighbors[i] = prev_min;
+        prev_min = tmp;
+    }
+}
+
+template<>
+__device__ __inline__ void add_neighbor_disruptive<1>(neighbor_t* __restrict__ neighbors, neighbor_t neighbor)
+{
+    if (neighbors->distance != FLT_INF && neighbors->distance > neighbor.distance)
+        *neighbors = neighbor;
+}
+
+template<clustering::csize_t N>
 __device__ __inline__ void merge_neighbors(const neighbor_t* __restrict__ l_neighbors,
     const neighbor_t* __restrict__ r_neighbors,
     neighbor_t* __restrict__ res)
