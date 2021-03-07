@@ -66,6 +66,8 @@ void clustering_context_t::compute_neighbors()
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data.old_a, use_eucl, neighbor_info);
     }
 
+    run_print_nei(cu_neighbors, 2, cluster_count);
+
     shared.timer.record(shared.timer.nei_new_stop, neighbor_info.stream);
 }
 

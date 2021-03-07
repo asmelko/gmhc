@@ -31,7 +31,7 @@ __inline__ __device__ float maha_dist(
     return 0;
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ neighbors,
     const float* __restrict__ curr_centroid,
     const float* __restrict__ curr_icov,
@@ -65,7 +65,7 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
     }
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void point_neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
@@ -108,7 +108,7 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
         {
             auto y = idx / warpSize;
             auto curr_mf = mfactors ? mfactors[y] : 1;
-            point_neighbors_mat_warp<N>(neighbors + y * N,
+            point_neighbors_mat_warp<N, Storage>(neighbors + y * Storage,
                 centroids + y * dim,
                 inverses + y * icov_size,
                 curr_mf,
@@ -131,7 +131,7 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
             continue;
 
         auto curr_mf = mfactors ? mfactors[y] : 1;
-        point_neighbors_mat_warp<N>(local_neighbors,
+        point_neighbors_mat_warp<N, Storage>(local_neighbors,
             centroids + y * dim,
             inverses + y * icov_size,
             curr_mf,
@@ -150,10 +150,10 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
     __syncthreads();
 
     if (threadIdx.x == 0)
-        memcpy(work_neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, sizeof(neighbor_t) * N);
+        memcpy(work_neighbors + (gridDim.x * x + blockIdx.x) * Storage, local_neighbors, sizeof(neighbor_t) * N);
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void neighbors_mat(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
@@ -180,15 +180,15 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
         cudaStream_t s;
         cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
 
-        point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
+        point_neighbors_mat<N, Storage><<<blocks, threads, shared_size, s>>>(
             centroids, inverses, mfactors, nullptr, work_neighbors, dim, count, x, 0);
-        reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, x, blocks);
+        reduce_u<N, Storage><<<1, 32, 0, s>>>(work_neighbors, neighbors, x, blocks);
 
         cudaStreamDestroy(s);
     }
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void neighbors_mat_u(const float* __restrict__ centroids,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
@@ -222,9 +222,9 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
         cudaStream_t s;
         cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
 
-        point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
+        point_neighbors_mat<N, Storage><<<blocks, threads, shared_size, s>>>(
             centroids, inverses, mfactors, neighbors, work_neighbors, dim, count, idx, new_idx);
-        reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, idx, blocks);
+        reduce_u<N, Storage><<<1, 32, 0, s>>>(work_neighbors, neighbors, idx, blocks);
 
         cudaStreamDestroy(s);
     }

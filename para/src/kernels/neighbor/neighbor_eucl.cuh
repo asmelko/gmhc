@@ -20,7 +20,7 @@ __inline__ __device__ void point_neighbors_thread(neighbor_t* __restrict__ neigh
     add_neighbor<N>(neighbors, neighbor_t { dist, idx });
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __device__ void point_neighbor(const float* __restrict__ centroids,
     neighbor_t* __restrict__ neighbors,
     neighbor_t* __restrict__ work_neighbors,
@@ -45,7 +45,7 @@ __device__ void point_neighbor(const float* __restrict__ centroids,
     if (x == new_idx)
     {
         for (; y < x; y += blockDim.x * gridDim.x)
-            point_neighbors_thread<N>(neighbors + y * N, shared_mem, centroids + y * dim, dim, x);
+            point_neighbors_thread<N>(neighbors + y * Storage, shared_mem, centroids + y * dim, dim, x);
 
         y += 1;
     }
@@ -62,20 +62,20 @@ __device__ void point_neighbor(const float* __restrict__ centroids,
     reduce_min_block<N>(local_neighbors, reinterpret_cast<neighbor_t*>(shared_mem + dim));
 
     if (threadIdx.x == 0)
-        memcpy(work_neighbors + (gridDim.x * x + blockIdx.x) * N, local_neighbors, N * sizeof(neighbor_t));
+        memcpy(work_neighbors + (gridDim.x * x + blockIdx.x) * Storage, local_neighbors, N * sizeof(neighbor_t));
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void neighbors(
     const float* __restrict__ centroids, neighbor_t* __restrict__ neighbors, csize_t dim, csize_t count)
 {
     extern __shared__ float shared_mem[];
 
     for (csize_t x = 0; x < count; ++x)
-        point_neighbor<N>(centroids, nullptr, neighbors, shared_mem, dim, count, x, 0);
+        point_neighbor<N, Storage>(centroids, nullptr, neighbors, shared_mem, dim, count, x, 0);
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void neighbors_u(const float* __restrict__ centroids,
     neighbor_t* __restrict__ neighbors,
     neighbor_t* __restrict__ work_neighbors,
@@ -90,10 +90,10 @@ __global__ void neighbors_u(const float* __restrict__ centroids,
     auto update_count = *upd_count;
 
     for (csize_t i = 0; i < update_count; ++i)
-        point_neighbor<N>(centroids, neighbors, work_neighbors, shared_mem, dim, count, updated[i], new_idx);
+        point_neighbor<N, Storage>(centroids, neighbors, work_neighbors, shared_mem, dim, count, updated[i], new_idx);
 }
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void neighbors_u(const float* __restrict__ centroids,
     neighbor_t* __restrict__ neighbors,
     neighbor_t* __restrict__ work_neighbors,
@@ -103,5 +103,5 @@ __global__ void neighbors_u(const float* __restrict__ centroids,
 {
     extern __shared__ float shared_mem[];
 
-    point_neighbor<N>(centroids, neighbors, work_neighbors, shared_mem, dim, count, new_idx, new_idx);
+    point_neighbor<N, Storage>(centroids, neighbors, work_neighbors, shared_mem, dim, count, new_idx, new_idx);
 }

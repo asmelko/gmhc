@@ -124,6 +124,8 @@ void run_update_neighbors_new(centroid_data_t data,
 
 // sets identity matrix
 void run_set_unit_matrix(float* matrix, clustering::csize_t size, cudaStream_t stream = (cudaStream_t)0);
+// sets initial neighbors
+void run_set_default_neigh(neighbor_t* neighbors, clustering::csize_t size, kernel_info info);
 // sets initial assignments
 void run_set_default_asgn(clustering::asgn_t* asgns, clustering::csize_t N);
 // sets initial inverse covariances

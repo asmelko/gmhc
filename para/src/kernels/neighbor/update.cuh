@@ -5,7 +5,7 @@
 
 using namespace clustering;
 
-template<csize_t N>
+template<csize_t N, csize_t Storage>
 __global__ void update(neighbor_t* __restrict__ neighbors_a,
     csize_t* __restrict__ updated,
     csize_t* __restrict__ work_idx,
@@ -27,7 +27,7 @@ __global__ void update(neighbor_t* __restrict__ neighbors_a,
         }
 
         neighbor_t tmp_nei[N];
-        memcpy(tmp_nei, neighbors_a + idx * N, sizeof(neighbor_t) * N);
+        memcpy(tmp_nei, neighbors_a + idx * Storage, sizeof(neighbor_t) * N);
 
         csize_t last_empty = 0;
 
@@ -57,6 +57,6 @@ __global__ void update(neighbor_t* __restrict__ neighbors_a,
             updated[store_idx] = idx;
         }
 
-        memcpy(neighbors_a + idx * N, tmp_nei, sizeof(neighbor_t) * N);
+        memcpy(neighbors_a + idx * Storage, tmp_nei, sizeof(neighbor_t) * N);
     }
 }

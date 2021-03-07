@@ -90,6 +90,9 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&common_.cu_asgn_idxs_, sizeof(csize_t) * data_points_size));
     CUCH(cudaMalloc(&common_.cu_idxs_size_, sizeof(csize_t)));
 
+    run_set_default_neigh(cu_neighs_, common_.neighbors_size * data_points_size, starting_info_);
+    run_set_default_neigh(
+        cu_tmp_neighs_, common_.neighbors_size * data_points_size * starting_info_.grid_dim, starting_info_);
     run_set_default_icovs(cu_icov_, data_points_size, data_point_dim, starting_info_);
     run_set_default_icov_mfs(cu_icov_mf_, data_points_size, starting_info_);
 
@@ -267,7 +270,7 @@ std::vector<gmhc::res_t> gmhc::run()
 
     // compute rest
     auto ctx_ret = final.run();
-    
+
     if (apriori_count_)
         copy(ret, ctx_ret);
     else
