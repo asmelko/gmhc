@@ -19,7 +19,6 @@ enum class subthreshold_handling_kind
 struct shared_apriori_data_t;
 
 // structure that describes a dataset to cluster
-template<csize_t Neighs>
 struct clustering_context_t
 {
     subthreshold_handling_kind subthreshold_kind;
@@ -115,12 +114,6 @@ private:
     // helper method that independently computes distance between clusters
     float recompute_dist(pasgn_t expected_id);
 };
-
-template class clustering_context_t<1>;
-template class clustering_context_t<2>;
-template class clustering_context_t<3>;
-template class clustering_context_t<4>;
-template class clustering_context_t<5>;
 
 } // namespace clustering
 

@@ -66,13 +66,12 @@ microbench_t compute_micro_time(const clustering::time_info& timer)
     return t;
 }
 
-template<clustering::csize_t Neighbors>
 int measure(const float* data, clustering::csize_t count, clustering::csize_t dim, float thresh, size_t repetitions)
 {
     using namespace clustering;
 
     std::cout << std::fixed << std::setprecision(6);
-    std::cout << "threshold: " << thresh << ", neighbors: " << Neighbors << std::endl;
+    std::cout << "threshold: " << thresh <<  std::endl;
     std::cout << "kind\ttime    \tstd.dev"<< std::endl;//    \tcov      \tnei" << std::endl;
 
     auto threshold = (csize_t)(count * thresh);
@@ -93,7 +92,7 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
 
         auto dry_data = reader::read_data_from_string<float>(input);
 
-        gmhc<Neighbors> gmhclust;
+        gmhc gmhclust;
         if (!gmhclust.initialize(dry_data.data.data(),
                 (csize_t)dry_data.points,
                 (csize_t)dry_data.dim,
@@ -104,7 +103,7 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
         gmhclust.free();
     }
 
-    gmhc<Neighbors> gmhclust;
+    gmhc gmhclust;
 
     std::vector<std::chrono::duration<double>> run_time;
     std::vector<float> cov_time;
@@ -138,7 +137,7 @@ int measure(const float* data, clustering::csize_t count, clustering::csize_t di
             // gmhclust.timer().free();
         }
         print_time(run_time, micro_res, kind);
-        std::cout << thresh << "\t" << Neighbors << std::endl;
+        std::cout << thresh << std::endl;
     }
 
     return 0;
@@ -156,12 +155,9 @@ int main(int argc, char** argv)
     cmd.add_option("n", "Test repetition.", false)
         .add_parameter<int>(value_type<int>(), "REPS")
         .set_constraint([](int value) { return value >= 1; });
-    cmd.add_option("N", "Number of neighbors in the closest neighbor array.", false)
-        .add_parameter<int>(value_type<int>(), "NEIGHS")
-        .set_constraint([](int value) { return value >= 1; });
     cmd.add_option("t", "Mahalanobis threshold.", false)
         .add_parameter<float>(value_type<float>(), "THRESH")
-        .set_constraint([](float value) { return value <= 1 && value >=0; });
+        .set_constraint([](float value) { return value <= 1 && value >= 0; });
 
     auto parsed = cmd.parse(argc, argv);
 
@@ -174,22 +170,7 @@ int main(int argc, char** argv)
     auto dataset = parsed["dataset"]->get_value<std::string>();
     auto data = reader::read_data_from_binary_file<float, double>(dataset);
     auto reps = parsed["n"]->get_value<int>();
-    auto neighs = parsed["N"]->get_value<int>();
     auto thresh = parsed["t"]->get_value<float>();
 
-    switch (neighs)
-    {
-        case 1:
-            return measure<1>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-        case 2:
-            return measure<2>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-        case 3:
-            return measure<3>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-        case 4:
-            return measure<4>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-        case 5:
-            return measure<5>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-        default:
-            return measure<1>(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
-    }
+    return measure(data.data.data(), (csize_t)data.points, (csize_t)data.dim, thresh, (size_t)reps);
 }

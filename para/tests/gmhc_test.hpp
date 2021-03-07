@@ -16,7 +16,7 @@ TEST(para, apriori_small)
 
     auto data = reader::read_data_from_string<float>(input);
 
-    gmhc<1> para;
+    gmhc para;
     bool normalize = false;
 
     auto thresh = 5;
@@ -77,7 +77,7 @@ TEST(para, small)
 
     auto data = reader::read_data_from_string<float>(input);
 
-    gmhc<1> para;
+    gmhc para;
     bool normalize = true;
 
     auto thresh = 5;
@@ -118,7 +118,7 @@ TEST(para, apriori_big)
 {
     auto data = reader::read_data_from_file<float>("big");
 
-    gmhc<1> para;
+    gmhc para;
     bool normalize = true;
 
     auto thresh = 20;
@@ -169,7 +169,7 @@ TEST(para, nilsson)
 {
     auto data = reader::read_data_from_binary_file<float>("nilsson");
 
-    gmhc<1> para;
+    gmhc para;
     validator vld;
 
     auto thresh = 44;

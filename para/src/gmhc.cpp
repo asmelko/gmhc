@@ -1,15 +1,14 @@
+#include "gmhc.hpp"
+
 #include <cassert>
 #include <iostream>
 #include <map>
 
 #include "kernels.cuh"
 
-#include "gmhc.hpp"
-
 using namespace clustering;
 
-template <csize_t N>
-bool gmhc<N>::initialize(const float* data_points,
+bool gmhc::initialize(const float* data_points,
     csize_t data_points_size,
     csize_t data_point_dim,
     csize_t mahalanobis_threshold,
@@ -48,9 +47,9 @@ bool gmhc<N>::initialize(const float* data_points,
     CUCH(cudaMalloc(&cu_points_, data_points_size * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_centroids_, data_points_size * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_point_asgns_, data_points_size * sizeof(asgn_t)));
-    CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbor_t) * N * data_points_size));
+    CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbor_t) * common_.neighbors_size * data_points_size));
     CUCH(cudaMalloc(
-        &cu_tmp_neighs_, sizeof(neighbor_t) * N * data_points_size * starting_info_.grid_dim));
+        &cu_tmp_neighs_, sizeof(neighbor_t) * common_.neighbors_size * data_points_size * starting_info_.grid_dim));
     CUCH(cudaMalloc(&cu_icov_, sizeof(float) * icov_size * data_points_size));
     CUCH(cudaMalloc(&cu_icov_mf_, sizeof(float) * data_points_size));
     CUCH(cudaMalloc(&cu_update_, data_points_size * sizeof(csize_t)));
@@ -121,8 +120,7 @@ bool gmhc<N>::initialize(const float* data_points,
     return true;
 }
 
-template<csize_t N>
-void gmhc<N>::set_apriori(clustering_context_t<N>& cluster, csize_t offset, csize_t size, validator* vld)
+void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t size, validator* vld)
 {
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
@@ -137,8 +135,8 @@ void gmhc<N>::set_apriori(clustering_context_t<N>& cluster, csize_t offset, csiz
 
     cluster.neighbor_info = starting_info_;
 
-    cluster.cu_neighbors = cu_neighs_ + offset * N;
-    cluster.cu_tmp_neighbors = cu_tmp_neighs_ + offset * N * starting_info_.grid_dim;
+    cluster.cu_neighbors = cu_neighs_ + offset * common_.neighbors_size;
+    cluster.cu_tmp_neighbors = cu_tmp_neighs_ + offset * common_.neighbors_size * starting_info_.grid_dim;
 
     cluster.cu_points = cu_points_ + offset * point_dim;
     cluster.cu_centroids = cu_centroids_ + offset * point_dim;
@@ -155,8 +153,7 @@ void gmhc<N>::set_apriori(clustering_context_t<N>& cluster, csize_t offset, csiz
     cluster.initialize(apriori_count_ == 0, normalize_);
 }
 
-template<csize_t N>
-void gmhc<N>::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
+void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
 {
     // get apriori sizes
     std::map<asgn_t, csize_t> counts;
@@ -201,7 +198,7 @@ void gmhc<N>::initialize_apriori(const asgn_t* apriori_assignments, validator* v
     // initialize apriori
     for (size_t i = 0; i < sizes.size(); ++i)
     {
-        clustering_context_t<N> cluster(common_);
+        clustering_context_t cluster(common_);
         auto offset = i == 0 ? 0 : indices[i - 1];
 
         set_apriori(cluster, offset, sizes[i], vld);
@@ -211,8 +208,7 @@ void gmhc<N>::initialize_apriori(const asgn_t* apriori_assignments, validator* v
     apriori_count_ = (csize_t)sizes.size();
 }
 
-template<csize_t N>
-void gmhc<N>::move_apriori()
+void gmhc::move_apriori()
 {
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
 
@@ -241,21 +237,20 @@ void gmhc<N>::move_apriori()
     apr_ctxs_.front().is_final = true;
 }
 
-template<csize_t N>
-void copy(std::vector<pasgnd_t<float>>& dst, const std::vector<pasgnd_t<float>>& src)
+void copy(std::vector<gmhc::res_t>& dst, const std::vector<gmhc::res_t>& src)
 {
     auto orig_size = dst.size();
     auto new_size = src.size();
 
     dst.resize(orig_size + new_size);
-    std::memcpy(dst.data() + orig_size, src.data(), new_size * sizeof(pasgnd_t<float>));
+    for (size_t i = 0; i < new_size; ++i)
+        dst[orig_size + i] = std::move(src[i]);
 }
 
-template<csize_t N>
-std::vector<pasgnd_t<float>> gmhc<N>::run()
+std::vector<gmhc::res_t> gmhc::run()
 {
-    std::vector<pasgnd_t<float>> ret;
-    clustering_context_t<N>& final = apr_ctxs_.front();
+    std::vector<res_t> ret;
+    clustering_context_t& final = apr_ctxs_.front();
 
     // compute apriori
     if (apriori_count_)
@@ -264,7 +259,7 @@ std::vector<pasgnd_t<float>> gmhc<N>::run()
         {
             auto ctx_ret = ctx.run();
 
-            copy<N>(ret, ctx_ret);
+            copy(ret, ctx_ret);
         }
 
         move_apriori();
@@ -272,14 +267,16 @@ std::vector<pasgnd_t<float>> gmhc<N>::run()
 
     // compute rest
     auto ctx_ret = final.run();
-
-    copy<N>(ret, ctx_ret);
+    
+    if (apriori_count_)
+        copy(ret, ctx_ret);
+    else
+        std::swap(ret, ctx_ret);
 
     return ret;
 }
 
-template<csize_t N>
-void gmhc<N>::free()
+void gmhc::free()
 {
     CUCH(cudaFree(cu_points_));
     CUCH(cudaFree(cu_centroids_));
@@ -307,5 +304,4 @@ void gmhc<N>::free()
     apr_ctxs_.clear();
 }
 
-template<csize_t N>
-time_info& gmhc<N>::timer() { return common_.timer; }
+time_info& gmhc::timer() { return common_.timer; }
