@@ -6,61 +6,65 @@
 
 using namespace clustering;
 
-__inline__ __device__ float maha_dist(
-    const float* __restrict__ point, const float* __restrict__ matrix, float mf, csize_t size, unsigned int lane_id)
+__inline__ __device__ float maha_dist(const cluster_representants_t representants,
+    const float* __restrict__ centroid,
+    const float* __restrict__ matrix,
+    float mf,
+    csize_t size)
 {
-    float tmp_point = 0;
-
+    auto lane_id = threadIdx.x % warpSize;
     auto icov_size = (size + 1) * size / 2;
 
-    for (csize_t i = lane_id; i < icov_size; i += warpSize)
-    {
-        auto coords = compute_coordinates(size, i);
+    float sum = 0;
 
-        tmp_point = fmaf(matrix[i], point[coords.x] * point[coords.y], tmp_point);
+    for (csize_t idx = 0; idx < representants.size; idx++) 
+    {
+        float tmp_point = 0;
+
+        for (csize_t i = lane_id; i < icov_size; i += warpSize)
+        {
+            auto coords = compute_coordinates(size, i);
+
+            float tmp_val = representants.cu_points[idx * size + coords.x] - centroid[coords.x];
+            tmp_val *= representants.cu_points[idx * size + coords.y] - centroid[coords.y];
+
+            tmp_point = fmaf(matrix[i], tmp_val, tmp_point);
+        }
+
+        reduce_sum_warp(&tmp_point, 1);
+
+        sum += sqrtf(tmp_point / mf);
     }
 
-    reduce_sum_warp(&tmp_point, 1);
-
-    if (lane_id == 0)
-    {
-        if (tmp_point < 0)
-            return euclidean_norm(point, size);
-        return sqrtf(tmp_point / mf);
-    }
-    return 0;
+    if (isnan(sum) || isinf(sum))
+        return FLT_MAX;
+    else
+        return sum / representants.size;
 }
 
 template<csize_t N>
 __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ neighbors,
     const float* __restrict__ curr_centroid,
+    const cluster_representants_t curr_representants,
     const float* __restrict__ curr_icov,
     float curr_mf,
     const float* __restrict__ this_centroid,
+    const cluster_representants_t this_representants,
     const float* __restrict__ this_icov,
     float this_mf,
-    float* __restrict__ work_centroid,
     csize_t dim,
     csize_t idx,
     bool new_idx = false)
 {
     float dist = 0;
 
-    auto warp_id = threadIdx.x / warpSize;
-    auto lane_id = threadIdx.x % warpSize;
+    dist += maha_dist(this_representants, curr_centroid, curr_icov, curr_mf, dim);
 
-    for (csize_t i = lane_id; i < dim; i += warpSize)
-        work_centroid[warp_id * dim + i] = curr_centroid[i] - this_centroid[i];
+    dist += maha_dist(curr_representants, this_centroid, this_icov, this_mf, dim);
 
-    __syncwarp();
-
-    dist += maha_dist(work_centroid + warp_id * dim, curr_icov, curr_mf, dim, lane_id);
-
-    dist += maha_dist(work_centroid + warp_id * dim, this_icov, this_mf, dim, lane_id);
-
-    if (lane_id == 0)
+    if (threadIdx.x % warpSize == 0)
     {
-        dist = (isinf(dist) || isnan(dist)) ? FLT_MAX : dist / 2;
+        dist /= 2;
 
         if (new_idx)
             add_neighbor_disruptive<N>(neighbors, neighbor_t { dist, idx });
@@ -71,6 +75,7 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
 
 template<csize_t N>
 __global__ void point_neighbors_mat(const float* __restrict__ centroids,
+    const cluster_representants_t* __restrict__ representants,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
@@ -85,7 +90,6 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
     float* this_centroid = shared_mem;
     float* this_icov = shared_mem + dim;
     float this_mf = mfactors ? mfactors[x] : 1;
-    float* work_centroid = shared_mem + dim + dim * dim;
 
     neighbor_t local_neighbors[N];
 
@@ -114,12 +118,13 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
             auto curr_mf = mfactors ? mfactors[y] : 1;
             point_neighbors_mat_warp<N>(neighbors + y * N,
                 centroids + y * dim,
+                representants[y],
                 inverses + y * icov_size,
                 curr_mf,
                 this_centroid,
+                representants[x],
                 this_icov,
                 this_mf,
-                work_centroid,
                 dim,
                 x,
                 true && !(x == count - 1 && y == count - 2));
@@ -138,12 +143,13 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
         auto curr_mf = mfactors ? mfactors[y] : 1;
         point_neighbors_mat_warp<N>(local_neighbors,
             centroids + y * dim,
+            representants[y],
             inverses + y * icov_size,
             curr_mf,
             this_centroid,
+            representants[x],
             this_icov,
             this_mf,
-            work_centroid,
             dim,
             y);
     }
@@ -160,6 +166,7 @@ __global__ void point_neighbors_mat(const float* __restrict__ centroids,
 
 template<csize_t N>
 __global__ void neighbors_mat(const float* __restrict__ centroids,
+    const cluster_representants_t* __restrict__ representants,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
@@ -179,14 +186,15 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
         blocks = blocks > max_blocks ? max_blocks : blocks;
 
         auto warps = threads / warpSize;
-        csize_t shared_new = (dim + warps + 1) * dim * sizeof(float);
+        auto icov_size = (dim + 1) * dim / 2;
+        csize_t shared_new = (icov_size + dim) * sizeof(float);
         auto shared_size = max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
 
         cudaStream_t s;
         cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
 
         point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
-            centroids, inverses, mfactors, nullptr, work_neighbors, dim, count, x, 0);
+            centroids, representants, inverses, mfactors, nullptr, work_neighbors, dim, count, x, 0);
         reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, x, blocks);
 
         cudaStreamDestroy(s);
@@ -195,6 +203,7 @@ __global__ void neighbors_mat(const float* __restrict__ centroids,
 
 template<csize_t N>
 __global__ void neighbors_mat_u(const float* __restrict__ centroids,
+    const cluster_representants_t* __restrict__ representants,
     const float* __restrict__ inverses,
     const float* __restrict__ mfactors,
     neighbor_t* __restrict__ neighbors,
@@ -221,17 +230,17 @@ __global__ void neighbors_mat_u(const float* __restrict__ centroids,
         blocks = blocks > max_blocks ? max_blocks : blocks;
 
         auto warps = threads / warpSize;
-        csize_t shared_new = (dim + warps + 1) * dim * sizeof(float);
+        auto icov_size = (dim + 1) * dim / 2;
+        csize_t shared_new = (icov_size + dim) * sizeof(float);
         auto shared_size = max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
 
         cudaStream_t s;
         cudaStreamCreateWithFlags(&s, cudaStreamNonBlocking);
 
         point_neighbors_mat<N><<<blocks, threads, shared_size, s>>>(
-            centroids, inverses, mfactors, neighbors, work_neighbors, dim, count, idx, new_idx);
+            centroids, representants, inverses, mfactors, neighbors, work_neighbors, dim, count, idx, new_idx);
         reduce_u<N><<<1, 32, 0, s>>>(work_neighbors, neighbors, idx, blocks);
 
         cudaStreamDestroy(s);
     }
-    // printf("finished\n");
 }

@@ -14,6 +14,7 @@ bool gmhc::initialize(const float* data_points,
     csize_t mahalanobis_threshold,
     subthreshold_handling_kind subthreshold_kind,
     bool normalize,
+    bool quick,
     const asgn_t* apriori_assignments,
     validator* vld)
 {
@@ -32,6 +33,7 @@ bool gmhc::initialize(const float* data_points,
 
     subthreshold_kind_ = subthreshold_kind;
     normalize_ = normalize;
+    quick_ = quick;
 
     common_.id = (asgn_t)data_points_size;
     csize_t icov_size = (point_dim + 1) * point_dim / 2;
@@ -51,6 +53,7 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaMalloc(&cu_icov_, sizeof(float) * icov_size * data_points_size));
     CUCH(cudaMalloc(&cu_icov_mf_, sizeof(float) * data_points_size));
     CUCH(cudaMalloc(&cu_update_, data_points_size * sizeof(csize_t)));
+    CUCH(cudaMalloc(&cu_representants_, data_points_size * sizeof(cluster_representants_t)));
 
     cluster_data_ = new cluster_data_t[data_points_size];
     for (size_t i = 0; i < data_points_size; i++)
@@ -118,6 +121,11 @@ bool gmhc::initialize(const float* data_points,
                 data_points + i * data_point_dim,
                 data_point_dim * sizeof(float),
                 cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+            cluster_representants_t tmp { quick_ ? cu_centroids_ + i * point_dim : cluster_data_[i].cu_points, 1 };
+            CUCH(cudaMemcpy(cu_representants_ + i, &tmp,
+                sizeof(cluster_representants_t),
+                cudaMemcpyKind::cudaMemcpyHostToDevice));
         }
 
         apr_ctxs_.emplace_back(common_);
@@ -149,13 +157,14 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
     cluster.cu_centroids = cu_centroids_ + offset * point_dim;
     cluster.cu_inverses = cu_icov_ + offset * icov_size;
     cluster.cu_mfactors = cu_icov_mf_ + offset;
+    cluster.cu_representants = cu_representants_ + offset;
 
     cluster.cu_updates = cu_update_ + offset;
     cluster.cluster_data = cluster_data_ + offset;
 
     cluster.vld = vld;
 
-    cluster.initialize(apriori_count_ == 0, normalize_);
+    cluster.initialize(apriori_count_ == 0, normalize_, quick_);
 }
 
 void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
@@ -194,12 +203,17 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
             points + i * point_dim,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyHostToDevice));
+
         cluster_data_[next].id = i;
         cluster_data_[next].size = 1;
         CUCH(cudaMemcpy(&cluster_data_[next].cu_points,
             points + i * point_dim,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyHostToDevice));
+
+        cluster_representants_t tmp { quick_ ? cu_centroids_ + next * point_dim : cluster_data_[next].cu_points, 1 };
+        CUCH(cudaMemcpy(
+            cu_representants_ + next, &tmp, sizeof(cluster_representants_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
     }
 
     // initialize apriori
@@ -290,15 +304,18 @@ void gmhc::free()
     CUCH(cudaFree(cu_tmp_neighs_));
     CUCH(cudaFree(cu_icov_));
     CUCH(cudaFree(cu_update_));
+    CUCH(cudaFree(cu_representants_));
 
     delete[] cluster_data_;
 
     CUCH(cudaFree(common_.cu_min));
     CUCH(cudaFree(common_.cu_tmp_icov));
+    CUCH(cudaFree(common_.cu_tmp_points));
     CUCH(cudaFree(common_.cu_upd_size));
     CUCH(cudaFree(common_.cu_info));
     CUCH(cudaFree(common_.cu_workspace));
     SOCH(cusolverDnDestroy(common_.cusolver_handle));
+    BUCH(cublasDestroy(common_.cublas_handle));
 
     CUCH(cudaFree(common_.cu_work_centroid));
     CUCH(cudaFree(common_.cu_work_covariance));

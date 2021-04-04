@@ -154,6 +154,7 @@ TEST(para, small)
                 thresh,
                 subthreshold_kind,
                 normalize,
+                true,
                 nullptr,
                 &vld);
 
@@ -182,6 +183,7 @@ TEST(para, nilsson)
         thresh,
         subthreshold_handling_kind::MAHAL,
         false,
+        true,
         nullptr,
         &vld);
 

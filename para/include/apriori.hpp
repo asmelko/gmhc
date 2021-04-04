@@ -56,6 +56,8 @@ struct clustering_context_t
     float* cu_inverses;
     // device multiplication factor array
     float* cu_mfactors;
+    // device array of cluster representants
+    cluster_representants_t* cu_representants;
 
     // device update array
     csize_t* cu_updates;
@@ -73,6 +75,8 @@ struct clustering_context_t
 
     // mhca normalization flag
     bool normalize;
+    // mhca FMD/CMD selection flag
+    bool quick;
 
     // verification validator
     validator* vld;
@@ -81,7 +85,7 @@ public:
     clustering_context_t(shared_apriori_data_t& shared_data);
 
     // initializes the context
-    void initialize(bool is_final, bool normalize);
+    void initialize(bool is_final, bool normalize, bool quick_flag);
 
     // performs context clustering
     std::vector<pasgnd_t<float>> run();

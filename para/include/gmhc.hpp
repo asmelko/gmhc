@@ -59,6 +59,11 @@ class gmhc : public hierarchical_clustering<float>
     float* cu_icov_mf_;
     // mhca normalization flag
     bool normalize_;
+    // mhca FMD/CMD selection flag
+    bool quick_;
+
+    // device array of cluster representants
+    cluster_representants_t* cu_representants_;
 
     // device neighbor array
     neighbor_t* cu_neighs_;
@@ -93,6 +98,7 @@ public:
         csize_t mahalanobis_threshold,
         subthreshold_handling_kind subthreshold_kind = subthreshold_handling_kind::MAHAL, 
         bool normalize = false,
+        bool quick = true,
         const asgn_t* apriori_assignments = nullptr,
         validator* vld = nullptr);
 

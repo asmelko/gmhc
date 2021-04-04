@@ -148,6 +148,8 @@ float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, clust
 float run_point_maha(const float* lhs_centroid,
     const float* rhs_centroid,
     clustering::csize_t dim,
+    cluster_representants_t lhs_representants,
+    cluster_representants_t rhs_representants,
     const float* lhs_icov,
     const float* rhs_icov,
     const float* lhs_mf,

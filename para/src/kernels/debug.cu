@@ -168,32 +168,21 @@ __global__ void point_eucl(const float* lhs_centroid, const float* rhs_centroid,
 __global__ void point_maha(const float* lhs_centroid,
     const float* rhs_centroid,
     csize_t dim,
+    cluster_representants_t lhs_representants,
+    cluster_representants_t rhs_representants,
     const float* lhs_icov,
     const float* rhs_icov,
     const float* lhs_mf,
     const float* rhs_mf,
     float* ret)
 {
-    extern __shared__ float shared_mem[];
-
     float dist = 0;
 
-    auto lane_id = threadIdx.x % warpSize;
+    dist += maha_dist(lhs_representants, rhs_centroid, rhs_icov, *rhs_mf, dim);
 
-    if (!rhs_icov)
-        dist += euclidean_norm(lhs_centroid, rhs_centroid, dim);
+    dist += maha_dist(rhs_representants, lhs_centroid, lhs_icov, *lhs_mf, dim);
 
-    for (csize_t i = lane_id; i < dim; i += warpSize)
-        shared_mem[i] = lhs_centroid[i] - rhs_centroid[i];
-
-    __syncwarp();
-
-    if (rhs_icov)
-        dist += maha_dist(shared_mem, rhs_icov, *rhs_mf, dim, lane_id);
-
-    dist += maha_dist(shared_mem, lhs_icov, *lhs_mf, dim, lane_id);
-
-    if (lane_id == 0)
+    if (threadIdx.x % warpSize == 0)
     {
         *ret = dist / 2;
     }
@@ -217,6 +206,8 @@ float run_point_eucl(const float* lhs_centroid, const float* rhs_centroid, csize
 float run_point_maha(const float* lhs_centroid,
     const float* rhs_centroid,
     csize_t dim,
+    cluster_representants_t lhs_representants,
+    cluster_representants_t rhs_representants,
     const float* lhs_icov,
     const float* rhs_icov,
     const float* lhs_mf,
@@ -224,10 +215,17 @@ float run_point_maha(const float* lhs_centroid,
 {
     float* cu_res;
     CUCH(cudaMalloc(&cu_res, sizeof(float)));
-    auto icov_size = (dim + 1) * dim / 2;
 
-    point_maha<<<1, 32, icov_size * sizeof(float)>>>(
-        lhs_centroid, rhs_centroid, dim, lhs_icov, rhs_icov, lhs_mf, rhs_mf, cu_res);
+    point_maha<<<1, 32>>>(lhs_centroid,
+        rhs_centroid,
+        dim,
+        lhs_representants,
+        rhs_representants, 
+        lhs_icov,
+        rhs_icov,
+        lhs_mf,
+        rhs_mf,
+        cu_res);
 
     CUCH(cudaDeviceSynchronize());
     float res;

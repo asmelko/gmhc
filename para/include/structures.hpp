@@ -28,6 +28,13 @@ struct cluster_data_t
     float* cu_points;
 };
 
+// representants of clusters in Mahalanobis distance computation
+struct cluster_representants_t
+{
+    float* __restrict__ cu_points;
+    clustering::csize_t size;
+};
+
 // strucutre that represents a neighbor of a cluster
 // the neighbor is represented by its index and distance to the cluster
 struct neighbor_t
@@ -63,6 +70,8 @@ struct centroid_data_t
     float* centroids;
     float* inverses;
     float* mfactors;
+    cluster_representants_t* representants;
+
     clustering::csize_t dim;
 };
 

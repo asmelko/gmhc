@@ -12,11 +12,12 @@ clustering_context_t::clustering_context_t(shared_apriori_data_t& shared_data)
     : shared(shared_data)
 {}
 
-void clustering_context_t::initialize(bool is_final_context, bool normalize_flag)
+void clustering_context_t::initialize(bool is_final_context, bool normalize_flag, bool quick_flag)
 {
     compute_data.centroids = cu_centroids;
     compute_data.inverses = cu_inverses;
     compute_data.mfactors = cu_mfactors;
+    compute_data.representants = cu_representants;
     compute_data.dim = point_dim;
 
     update_data.to_update = cu_updates;
@@ -27,6 +28,7 @@ void clustering_context_t::initialize(bool is_final_context, bool normalize_flag
     initialize_neighbors = true;
     is_final = is_final_context;
     normalize = normalize_flag;
+    quick = quick_flag;
 
     neighbor_info.stream = shared.streams[0];
     rest_info = kernel_info(neighbor_info.grid_dim / 2, 1024, 0, shared.streams[1]);
@@ -115,8 +117,8 @@ std::vector<gmhc::res_t> clustering_context_t::run()
 void clustering_context_t::copy_points(chunk_t min)
 {
     float* new_points;
-
-    CUCH(cudaMalloc(&new_points, (cluster_data[min.min_i].size + cluster_data[min.min_j].size) * point_dim * sizeof(float)));
+    auto new_size = cluster_data[min.min_i].size + cluster_data[min.min_j].size;
+    CUCH(cudaMalloc(&new_points, new_size * point_dim * sizeof(float)));
 
     CUCH(cudaMemcpyAsync(new_points,
         cluster_data[min.min_i].cu_points,
@@ -128,6 +130,15 @@ void clustering_context_t::copy_points(chunk_t min)
         cluster_data[min.min_j].size * point_dim * sizeof(float),
         cudaMemcpyDeviceToDevice,
         rest_info.stream));
+
+    if (!quick) {
+        cluster_representants_t tmp { new_points, new_size };
+        CUCH(cudaMemcpyAsync(cu_representants + min.min_i,
+            &tmp,
+            sizeof(cluster_representants_t),
+            cudaMemcpyHostToDevice,
+            rest_info.stream));
+    }
 
     CUCH(cudaFree(cluster_data[min.min_i].cu_points));
     CUCH(cudaFree(cluster_data[min.min_j].cu_points));
@@ -146,6 +157,13 @@ void clustering_context_t::move_clusters(csize_t pos)
         sizeof(float) * point_dim,
         cudaMemcpyKind::cudaMemcpyDeviceToDevice,
         neighbor_info.stream));
+
+    if (!quick)
+        CUCH(cudaMemcpyAsync(cu_representants + pos,
+            cu_representants + end_idx,
+            sizeof(cluster_representants_t),
+            cudaMemcpyKind::cudaMemcpyDeviceToDevice,
+            neighbor_info.stream));
 
     cluster_data[pos] = cluster_data[end_idx];
 
@@ -405,9 +423,16 @@ float clustering_context_t::recompute_dist(pasgn_t expected_id)
         j = idxs[0];
     }
 
+    cluster_representants_t lhs_representant, rhs_representant;
+
+    CUCH(cudaMemcpy(&lhs_representant, cu_representants + i, sizeof(cluster_representants_t), cudaMemcpyDeviceToHost));
+    CUCH(cudaMemcpy(&rhs_representant, cu_representants + j, sizeof(cluster_representants_t), cudaMemcpyDeviceToHost));
+
     float dist = run_point_maha(cu_centroids + point_dim * j,
         cu_centroids + point_dim * i,
         point_dim,
+        lhs_representant,
+        rhs_representant,   
         cu_inverses + icov_size * j,
         cu_inverses + icov_size * i,
         cu_mfactors + j,
