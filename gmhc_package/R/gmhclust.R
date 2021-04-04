@@ -11,7 +11,7 @@
 #' @param normalize Boolean; if TRUE, cluster size
 #' will be ignored when computing Mahalanobis distance from the cluster.
 #' @return Returns hclust object that describes the clustering process
-gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", normalize=FALSE) {
+gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", normalize=FALSE, quick=FALSE) {
 
 	if (!is.double(dataMatrix))
 		stop("argument dataMatrix must be real")
@@ -19,6 +19,8 @@ gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", norma
 		stop("argument threshold must be real value in <0,1>")
 	if (!is.logical(normalize))
 		stop("argument normalize must be logical")
+	if (!is.logical(quick))
+		stop("argument quick must be logical")
 
 	if (subthreshHandling == "mahal")
 		kind = 0
@@ -40,7 +42,7 @@ gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", norma
     height<-rep(0.0, count-1)
     ordering<-rep(0L, count)
 
-	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, as.integer(kind), normalize, m=merge, h=height, o=ordering)
+	res<-.C('c_gmhclust', dataMatrix, count, dim, threshold, as.integer(kind), normalize, quick, m=merge, h=height, o=ordering)
 
 	clust<-list(merge=res$m,height=res$h,order=res$o,labels=rownames(dataMatrix),
         method='mahalanobis-average',dist.method='euclidean')

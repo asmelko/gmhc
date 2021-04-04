@@ -46,6 +46,7 @@ extern "C"
         const double* mahalanobis_threshold,
         const int* subthreshold_kind,
         const bool* normalize,
+        const bool* quick,
         int* merging,
         double* heights,
         int* ordering)
@@ -62,7 +63,7 @@ extern "C"
         for (size_t i = 0; i < data.size(); ++i)
             data[i] = (float)data_points[i];
 
-        bool ok = gmhclust.initialize(data.data(), size, dim, threshold, kind, *normalize);
+        bool ok = gmhclust.initialize(data.data(), size, dim, threshold, kind, *normalize, *quick);
 
         if (!ok)
             return;
