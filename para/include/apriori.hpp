@@ -50,17 +50,12 @@ struct clustering_context_t
     // flag that states that neighbor array needs to be initialized
     bool initialize_neighbors;
 
-    // device point array
-    float* cu_points;
     // device centroid array
     float* cu_centroids;
     // device inverse array
     float* cu_inverses;
     // device multiplication factor array
     float* cu_mfactors;
-
-    // device assignments array
-    asgn_t* cu_point_asgns;
 
     // device update array
     csize_t* cu_updates;
@@ -97,8 +92,9 @@ private:
     // reorders data so the last array element is moved to the index pos
     void move_clusters(csize_t pos);
     // updates data for new cluster
-    void update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id);
+    void update_iteration_device();
     void update_iteration_host(chunk_t min);
+    void copy_points(chunk_t min);
     // computes inverse covariance matrix for new cluster
     void compute_icov(csize_t pos);
     // computes weight factor for new cluster

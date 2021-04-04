@@ -96,13 +96,13 @@ std::vector<gmhc::res_t> clustering_context_t::run()
         if (cluster_count == 2 && is_final)
             break;
 
-        asgn_t new_id = shared.id;
+        copy_points(min);
 
         update_iteration_host(min);
 
         move_clusters(min.min_j);
 
-        update_iteration_device(merged_ids.first, merged_ids.second, new_id);
+        update_iteration_device();
 
         // verify
         if (vld)
@@ -110,6 +110,28 @@ std::vector<gmhc::res_t> clustering_context_t::run()
     }
 
     return res;
+}
+
+void clustering_context_t::copy_points(chunk_t min)
+{
+    float* new_points;
+
+    CUCH(cudaMalloc(&new_points, (cluster_data[min.min_i].size + cluster_data[min.min_j].size) * point_dim * sizeof(float)));
+
+    CUCH(cudaMemcpyAsync(new_points,
+        cluster_data[min.min_i].cu_points,
+        cluster_data[min.min_i].size * point_dim * sizeof(float),
+        cudaMemcpyDeviceToDevice,
+        rest_info.stream));
+    CUCH(cudaMemcpyAsync(new_points + cluster_data[min.min_i].size * point_dim,
+        cluster_data[min.min_j].cu_points,
+        cluster_data[min.min_j].size * point_dim * sizeof(float),
+        cudaMemcpyDeviceToDevice,
+        rest_info.stream));
+
+    CUCH(cudaFree(cluster_data[min.min_i].cu_points));
+    CUCH(cudaFree(cluster_data[min.min_j].cu_points));
+    cluster_data[min.min_i].cu_points = new_points;
 }
 
 void clustering_context_t::move_clusters(csize_t pos)
@@ -170,9 +192,8 @@ void clustering_context_t::update_iteration_host(chunk_t min)
     }
 }
 
-void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merged_B, asgn_t new_id)
+void clustering_context_t::update_iteration_device()
 {
-    shared.timer.record(shared.timer.nei_rest_start, neighbor_info.stream);
     // start computing neighbor of all but new cluster
     if (!need_recompute_neighbors())
     {
@@ -181,17 +202,11 @@ void clustering_context_t::update_iteration_device(asgn_t merged_A, asgn_t merge
         run_update_neighbors<shared_apriori_data_t::neighbors_size>(
             compute_data, cu_tmp_neighbors, cu_neighbors, cluster_count, update_data, use_eucl, neighbor_info);
     }
-    shared.timer.record(shared.timer.nei_rest_stop, neighbor_info.stream);
 
     auto new_idx = update_data.old_a;
 
-    // updating point asgns
-    run_merge_clusters(
-        cu_point_asgns, shared.cu_asgn_idxs_, shared.cu_idxs_size_, point_size, merged_A, merged_B, new_id, rest_info);
-
     // compute new centroid
-    run_centroid(cu_points,
-        shared.cu_asgn_idxs_,
+    run_centroid(cluster_data[new_idx].cu_points,
         shared.cu_work_centroid,
         cu_centroids + new_idx * point_dim,
         cluster_data[new_idx].size,
@@ -213,20 +228,29 @@ void clustering_context_t::compute_covariance(csize_t pos, float wf)
     }
     else
     {
-        assign_constant_storage(cu_centroids + pos * point_dim,
-            point_dim * sizeof(float),
-            cudaMemcpyKind::cudaMemcpyDeviceToDevice,
-            rest_info.stream);
-
-        shared.timer.record(shared.timer.cov_start, rest_info.stream);
-
-        run_covariance(cu_points,
-            shared.cu_asgn_idxs_,
-            shared.cu_work_covariance,
-            cov,
-            cluster_data[pos].size,
+        run_minus(cluster_data[pos].cu_points,
+            cu_centroids + pos * point_dim,
+            shared.cu_tmp_points,
             point_dim,
+            cluster_data[pos].size,
             rest_info);
+
+        float alpha = 1 / (float)(cluster_data[pos].size - 1);
+        float beta = 0;
+        BUCH(cublasSgemm(shared.cublas_handle,
+            cublasOperation_t::CUBLAS_OP_T,
+            cublasOperation_t::CUBLAS_OP_N,
+            point_dim,
+            point_dim,
+            cluster_data[pos].size,
+            &alpha,
+            shared.cu_tmp_points,
+            cluster_data[pos].size,
+            shared.cu_tmp_points,
+            cluster_data[pos].size,
+            &beta,
+            cov,
+            point_dim));
 
         shared.timer.record(shared.timer.cov_stop, rest_info.stream);
 
@@ -341,7 +365,7 @@ void clustering_context_t::verify(pasgn_t id_pair, float dist)
 
     vld->set_icov(shared.cu_tmp_icov);
     vld->set_icmf(cu_mfactors + update_data.old_a);
-    vld->set_asgns(cu_point_asgns);
+    //vld->set_asgns(cu_point_asgns);
 
     // copy centroid
     std::vector<float> tmp_centr;

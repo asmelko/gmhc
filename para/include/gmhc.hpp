@@ -19,6 +19,7 @@ struct shared_apriori_data_t
 
     // device variables to compute inverse matrix
     float* cu_tmp_icov;
+    float* cu_tmp_points;
     int* cu_info;
     float* cu_workspace;
     int workspace_size;
@@ -36,8 +37,9 @@ struct shared_apriori_data_t
     // number of closest neighbors for each cluster
     static constexpr csize_t neighbors_size = 1;
 
-    // handle to CUSOLVER library
+    // handle to CUSOLVER and CUBLAS library
     cusolverDnHandle_t cusolver_handle;
+    cublasHandle_t cublas_handle;
 
     cudaStream_t streams[2];
 
@@ -49,16 +51,12 @@ class gmhc : public hierarchical_clustering<float>
 {
     subthreshold_handling_kind subthreshold_kind_;
 
-    // device point array
-    float* cu_points_;
     // device centroid array
     float* cu_centroids_;
     // device inverse covariance matrix array
     float* cu_icov_;
     // device multiplication factor of inverse covariance matrix array
     float* cu_icov_mf_;
-    // device assignments array
-    asgn_t* cu_point_asgns_;
     // mhca normalization flag
     bool normalize_;
 

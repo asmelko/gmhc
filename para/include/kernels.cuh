@@ -10,11 +10,13 @@
 
 #define CUCH(x) cuda_check(x, __FILE__, __LINE__)
 #define SOCH(x) cuSOLVER_check(x, __FILE__, __LINE__)
+#define BUCH(x) cuBLAS_check(x, __FILE__, __LINE__)
 
 // check that halts the program if there was a cuda error
 void cuda_check(cudaError_t code, const char* file, int line);
 // check that halts the program if there was a cusolver error
 void cuSOLVER_check(cusolverStatus_t code, const char* file, int line);
+void cuBLAS_check(cublasStatus_t code, const char* file, int line);
 
 #ifdef __INTELLISENSE__
 void __syncthreads() {}
@@ -40,7 +42,6 @@ chunk_t run_reduce(const chunk_t* chunks, chunk_t* out, clustering::csize_t chun
 
 // computes centroid of a cluster
 void run_centroid(const float* points,
-    const clustering::csize_t* idxs,
     float* work_centroid,
     float* out_centroid,
     clustering::csize_t cluster_size,
@@ -53,7 +54,6 @@ void assign_constant_storage(
 
 // computes covariance of a cluster
 void run_covariance(const float* points,
-    const clustering::csize_t* assignment_idxs,
     float* work_covariance,
     float* out_covariance,
     clustering::csize_t cluster_size,
@@ -167,5 +167,8 @@ void run_compare_nei(const neighbor_t* lhs,
     clustering::csize_t new_idx);
 // debug kernel - trivial minimum retrieval algorithm
 chunk_t run_simple_min(const float* clusters, clustering::csize_t dim, clustering::csize_t count, chunk_t* out);
+
+void run_minus(
+    const float* x, const float* y, float* z, clustering::csize_t dim, clustering::csize_t count, kernel_info info);
 
 #endif

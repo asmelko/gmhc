@@ -25,6 +25,7 @@ struct cluster_data_t
 {
     clustering::asgn_t id;
     clustering::csize_t size;
+    float* cu_points;
 };
 
 // strucutre that represents a neighbor of a cluster

@@ -52,7 +52,7 @@ TEST(kernel, centroid_small)
 
     run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
 
-    run_centroid(cu_in.data, cu_idxs, cu_work_out, cu_out,1, cu_in.dim, kernel);
+    run_centroid(cu_in.data, cu_work_out, cu_out,1, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -109,7 +109,7 @@ TEST(kernel, centroid_big)
 
     start = std::chrono::system_clock::now();
 
-    run_centroid(cu_in.data, cu_idxs, cu_work_out, cu_out, (csize_t)data.points, cu_in.dim, kernel);
+    run_centroid(cu_in.data, cu_work_out, cu_out, (csize_t)data.points, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());

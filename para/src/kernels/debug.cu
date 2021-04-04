@@ -26,6 +26,16 @@ void cuSOLVER_check(cusolverStatus_t code, const char* file, int line)
     }
 }
 
+void cuBLAS_check(cublasStatus_t code, const char* file, int line)
+{
+    if (code != CUBLAS_STATUS_SUCCESS)
+    {
+        std::cerr << "cuBLAS error"
+                  << " at " << file << ":" << line;
+        exit(1);
+    }
+}
+
 __global__ void print_a(asgn_t* assignments, csize_t point_size)
 {
     for (csize_t i = 0; i < point_size; i++)

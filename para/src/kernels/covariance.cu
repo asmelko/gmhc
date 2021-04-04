@@ -17,11 +17,7 @@ void assign_constant_storage(const float* value, csize_t size, cudaMemcpyKind ki
 #define BUFF_SIZE 32
 
 template<size_t DIM_X>
-__global__ void covariance(const float* __restrict__ points,
-    const csize_t* __restrict__ asgn_idx,
-    float* __restrict__ cov_matrix,
-    csize_t count,
-    csize_t dim)
+__global__ void covariance(const float* __restrict__ points, float* __restrict__ cov_matrix, csize_t count, csize_t dim)
 {
     typedef cub::BlockReduce<float, DIM_X> BlockReduce;
     __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -41,13 +37,11 @@ __global__ void covariance(const float* __restrict__ points,
 
         for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count; idx += gridDim.x * blockDim.x)
         {
-            auto aidx = asgn_idx[idx];
-
             for (csize_t point_idx = cov_idx; point_idx < end; point_idx++)
             {
                 auto coords = compute_coordinates(dim, point_idx);
-                cov_point[point_idx - cov_idx] += (points[aidx * dim + coords.x] - expected_point[coords.x])
-                    * (points[aidx * dim + coords.y] - expected_point[coords.y]);
+                cov_point[point_idx - cov_idx] += (points[idx * dim + coords.x] - expected_point[coords.x])
+                    * (points[idx * dim + coords.y] - expected_point[coords.y]);
             }
         }
 
@@ -187,7 +181,6 @@ __global__ void compute_store_icov_mf(float* __restrict__ dest, csize_t dim, con
 
 
 void run_covariance(const float* points,
-    const csize_t* assignment_idxs,
     float* work_covariance,
     float* out_covariance,
     csize_t cluster_size,
@@ -200,17 +193,17 @@ void run_covariance(const float* points,
     grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
 
     if (block_dim == 32)
-        covariance<32><<<grid_dim, 32, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<32><<<grid_dim, 32, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
     else if (block_dim <= 64)
-        covariance<64><<<grid_dim, 64, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<64><<<grid_dim, 64, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
     else if (block_dim <= 128)
-        covariance<128><<<grid_dim, 128, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<128><<<grid_dim, 128, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
     else if (block_dim <= 256)
-        covariance<256><<<grid_dim, 256, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<256><<<grid_dim, 256, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
     else if (block_dim <= 512)
-        covariance<512><<<grid_dim, 512, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<512><<<grid_dim, 512, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
     else
-        covariance<1024><<<grid_dim, 1024, 0, info.stream>>>(points, assignment_idxs, work_covariance, cluster_size, dim);
+        covariance<1024><<<grid_dim, 1024, 0, info.stream>>>(points, work_covariance, cluster_size, dim);
 
     finish_covariance<<<1, 32, 0, info.stream>>>(work_covariance, out_covariance, grid_dim, cluster_size, dim);
 }
@@ -239,4 +232,20 @@ void run_transform_cov(float* matrix,
 void run_compute_store_icov_mf(float* dest, csize_t dim, const float* cholesky_decomp, cudaStream_t stream)
 {
     compute_store_icov_mf<<<1, 32, 0, stream>>>(dest, dim, cholesky_decomp);
+}
+
+__global__ void minus(
+    const float* __restrict__ x, const float* __restrict__ y, float* __restrict__ z, csize_t dim, csize_t count)
+{
+    for (csize_t idx = blockDim.x * blockIdx.x + threadIdx.x; idx < count * dim; idx += gridDim.x * blockDim.x)
+    {
+        auto r = idx / dim;
+        auto c = idx % dim;
+        z[c * count + r] = x[idx] - y[c];
+    }
+}
+
+void run_minus(const float* x, const float* y, float* z, csize_t dim, csize_t count, kernel_info info)
+{
+    minus<<<info.grid_dim, info.block_dim, 0, info.stream>>>(x, y, z, dim, count);
 }

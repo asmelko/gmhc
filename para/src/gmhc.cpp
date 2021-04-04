@@ -44,27 +44,33 @@ bool gmhc::initialize(const float* data_points,
     CUCH(cudaGetDeviceProperties(&deviceProp, 0));
     starting_info_ = kernel_info(deviceProp.multiProcessorCount, 512);
 
-    CUCH(cudaMalloc(&cu_points_, data_points_size * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&cu_centroids_, data_points_size * data_point_dim * sizeof(float)));
-    CUCH(cudaMalloc(&cu_point_asgns_, data_points_size * sizeof(asgn_t)));
     CUCH(cudaMalloc(&cu_neighs_, sizeof(neighbor_t) * common_.neighbors_size * data_points_size));
     CUCH(cudaMalloc(
         &cu_tmp_neighs_, sizeof(neighbor_t) * common_.neighbors_size * data_points_size * starting_info_.grid_dim));
     CUCH(cudaMalloc(&cu_icov_, sizeof(float) * icov_size * data_points_size));
     CUCH(cudaMalloc(&cu_icov_mf_, sizeof(float) * data_points_size));
     CUCH(cudaMalloc(&cu_update_, data_points_size * sizeof(csize_t)));
+
     cluster_data_ = new cluster_data_t[data_points_size];
+    for (size_t i = 0; i < data_points_size; i++)
+    {
+        CUCH(cudaMalloc(&cluster_data_[i].cu_points, data_point_dim * sizeof(float)));
+    }
 
     CUCH(cudaMalloc(&common_.cu_min, sizeof(chunk_t)));
     CUCH(cudaMalloc(&common_.cu_tmp_icov, 2 * data_point_dim * data_point_dim * sizeof(float)));
+    CUCH(cudaMalloc(&common_.cu_tmp_points, data_points_size * data_point_dim * sizeof(float)));
     CUCH(cudaMalloc(&common_.cu_upd_size, sizeof(csize_t)));
     CUCH(cudaMalloc(&common_.cu_info, sizeof(int)));
     SOCH(cusolverDnCreate(&common_.cusolver_handle));
+    BUCH(cublasCreate(&common_.cublas_handle));
 
     CUCH(cudaStreamCreate(common_.streams));
     CUCH(cudaStreamCreate(common_.streams + 1));
 
     SOCH(cusolverDnSetStream(common_.cusolver_handle, common_.streams[1]));
+    BUCH(cublasSetStream(common_.cublas_handle, common_.streams[1]));
 
     int workspace_size_f, workspace_size_i;
     SOCH(cusolverDnSpotrf_bufferSize(common_.cusolver_handle,
@@ -99,18 +105,20 @@ bool gmhc::initialize(const float* data_points,
     {
         apriori_count_ = 0;
 
-        CUCH(cudaMemcpy(cu_points_,
-            data_points,
-            data_points_size * data_point_dim * sizeof(float),
-            cudaMemcpyKind::cudaMemcpyHostToDevice));
         CUCH(cudaMemcpy(cu_centroids_,
             data_points,
             data_points_size * data_point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyHostToDevice));
-        run_set_default_asgn(cu_point_asgns_, data_points_size);
 
         for (asgn_t i = 0; i < data_points_size; ++i)
-            cluster_data_[i] = cluster_data_t { i, 1 };
+        {
+            cluster_data_[i].id = i;
+            cluster_data_[i].size = 1;
+            CUCH(cudaMemcpy(cluster_data_[i].cu_points,
+                data_points + i * data_point_dim,
+                data_point_dim * sizeof(float),
+                cudaMemcpyKind::cudaMemcpyHostToDevice));
+        }
 
         apr_ctxs_.emplace_back(common_);
 
@@ -138,12 +146,9 @@ void gmhc::set_apriori(clustering_context_t& cluster, csize_t offset, csize_t si
     cluster.cu_neighbors = cu_neighs_ + offset * common_.neighbors_size;
     cluster.cu_tmp_neighbors = cu_tmp_neighs_ + offset * common_.neighbors_size * starting_info_.grid_dim;
 
-    cluster.cu_points = cu_points_ + offset * point_dim;
     cluster.cu_centroids = cu_centroids_ + offset * point_dim;
     cluster.cu_inverses = cu_icov_ + offset * icov_size;
     cluster.cu_mfactors = cu_icov_mf_ + offset;
-
-    cluster.cu_point_asgns = cu_point_asgns_ + offset;
 
     cluster.cu_updates = cu_update_ + offset;
     cluster.cluster_data = cluster_data_ + offset;
@@ -185,15 +190,17 @@ void gmhc::initialize_apriori(const asgn_t* apriori_assignments, validator* vld)
     {
         asgn_t apriori_asgn = apriori_assignments[i];
         auto next = indices[order[apriori_asgn]]++;
-        CUCH(cudaMemcpy(cu_points_ + next * point_dim,
+        CUCH(cudaMemcpy(cu_centroids_ + next * point_dim,
             points + i * point_dim,
             point_dim * sizeof(float),
             cudaMemcpyKind::cudaMemcpyHostToDevice));
-        CUCH(cudaMemcpy(cu_point_asgns_ + next, &i, sizeof(asgn_t), cudaMemcpyKind::cudaMemcpyHostToDevice));
-        cluster_data_[next] = cluster_data_t { i, 1 };
+        cluster_data_[next].id = i;
+        cluster_data_[next].size = 1;
+        CUCH(cudaMemcpy(&cluster_data_[next].cu_points,
+            points + i * point_dim,
+            point_dim * sizeof(float),
+            cudaMemcpyKind::cudaMemcpyHostToDevice));
     }
-    CUCH(cudaMemcpy(
-        cu_centroids_, cu_points_, points_size * point_dim * sizeof(float), cudaMemcpyKind::cudaMemcpyDeviceToDevice));
 
     // initialize apriori
     for (size_t i = 0; i < sizes.size(); ++i)
@@ -267,7 +274,7 @@ std::vector<gmhc::res_t> gmhc::run()
 
     // compute rest
     auto ctx_ret = final.run();
-    
+
     if (apriori_count_)
         copy(ret, ctx_ret);
     else
@@ -278,9 +285,7 @@ std::vector<gmhc::res_t> gmhc::run()
 
 void gmhc::free()
 {
-    CUCH(cudaFree(cu_points_));
     CUCH(cudaFree(cu_centroids_));
-    CUCH(cudaFree(cu_point_asgns_));
     CUCH(cudaFree(cu_neighs_));
     CUCH(cudaFree(cu_tmp_neighs_));
     CUCH(cudaFree(cu_icov_));

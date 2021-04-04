@@ -58,7 +58,7 @@ TEST(kernel, covariance_small)
 
     run_merge_clusters(cu_asgn, cu_idxs, cu_size, (csize_t)data.points, (asgn_t)0, (asgn_t)0, (asgn_t)0, kernel);
 
-    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, 2, cu_in.dim, kernel);
+    run_covariance(cu_in.data, cu_work, cu_out, 2, cu_in.dim, kernel);
 
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
@@ -126,7 +126,7 @@ TEST(kernel, covariance_big)
     std::cout << "gpu prepare time: " << elapsed_seconds.count() << "\n";
 
     start = std::chrono::system_clock::now();
-    run_covariance(cu_in.data, cu_idxs, cu_work, cu_out, (csize_t)data.points, cu_in.dim, kernel);
+    run_covariance(cu_in.data, cu_work, cu_out, (csize_t)data.points, cu_in.dim, kernel);
     CUCH(cudaGetLastError());
     CUCH(cudaDeviceSynchronize());
     end = std::chrono::system_clock::now();
