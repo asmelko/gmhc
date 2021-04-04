@@ -36,10 +36,7 @@ __inline__ __device__ float maha_dist(const cluster_representants_t representant
         sum += sqrtf(tmp_point / mf);
     }
 
-    if (isnan(sum) || isinf(sum))
-        return FLT_MAX;
-    else
-        return sum / representants.size;
+    return sum / representants.size;
 }
 
 template<csize_t N>
@@ -64,7 +61,10 @@ __inline__ __device__ void point_neighbors_mat_warp(neighbor_t* __restrict__ nei
 
     if (threadIdx.x % warpSize == 0)
     {
-        dist /= 2;
+        if (isnan(dist) || isinf(dist))
+            dist = FLT_MAX;
+        else
+            dist = dist / 2;
 
         if (new_idx)
             add_neighbor_disruptive<N>(neighbors, neighbor_t { dist, idx });

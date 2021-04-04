@@ -12,10 +12,7 @@ __inline__ __device__ float euclidean_distance(
     for (csize_t i = 0; i < representants.size; i++)
         dist += euclidean_norm(centroid, representants.cu_points + i * dim, dim);
 
-    if ((isinf(dist) || isnan(dist)))
-        dist = FLT_MAX;
-    else
-        dist /= representants.size;
+    dist /= representants.size;
 
     return dist;
 }
@@ -33,7 +30,10 @@ __inline__ __device__ void point_neighbors_thread(neighbor_t* __restrict__ neigh
     float dist = euclidean_distance(this_representants, curr_centroid, dim);
     dist += euclidean_distance(curr_representants, this_centroid, dim);
     
-    dist /= 2;
+    if ((isinf(dist) || isnan(dist)))
+        dist = FLT_MAX;
+    else
+        dist /= 2;
 
     if (new_idx)
         add_neighbor_disruptive<N>(neighbors, neighbor_t { dist, idx });
