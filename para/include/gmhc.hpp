@@ -35,7 +35,7 @@ struct shared_apriori_data_t
     csize_t* cu_idxs_size_;
 
     // number of closest neighbors for each cluster
-    static constexpr csize_t neighbors_size = 1;
+    static constexpr csize_t neighbors_size = 3;
 
     // handle to CUSOLVER and CUBLAS library
     cusolverDnHandle_t cusolver_handle;
