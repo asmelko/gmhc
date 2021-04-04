@@ -8,7 +8,8 @@ gmhclust(
   dataMatrix,
   threshold = 0.5,
   subthreshHandling = "mahal",
-  normalize = FALSE
+  normalize = FALSE,
+  quick = FALSE
 )
 }
 \arguments{
@@ -24,11 +25,13 @@ it is a method how subthreshold clusters distort the space around them - i.e. ho
 
 \item{normalize}{Boolean; if TRUE, cluster size
 will be ignored when computing Mahalanobis distance from the cluster.}
+
+\item{quick}{Boolean; If TRUE, inter-cluster
+distances will be computed using centroids only. If FALSE,
+all observations contained in the clusters will be used.}
 }
 \value{
-Returns list(merge, height);
-merge is the (n-1) x 2 matrix describing the iterative merging of observations and clusters (column-major style)
-height is the 1 x (n-1) matrix that stores the heights of the n-1 clusters
+Returns hclust object that describes the clustering process
 }
 \description{
 Run Hierararchical Mahalanobis clustering accelerated on GPU

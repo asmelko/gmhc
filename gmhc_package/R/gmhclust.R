@@ -10,6 +10,9 @@
 ## their size and shape gets reflected in distance computation.
 #' @param normalize Boolean; if TRUE, cluster size
 #' will be ignored when computing Mahalanobis distance from the cluster.
+#' @param quick Boolean; If TRUE, inter-cluster
+#' distances will be computed using centroids only. If FALSE,
+#' all observations contained in the clusters will be used.
 #' @return Returns hclust object that describes the clustering process
 gmhclust <- function(dataMatrix, threshold=0.5, subthreshHandling="mahal", normalize=FALSE, quick=FALSE) {
 
