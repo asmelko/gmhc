@@ -225,7 +225,10 @@ bool validator::verify(pasgn_t pair_v, float dist_v, const float* centroid_v, re
     printf("\r%d ", iteration_);
     fflush(stderr);
 
-    auto [min_pair, new_clust, min_dist] = iterate(std::make_pair(pair_v, dist_v), recompute);
+    auto iteration_res = iterate(std::make_pair(pair_v, dist_v), recompute);
+    auto min_pair = std::get<0>(iteration_res);
+    auto new_clust = std::get<1>(iteration_res);
+    auto min_dist = std::get<2>(iteration_res);
 
     if (min_pair != pair_v)
     {
