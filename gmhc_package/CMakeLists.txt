@@ -10,7 +10,8 @@ generate_export_header(c_gmhclust)
 
 set_target_properties(c_gmhclust PROPERTIES
     CUDA_ARCHITECTURES OFF
-    POSITION_INDEPENDENT_CODE ON)
+    POSITION_INDEPENDENT_CODE ON
+    PREFIX "")
 
 TARGET_LINK_LIBRARIES(c_gmhclust para)
 
