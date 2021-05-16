@@ -30,7 +30,7 @@ std::string enum_to_string(clustering::subthreshold_handling_kind kind)
 using microbench_t = std::tuple<float, float>;
 
 void print_time(std::vector<std::chrono::duration<double>>& time,
-    microbench_t micro_time,
+    microbench_t,// micro_time,
     clustering::subthreshold_handling_kind kind)
 {
     std::cout << enum_to_string(kind) << "\t";

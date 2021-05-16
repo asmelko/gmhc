@@ -38,14 +38,14 @@ template <csize_t N>
 void tune_info(kernel_info& info, size_t size, bool use_eucl, size_t dim)
 {
     auto multiplier = use_eucl ? 1 : 32;
-    auto block_dim = ((size + 31) / 32) * 32 * multiplier;
-    auto grid_dim = (block_dim + 1023) / 1024;
+    auto block_dim = (unsigned int)((size + 31) / 32) * 32 * multiplier;
+    auto grid_dim = (unsigned int)(block_dim + 1023) / 1024;
     info.block_dim = block_dim > info.block_dim ? info.block_dim : block_dim;
     info.grid_dim = grid_dim > info.grid_dim ? info.grid_dim : grid_dim;
     
     auto warps = info.block_dim / 32;
     auto icov_size = use_eucl ? 0 : (dim + 1) * dim / 2;
-    csize_t shared_new = (icov_size + dim) * sizeof(float);
+    csize_t shared_new = (csize_t)(icov_size + dim) * sizeof(float);
     info.shared_size = std::max(shared_new, warps * (csize_t)sizeof(neighbor_t) * N);
 }
 
