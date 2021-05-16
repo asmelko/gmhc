@@ -1,6 +1,6 @@
 #include <stack>
 
-#include "../para/include/gmhc.hpp"
+#include "gmhc.hpp"
 #include "c_gmhclust_export.h"
 
 using namespace clustering;

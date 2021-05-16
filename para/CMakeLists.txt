@@ -34,6 +34,20 @@ ADD_EXECUTABLE(gmhclust "main.cpp")
 
 TARGET_LINK_LIBRARIES(gmhclust para)
 
+include(GenerateExportHeader)
+
+ADD_LIBRARY(c_gmhclust SHARED "c_gmhclust.cpp" ${PARA_SRC})
+TARGET_INCLUDE_DIRECTORIES(c_gmhclust PUBLIC include ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} "${PROJECT_BINARY_DIR}")
+TARGET_LINK_LIBRARIES(c_gmhclust cusolver cublas)
+TARGET_COMPILE_FEATURES(c_gmhclust PUBLIC cxx_std_14)
+
+set_target_properties(c_gmhclust PROPERTIES
+	CUDA_SEPARABLE_COMPILATION ON
+	POSITION_INDEPENDENT_CODE ON
+	PREFIX "")
+
+generate_export_header(c_gmhclust)
+
 IF (BUILD_GMHC_TESTS)
 	INCLUDE(GoogleTest)
 
