@@ -1,5 +1,11 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.8.0)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.18)
 PROJECT(gmhc_package CXX CUDA)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 include(GenerateExportHeader)
 include_directories("${PROJECT_BINARY_DIR}")
@@ -9,7 +15,6 @@ ADD_LIBRARY(c_gmhclust SHARED "src/c_gmhclust.cpp")
 generate_export_header(c_gmhclust)
 
 set_target_properties(c_gmhclust PROPERTIES
-    CUDA_ARCHITECTURES OFF
     POSITION_INDEPENDENT_CODE ON
     PREFIX "")
 
